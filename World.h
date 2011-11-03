@@ -35,6 +35,8 @@ private:
     void processOutputs();
     void brainsTick();  //takes in[] to out[] for every agent
     
+    void growFood(int x, int y);
+
     void writeReport();
     
     void reproduce(int ai, float MR, float MR2);
@@ -54,6 +56,8 @@ private:
     int fy;
     float food[conf::WIDTH/conf::CZ][conf::HEIGHT/conf::CZ];
     bool CLOSED; //if environment is closed, then no random bots are added per time interval
+
+    bool touch;
 };
 
 #endif // WORLD_H

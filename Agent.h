@@ -27,6 +27,8 @@ public:
     float health; //in [0,2]. I cant remember why.
     float angle; //of the bot
     
+    bool touch; //is bot close to wall?
+
     float red;
     float gre;
     float blu;

@@ -9,7 +9,7 @@ namespace conf {
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
     
-    const int NUMBOTS=30; //initially, and minimally
+    const int NUMBOTS=50; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
     const float BOTSPEED= 0.1;
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
@@ -25,13 +25,13 @@ namespace conf {
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
     const float METAMUTRATE2= 0.05;
 
-    const float FOODGROWTH= 0;//0.00001; //how quickly does food grow on a square?
+    const float FOODGROWTH= 0.0005; //how quickly does food grow on a square?
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
-    const int FOODADDFREQ= 30; //how often does random square get to full food?
+    const int FOODADDFREQ= 60; //how often does random square get to full food?
 
-    const float FOODTRANSFER= 0.001; //how much is transfered between two agents trading food? per iteration
+    const float FOODTRANSFER= 0.00325; //how much is transfered between two agents trading food? per iteration
     const float FOOD_SHARING_DISTANCE= 50; //how far away is food shared between bots?
 
 

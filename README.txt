@@ -34,6 +34,9 @@ $ make
 To execute ScriptBots simply type the following in the build directory:
 $ ./scriptbots
 
+For VirualBox:
+LIBGL_ALWAYS_INDRECT=1 ./scriptbots
+
 For Windows: 
 Follow basically the same steps, but after running cmake open up the VS solution (.sln) file it generates and compile the project from VS.
 

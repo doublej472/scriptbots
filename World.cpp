@@ -1,5 +1,5 @@
 #include "World.h"
-
+#include <stdio.h>
 #include <ctime>
 
 #include "settings.h"
@@ -14,17 +14,25 @@ World::World() :
         idcounter(0),
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ),
-        CLOSED(false)
+        CLOSED(true)
 {
     addRandomBots(conf::NUMBOTS);
-    //inititalize food layer
 
+    printf("dave here");
+    //srand(time(0));
+
+    //inititalize food layer
     for (int x=0;x<FW;x++) {
-        for (int y=0;y<FH;y++) {
-            food[x][y]= 0;
-        }
+       for (int y=0;y<FH;y++) {
+
+        	//printf(" random = %f",randf(0, 1));
+
+    	   //if(randf(0,1) > .8)
+    		   food[x][y] = conf::FOODMAX; //randf(0, conf::FOODMAX);
+       }
     }
 }
+
 
 void World::update()
 {
@@ -37,16 +45,58 @@ void World::update()
             agents[i].age+= 1;    //agents age...
         }
     }
-    if (modcounter%1000==0) writeReport();
+
+    if (modcounter%1000==0)
+    	writeReport();
+
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
     }
-    if (modcounter%conf::FOODADDFREQ==0) {
+
+    //Add Random food
+    /*if (modcounter%conf::FOODADDFREQ==0) {
         fx=randi(0,FW);
         fy=randi(0,FH);
         food[fx][fy]= conf::FOODMAX;
+    }*/
+
+    //GROW food enviroment model
+    if (modcounter%conf::FOODADDFREQ==0) {
+		for (int x=0;x<FW;x++) {
+			for (int y=0;y<FH;y++) {
+				//only grow if not dead
+				if(food[x][y] > 0) {
+
+					//Grow current square
+					growFood(x,y);
+
+					//Grow surrounding squares sometimes and only if well grown
+					if(randf(0,food[x][y]) > .1){
+						//Spread to surrounding squares
+						growFood(x+1,y-1);
+						growFood(x+1,y);
+						growFood(x+1,y+1);
+						growFood(x-1,y-1);
+						growFood(x-1,y);
+						growFood(x-1,y+1);
+						growFood(x,y-1);
+						growFood(x,y+1);
+					}
+
+				}
+			}
+		}
     }
+
+    //grow food evenly
+    /*for (int x=0;x<FW;x++) {
+        for (int y=0;y<FH;y++) {
+            food[x][y]+= conf::FOODGROWTH; //food grows
+            if (food[x][y]>conf::FOODMAX)
+            	food[x][y]=conf::FOODMAX; //cap at conf::FOODMAX
+        }
+    }*/
 
     //give input to every agent. Sets in[] array
     setInputs();
@@ -99,9 +149,17 @@ void World::update()
                         }
                     }
                 }
+            }else{
+            	//if no agents are around to eat it, it becomes regular food
+            	//food[agents[i].pos.x,agents[i].pos.y] = conf.FOODMAX;
+
+            	int cx= (int) agents[i].pos.x/conf::CZ;
+            	int cy= (int) agents[i].pos.y/conf::CZ;
+            	food[cx][cy] = conf::FOODMAX;
             }
 
         }
+
     }
     vector<Agent>::iterator iter= agents.begin();
     while (iter != agents.end()) {
@@ -122,12 +180,6 @@ void World::update()
     }
 
     //environment tick
-    for (int x=0;x<FW;x++) {
-        for (int y=0;y<FH;y++) {
-            food[x][y]+= conf::FOODGROWTH; //food grows
-            if (food[x][y]>conf::FOODMAX)food[x][y]=conf::FOODMAX; //cap at conf::FOODMAX
-        }
-    }
 
     //add new agents, if environment isn't closed
     if (!CLOSED) {
@@ -147,11 +199,18 @@ void World::update()
 
 
 }
+//Grow food around square
+void World::growFood(int x, int y)
+{
+	//check if food square is inside the world
+	if(food[x][y] < conf::FOODMAX && x >= 0 && x < FW && y >= 0 && y <FH)
+		food[x][y] += conf::FOODGROWTH;
+}
 
 void World::setInputs()
 {
-    //P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING     BLOOD_SENSOR
-    //0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18           19
+    //P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING     BLOOD_SENSOR	TOUCH
+    //0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18           19			20
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
@@ -187,12 +246,16 @@ void World::setInputs()
         //BLOOD ESTIMATOR
         float blood= 0;
 
+        //SMELL SOUND EYES
         for (int j=0;j<agents.size();j++) {
             if (i==j) continue;
             Agent* a2= &agents[j];
 
-            if (a->pos.x<a2->pos.x-conf::DIST || a->pos.x>a2->pos.x+conf::DIST
-                    || a->pos.y>a2->pos.y+conf::DIST || a->pos.y<a2->pos.y-conf::DIST) continue;
+            if (	a->pos.x < a2->pos.x - conf::DIST ||
+            		a->pos.x > a2->pos.x + conf::DIST ||
+            		a->pos.y > a2->pos.y + conf::DIST ||
+            		a->pos.y < a2->pos.y - conf::DIST)
+            	continue;
 
             float d= (a->pos-a2->pos).length();
 
@@ -269,6 +332,14 @@ void World::setInputs()
             }
         }
 
+        //TOUCH (wall)
+        if(	a->pos.x < 2 || a->pos.x > conf::WIDTH - 3 ||
+        	a->pos.y < 2 || a->pos.y > conf::HEIGHT - 3 )
+        	//they are very close to the wall (1 or 2 pixels)
+        	touch = 1;
+        else
+			touch = 0;
+
         a->in[0]= cap(p1);
         a->in[1]= cap(r1);
         a->in[2]= cap(g1);
@@ -287,6 +358,7 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
+        a->in[20]= cap(touch);
     }
 }
 
@@ -348,10 +420,16 @@ void World::processOutputs()
         if (a->angle>M_PI) a->angle= -M_PI + (a->angle-M_PI);
 
         //wrap around the map
-        if (a->pos.x<0) a->pos.x= conf::WIDTH+a->pos.x;
+        /*if (a->pos.x<0) a->pos.x= conf::WIDTH+a->pos.x;
         if (a->pos.x>=conf::WIDTH) a->pos.x= a->pos.x-conf::WIDTH;
         if (a->pos.y<0) a->pos.y= conf::HEIGHT+a->pos.y;
-        if (a->pos.y>=conf::HEIGHT) a->pos.y= a->pos.y-conf::HEIGHT;
+        if (a->pos.y>=conf::HEIGHT) a->pos.y= a->pos.y-conf::HEIGHT;*/
+
+        //have peetree dish borders
+        if (a->pos.x<0) a->pos.x = 0;
+		if (a->pos.x>=conf::WIDTH) a->pos.x= conf::WIDTH - 1;
+		if (a->pos.y<0) a->pos.y= 0;
+		if (a->pos.y>=conf::HEIGHT) a->pos.y= conf::HEIGHT - 1;
     }
 
     //process food intake for herbivors
@@ -394,15 +472,16 @@ void World::processOutputs()
     if (modcounter%2==0) { //we dont need to do this TOO often. can save efficiency here since this is n^2 op in #agents
         for (int i=0;i<agents.size();i++) {
             for (int j=0;j<agents.size();j++) {
-                if (i==j || agents[i].spikeLength<0.2 || agents[i].w1<0.3 || agents[i].w2<0.3) continue;
+                if (i==j || agents[i].spikeLength<0.2 || agents[i].w1<0.3 || agents[i].w2<0.3)
+                	continue;
                 float d= (agents[i].pos-agents[j].pos).length();
 
                 if (d<2*conf::BOTRADIUS) {
                     //these two are in collision and agent i has extended spike and is going decent fast!
                     Vector2f v(1,0);
                     v.rotate(agents[i].angle);
-                    float diff= v.angle_between(agents[j].pos-agents[i].pos);
-                    if (fabs(diff)<M_PI/8) {
+                    //float diff= v.angle_between(agents[j].pos-agents[i].pos);
+                    //if (fabs(diff)<M_PI/8) {
                         //bot i is also properly aligned!!! that's a hit
                         float mult=1;
                         if (agents[i].boost) mult= conf::BOOSTSIZEMULT;
@@ -423,7 +502,7 @@ void World::processOutputs()
                             //this is done so that the other agent cant right away "by accident" attack this agent
                             agents[j].spikeLength= 0;
                         }
-                    }
+                    //}
                 }
             }
         }

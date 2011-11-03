@@ -12,6 +12,7 @@ Agent::Agent()
     pos= Vector2f(randf(0,conf::WIDTH),randf(0,conf::HEIGHT));
     angle= randf(-M_PI,M_PI);
     health= 1.0+randf(0,0.1);
+    touch = 0;
     age=0;
     spikeLength=0;
     red= 0;
