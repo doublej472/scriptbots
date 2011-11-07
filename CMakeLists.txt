@@ -24,6 +24,7 @@ set( SB_SRCS
     GLView.cpp
     main.cpp
     DWRAONBrain.cpp
+    MLPBrain.cpp
     Agent.cpp
     World.cpp
     vmath.cpp )

@@ -6,13 +6,6 @@
 
 #include <vector>
 
-#define INPUTSIZE 21
-#define OUTPUTSIZE 9
-
-#define BRAINSIZE 140
-#define CONNS 3
-
-
 class Box {
 public:
 

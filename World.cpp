@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "helpers.h"
 #include "vmath.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -18,17 +19,14 @@ World::World() :
 {
     addRandomBots(conf::NUMBOTS);
 
-    printf("dave here");
     //srand(time(0));
 
     //inititalize food layer
     for (int x=0;x<FW;x++) {
        for (int y=0;y<FH;y++) {
 
-        	//printf(" random = %f",randf(0, 1));
-
     	   //if(randf(0,1) > .8)
-    		   food[x][y] = conf::FOODMAX; //randf(0, conf::FOODMAX);
+   		   food[x][y] = conf::FOODMAX; //randf(0, conf::FOODMAX);
        }
     }
 }
@@ -54,49 +52,51 @@ void World::update()
         current_epoch++;
     }
 
-    //Add Random food
-    /*if (modcounter%conf::FOODADDFREQ==0) {
-        fx=randi(0,FW);
-        fy=randi(0,FH);
-        food[fx][fy]= conf::FOODMAX;
-    }*/
+	// What kind of food method are we using?
+	if(FOOD_MODEL == FOOD_MODEL_GROW)
+	{
+		//GROW food enviroment model
+		if (modcounter%conf::FOODADDFREQ==0) {
+			for (int x=0; x<FW; ++x) {
+				for (int y=0; y<FH; ++y) {
+					//only grow if not dead
+					if(food[x][y] > 0) {
 
-    //GROW food enviroment model
-    if (modcounter%conf::FOODADDFREQ==0) {
-		for (int x=0;x<FW;x++) {
-			for (int y=0;y<FH;y++) {
-				//only grow if not dead
-				if(food[x][y] > 0) {
+						//Grow current square
+						growFood(x,y);
 
-					//Grow current square
-					growFood(x,y);
+						//Grow surrounding squares sometimes and only if well grown
+						if(randf(0,food[x][y]) > .1){
+							//Spread to surrounding squares
+							growFood(x+1,y-1);
+							growFood(x+1,y);
+							growFood(x+1,y+1);
+							growFood(x-1,y-1);
+							growFood(x-1,y);
+							growFood(x-1,y+1);
+							growFood(x,y-1);
+							growFood(x,y+1);
+						}
 
-					//Grow surrounding squares sometimes and only if well grown
-					if(randf(0,food[x][y]) > .1){
-						//Spread to surrounding squares
-						growFood(x+1,y-1);
-						growFood(x+1,y);
-						growFood(x+1,y+1);
-						growFood(x-1,y-1);
-						growFood(x-1,y);
-						growFood(x-1,y+1);
-						growFood(x,y-1);
-						growFood(x,y+1);
 					}
-
 				}
 			}
 		}
     }
-
-    //grow food evenly
-    /*for (int x=0;x<FW;x++) {
-        for (int y=0;y<FH;y++) {
-            food[x][y]+= conf::FOODGROWTH; //food grows
-            if (food[x][y]>conf::FOODMAX)
-            	food[x][y]=conf::FOODMAX; //cap at conf::FOODMAX
-        }
-    }*/
+	else
+	{
+		//Add Random food
+		if (modcounter%conf::FOODADDFREQ==0) {
+			fx=randi(0,FW);
+			fy=randi(0,FH);
+			food[fx][fy]= conf::FOODMAX;
+		}
+	}
+	
+    //reset any counter variables per agent
+    for(int i=0;i<agents.size();i++){
+        agents[i].spiked= false;
+    }
 
     //give input to every agent. Sets in[] array
     setInputs();
@@ -109,22 +109,42 @@ void World::update()
 
     //process bots: health and deaths
     for (int i=0;i<agents.size();i++) {
-        float baseloss= 0.0002 + 0.0001*(abs(agents[i].w1) + abs(agents[i].w2))/2;
-        if (agents[i].w1<0.1 && agents[i].w2<0.1) baseloss=0.0001; //hibernation :p
-        baseloss += 0.00005*agents[i].soundmul; //shouting costs energy. just a tiny bit
+        float baseloss= 0.0002; // + 0.0001*(abs(agents[i].w1) + abs(agents[i].w2))/2;
+        //if (agents[i].w1<0.1 && agents[i].w2<0.1) baseloss=0.0001; //hibernation :p
+        //baseloss += 0.00005*agents[i].soundmul; //shouting costs energy. just a tiny bit
 
         if (agents[i].boost) {
             //boost carries its price, and it's pretty heavy!
-            agents[i].health -= baseloss*conf::BOOSTSIZEMULT*2;
+            agents[i].health -= baseloss*conf::BOOSTSIZEMULT*1.3;
         } else {
             agents[i].health -= baseloss;
         }
+    }
+    
+    //process temperature preferences
+    for (int i=0;i<agents.size();i++) {
+    
+        //calculate temperature at the agents spot. (based on distance from equator)
+        float dd= 2.0*abs(agents[i].pos.x/conf::WIDTH - 0.5);
+        float discomfort= abs(dd-agents[i].temperature_preference);
+        discomfort= discomfort*discomfort;
+        if (discomfort<0.08) discomfort=0;
+        agents[i].health -= 0.005*discomfort;
+    }
+
+    //process indicator (used in drawing)
+    for (int i=0;i<agents.size();i++){
+        if(agents[i].indicator>0) agents[i].indicator -= 1;
     }
 
     //remove dead agents.
     //first distribute foods
     for (int i=0;i<agents.size();i++) {
-        if (agents[i].health<=0) {
+        //if this agent was spiked this round as well (i.e. killed). This will make it so that
+        //natural deaths can't be capitalized on. I feel I must do this or otherwise agents
+        //will sit on spot and wait for things to die around them. They must do work!
+        if (agents[i].health<=0 && agents[i].spiked) { 
+        
             //distribute its food. It will be erased soon
             //first figure out how many are around, to distribute this evenly
             int numaround=0;
@@ -136,14 +156,21 @@ void World::update()
                     }
                 }
             }
+            
+            //young killed agents should give very little resources
+            //at age 5, they mature and give full. This can also help prevent
+            //agents eating their young right away
+            float agemult= 1.0;
+            if(agents[i].age<5) agemult= agents[i].age*0.2;
+            
             if (numaround>0) {
                 //distribute its food evenly
                 for (int j=0;j<agents.size();j++) {
-                    if (agents[j].health>0 && agents[j].herbivore<0.7) {
+                    if (agents[j].health>0) {
                         float d= (agents[i].pos-agents[j].pos).length();
                         if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
-                            agents[j].health += 3*(1-agents[j].herbivore)*(1-agents[j].herbivore)/numaround;
-                            agents[j].repcounter -= 2*(1-agents[j].herbivore)*(1-agents[j].herbivore)/numaround; //good job, can use spare parts to make copies
+                            agents[j].health += 5*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
+                            agents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult; //good job, can use spare parts to make copies
                             if (agents[j].health>2) agents[j].health=2; //cap it!
                             agents[j].initEvent(30,1,1,1); //white means they ate! nice
                         }
@@ -162,6 +189,7 @@ void World::update()
 
     }
     vector<Agent>::iterator iter= agents.begin();
+
     while (iter != agents.end()) {
         if (iter->health <=0) {
             iter= agents.erase(iter);
@@ -172,14 +200,12 @@ void World::update()
 
     //handle reproduction
     for (int i=0;i<agents.size();i++) {
-        if (agents[i].repcounter<0 && agents[i].health>0.65) { //agent is healthy and is ready to reproduce
+        if (agents[i].repcounter<0 && agents[i].health>0.65 && modcounter%15==0 && randf(0,1)<0.1) { //agent is healthy and is ready to reproduce. Also inject a bit non-determinism
             //agents[i].health= 0.8; //the agent is left vulnerable and weak, a bit
             reproduce(i, agents[i].MUTRATE1, agents[i].MUTRATE2); //this adds conf::BABIES new agents to agents[]
             agents[i].repcounter= agents[i].herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) + (1-agents[i].herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
         }
     }
-
-    //environment tick
 
     //add new agents, if environment isn't closed
     if (!CLOSED) {
@@ -189,10 +215,10 @@ void World::update()
             //add new agent
             addRandomBots(1);
         }
-        if (modcounter%200==0) {
-            if (randf(0,1)<0.5)
+        if (modcounter%100==0) {
+            if (randf(0,1)<0.5){
                 addRandomBots(1); //every now and then add random bots in
-            else
+            }else
                 addNewByCrossover(); //or by crossover
         }
     }
@@ -209,8 +235,8 @@ void World::growFood(int x, int y)
 
 void World::setInputs()
 {
-    //P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING     BLOOD_SENSOR	TOUCH
-    //0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18           19			20
+    //P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING     BLOOD_SENSOR   TEMPERATURE_SENSOR
+    //0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18           19                 20
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
@@ -358,7 +384,13 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
-        a->in[20]= cap(touch);
+        
+        //temperature varies from 0 to 1 across screen.
+        //it is 0 at equator (in middle), and 1 on edges. Agents can sense discomfort
+        float dd= 2.0*abs(a->pos.x/conf::WIDTH - 0.5);
+        float discomfort= abs(dd - a->temperature_preference);
+        a->in[20]= discomfort;        
+
     }
 }
 
@@ -441,8 +473,8 @@ void World::processOutputs()
         if (f>0 && agents[i].health<2) {
             //agent eats the food
             float itk=min(f,conf::FOODINTAKE);
-            float speedmul= (1-(abs(agents[i].w1)+abs(agents[i].w2))/2)/2 + 0.5;
-            itk= itk*agents[i].herbivore*agents[i].herbivore*speedmul; //herbivores gain more from ground food
+            float speedmul= (1-(abs(agents[i].w1)+abs(agents[i].w2))/2)*0.6 + 0.4;
+            itk= itk*agents[i].herbivore*speedmul; //herbivores gain more from ground food
             agents[i].health+= itk;
             agents[i].repcounter -= 3*itk;
             food[cx][cy]-= min(f,conf::FOODWASTE);
@@ -471,9 +503,15 @@ void World::processOutputs()
     //process spike dynamics for carnivors
     if (modcounter%2==0) { //we dont need to do this TOO often. can save efficiency here since this is n^2 op in #agents
         for (int i=0;i<agents.size();i++) {
+
+            //NOTE: herbivore cant attack. TODO: hmmmmm
+            //fot now ok: I want herbivores to run away from carnivores, not kill them back
+            if(agents[i].herbivore>0.8 || agents[i].spikeLength<0.2 || agents[i].w1<0.5 || agents[i].w2<0.5) continue; 
+            
             for (int j=0;j<agents.size();j++) {
-                if (i==j || agents[i].spikeLength<0.2 || agents[i].w1<0.3 || agents[i].w2<0.3)
-                	continue;
+                
+                if (i==j) continue;
+
                 float d= (agents[i].pos-agents[j].pos).length();
 
                 if (d<2*conf::BOTRADIUS) {
@@ -502,7 +540,9 @@ void World::processOutputs()
                             //this is done so that the other agent cant right away "by accident" attack this agent
                             agents[j].spikeLength= 0;
                         }
-                    //}
+                        agents[j].spiked= true; //set a flag saying that this agent was hit this turn
+                    }
+
                 }
             }
         }
@@ -511,7 +551,7 @@ void World::processOutputs()
 
 void World::brainsTick()
 {
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();
     }
@@ -525,6 +565,14 @@ void World::addRandomBots(int num)
         idcounter++;
         agents.push_back(a);
     }
+}
+void World::addCarnivore()
+{
+    Agent a;
+    a.id= idcounter;
+    idcounter++;
+    a.herbivore= randf(0, 0.1);
+    agents.push_back(a);
 }
 
 void World::addNewByCrossover()
@@ -616,6 +664,27 @@ bool World::isClosed() const
 }
 
 
+void World::processMouse(int button, int state, int x, int y)
+{
+     if (state==0) {        
+         float mind=1e10;
+         float mini=-1;
+         float d;
+
+         for (int i=0;i<agents.size();i++) {
+             d= pow(x-agents[i].pos.x,2)+pow(y-agents[i].pos.y,2);
+                 if (d<mind) {
+                     mind=d;
+                     mini=i;
+                 }
+             }
+         //toggle selection of this agent
+         for (int i=0;i<agents.size();i++) agents[i].selectflag=false;
+         agents[mini].selectflag= true;
+         agents[mini].printSelf();
+     }
+}
+     
 void World::draw(View* view, bool drawfood)
 {
     if(drawfood) {
@@ -630,7 +699,6 @@ void World::draw(View* view, bool drawfood)
     for ( it = agents.begin(); it != agents.end(); ++it) {
         view->drawAgent(*it);
     }
-
 }
 
 std::pair< int,int > World::numHerbCarnivores() const
