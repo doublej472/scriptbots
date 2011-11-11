@@ -1,19 +1,27 @@
+#define INPUTSIZE 21
+#define OUTPUTSIZE 9
+#define BRAINSIZE 100
+#define CONNS 4
+
 #ifndef SETTINGS_H
 #define SETTINGS_H
+
 namespace conf {
-    
-    const int WIDTH = 1800;  //width and height of simulation
-    const int HEIGHT = 1000;
+
+	// WORLD / WINDOW SETTINGS -------------------------------------
+    const int WIDTH = 4000;  //width and height of simulation
+    const int HEIGHT = 2600;
     const int WWIDTH = 1800;  //window width and height
     const int WHEIGHT = 1000;
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
-    
-    const int NUMBOTS=50; //initially, and minimally
+
+	// BOT PROPERTIES ---------------------------------------------
+    const int NUMBOTS=200; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
     const float BOTSPEED= 0.1;
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
-    const float SPIKEMULT= 0.5; //essentially the strength of every spike impact
+    const float SPIKEMULT= 1.5; //essentially the strength of every spike impact
     const int BABIES=2; //number of babies per agent when they reproduce
     const float BOOSTSIZEMULT=2; //how much boost do agents get? when boost neuron is on
     const float REPRATEH=7; //reproduction rate for herbivors
@@ -25,7 +33,12 @@ namespace conf {
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
     const float METAMUTRATE2= 0.05;
 
-    const float FOODGROWTH= 0.0005; //how quickly does food grow on a square?
+	// FOOD SETTINGS -----------------------------------------------
+	const int FOOD_MODEL_RAND = 1; // Food Model Options
+	const int FOOD_MODEL_GROW = 2; // Food Model Options
+
+	const int FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
+    const float FOODGROWTH= 0.0005; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
@@ -34,8 +47,8 @@ namespace conf {
     const float FOODTRANSFER= 0.00325; //how much is transfered between two agents trading food? per iteration
     const float FOOD_SHARING_DISTANCE= 50; //how far away is food shared between bots?
 
-
     const float FOOD_DISTRIBUTION_RADIUS=100; //when bot is killed, how far is its body distributed?
 
 }
+
 #endif

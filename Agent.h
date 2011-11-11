@@ -2,6 +2,7 @@
 #define AGENT_H
 
 #include "DWRAONBrain.h"
+#include "MLPBrain.h"
 #include "vmath.h"
 
 #include <vector>
@@ -40,6 +41,8 @@ public:
     float spikeLength;
     int age;
 
+    bool spiked;    
+    
     std::vector<float> in; //input: 2 eyes, sensors for R,G,B,proximity each, then Sound, Smell, Health
     std::vector<float> out; //output: Left, Right, R, G, B, SPIKE
 
@@ -48,6 +51,7 @@ public:
     bool hybrid; //is this agent result of crossover?
     float clockf1, clockf2; //the frequencies of the two clocks of this bot
     float soundmul; //sound multiplier of this bot. It can scream, or be very sneaky. This is actually always set to output 8
+    
     //variables for drawing purposes
     float indicator;
     float ir;float ig;float ib; //indicator colors
@@ -62,8 +66,10 @@ public:
     float herbivore; //is this agent a herbivore? between 0 and 1
     float MUTRATE1; //how often do mutations occur?
     float MUTRATE2; //how significant are they?
-
-    DWRAONBrain brain; //THE BRAIN!!!!
+    float temperature_preference; //what temperature does this agent like? [0 to 1]
+    
+//    DWRAONBrain brain; //THE BRAIN!!!!
+    MLPBrain brain;
     
     //will store the mutations that this agent has from its parent
     //can be used to tune the mutation rate

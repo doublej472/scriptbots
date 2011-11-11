@@ -36,16 +36,17 @@ DWRAONBrain::DWRAONBrain()
         boxes[i].out= a.out;
         boxes[i].target= a.target;
         boxes[i].type= a.type;
+        boxes[i].kp= a.kp;
         boxes[i].bias= a.bias;
         for (int j=0;j<CONNS;j++) {
             boxes[i].notted[j]= a.notted[j];
             boxes[i].w[j]= a.w[j];
             boxes[i].id[j]= a.id[j];
 
-            if (randf(0,1)<0.05) boxes[i].id[j]=0;
-            if (randf(0,1)<0.05) boxes[i].id[j]=5;
-            if (randf(0,1)<0.05) boxes[i].id[j]=12;
-            if (randf(0,1)<0.05) boxes[i].id[j]=4;
+//            if (randf(0,1)<0.05) boxes[i].id[j]=0;
+//            if (randf(0,1)<0.05) boxes[i].id[j]=5;
+//            if (randf(0,1)<0.05) boxes[i].id[j]=12;
+//            if (randf(0,1)<0.05) boxes[i].id[j]=4;
 
             //boxes[i].id[j]= max(min(BRAINSIZE-1, randi(i-10,i+10)), 0);
             if (i<BRAINSIZE/2) {
