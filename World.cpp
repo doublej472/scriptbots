@@ -53,7 +53,7 @@ void World::update()
     }
 
 	// What kind of food method are we using?
-	if(FOOD_MODEL == FOOD_MODEL_GROW)
+	if(conf::FOOD_MODEL == conf::FOOD_MODEL_GROW)
 	{
 		//GROW food enviroment model
 		if (modcounter%conf::FOODADDFREQ==0) {
@@ -521,32 +521,31 @@ void World::processOutputs()
                     //float diff= v.angle_between(agents[j].pos-agents[i].pos);
                     //if (fabs(diff)<M_PI/8) {
                         //bot i is also properly aligned!!! that's a hit
-                        float mult=1;
-                        if (agents[i].boost) mult= conf::BOOSTSIZEMULT;
-                        float DMG= conf::SPIKEMULT*agents[i].spikeLength*max(fabs(agents[i].w1),fabs(agents[i].w2))*conf::BOOSTSIZEMULT;
+					float mult=1;
+					if (agents[i].boost) mult= conf::BOOSTSIZEMULT;
+					float DMG= conf::SPIKEMULT*agents[i].spikeLength*max(fabs(agents[i].w1),fabs(agents[i].w2))*conf::BOOSTSIZEMULT;
 
-                        agents[j].health-= DMG;
+					agents[j].health-= DMG;
 
-                        if (agents[i].health>2) agents[i].health=2; //cap health at 2
-                        agents[i].spikeLength= 0; //retract spike back down
+					if (agents[i].health>2) agents[i].health=2; //cap health at 2
+					agents[i].spikeLength= 0; //retract spike back down
 
-                        agents[i].initEvent(40*DMG,1,1,0); //yellow event means bot has spiked other bot. nice!
+					agents[i].initEvent(40*DMG,1,1,0); //yellow event means bot has spiked other bot. nice!
 
-                        Vector2f v2(1,0);
-                        v2.rotate(agents[j].angle);
-                        float adiff= v.angle_between(v2);
-                        if (fabs(adiff)<M_PI/2) {
-                            //this was attack from the back. Retract spike of the other agent (startle!)
-                            //this is done so that the other agent cant right away "by accident" attack this agent
-                            agents[j].spikeLength= 0;
-                        }
-                        agents[j].spiked= true; //set a flag saying that this agent was hit this turn
-                    }
+					Vector2f v2(1,0);
+					v2.rotate(agents[j].angle);
+					float adiff= v.angle_between(v2);
+					if (fabs(adiff)<M_PI/2) {
+						//this was attack from the back. Retract spike of the other agent (startle!)
+						//this is done so that the other agent cant right away "by accident" attack this agent
+						agents[j].spikeLength= 0;
+					}
+					agents[j].spiked= true; //set a flag saying that this agent was hit this turn
+				}
 
-                }
-            }
-        }
-    }
+			}
+		}
+	}
 }
 
 void World::brainsTick()

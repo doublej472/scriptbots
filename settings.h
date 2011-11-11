@@ -9,15 +9,15 @@
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------
-    const int WIDTH = 3000;  //width and height of simulation
-    const int HEIGHT = 1600;
+    const int WIDTH = 4000;  //width and height of simulation
+    const int HEIGHT = 2600;
     const int WWIDTH = 1800;  //window width and height
     const int WHEIGHT = 1000;
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
 
 	// BOT PROPERTIES ---------------------------------------------
-    const int NUMBOTS=50; //initially, and minimally
+    const int NUMBOTS=200; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
     const float BOTSPEED= 0.1;
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
