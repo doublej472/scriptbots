@@ -64,8 +64,8 @@ GLView::GLView(World *s) :
         lastUpdate(0)
 {
 
-    xtranslate= 0.0;
-    ytranslate= 0.0;
+    xtranslate= -conf::WIDTH / 2;
+    ytranslate= -conf::HEIGHT / 2;
     scalemult= 0.2; //1.0;
     downb[0]=0;downb[1]=0;downb[2]=0;
     mousex=0;mousey=0;
@@ -117,7 +117,7 @@ void GLView::processMouseActiveMotion(int x, int y)
         ytranslate += 2*(y-mousey);
     }
     
-    printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
+    //printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
     
     mousex=x;
     mousey=y;

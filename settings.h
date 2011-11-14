@@ -33,6 +33,12 @@ namespace conf {
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
     const float METAMUTRATE2= 0.05;
 
+	// HEALTH DEDUCTIONS
+	const float LOSS_BASE     = 0.0002;
+	const float LOSS_SHOUTING = 0.00005;
+	const float LOSS_SPEED    = 0.00005;
+	const float LOSS_TEMP     = 0.005;
+		
 	// FOOD SETTINGS -----------------------------------------------
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
 	const int FOOD_MODEL_GROW = 2; // Food Model Options

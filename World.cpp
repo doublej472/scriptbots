@@ -98,9 +98,15 @@ void World::update()
 		}
 	}
 	
-    //reset any counter variables per agent
+	// general settings loop
     for(int i=0;i<agents.size();i++){
-        agents[i].spiked= false;
+
+		// says that agent was not hit this turn
+        agents[i].spiked= false; 
+
+		// process indicator used in drawing
+        if(agents[i].indicator > 0)
+			agents[i].indicator -= 1;
     }
 
     //give input to every agent. Sets in[] array
@@ -112,37 +118,39 @@ void World::update()
     //read output and process consequences of bots on environment. requires out[]
     processOutputs();
 
-    //process bots: health and deaths
+    float healthloss; // amount of health lost
+	float dd, discomfort; // temperature preference vars
+	
+    //process bots health
     for (int i=0;i<agents.size();i++) {
-        float baseloss= 0.0001; // + 0.0001*(abs(agents[i].w1) + abs(agents[i].w2))/2;
-        //if (agents[i].w1<0.1 && agents[i].w2<0.1) baseloss=0.0001; //hibernation :p
-        //baseloss += 0.00005*agents[i].soundmul; //shouting costs energy. just a tiny bit
+        healthloss = conf::LOSS_BASE; // base amount of health lost every turn for being alive
 
-        if (agents[i].boost) {
-            //boost carries its price, and it's pretty heavy!
-            agents[i].health -= baseloss*conf::BOOSTSIZEMULT*1.3;
-        } else {
-            agents[i].health -= baseloss;
-        }
-    }
-    
-    //process temperature preferences
-    for (int i=0;i<agents.size();i++) {
-    
+		// remove health based on wheel speed
+		if(agents[i].boost) { // is using boost			
+			healthloss +=
+				conf::LOSS_SPEED * conf::BOTSPEED * (abs(agents[i].w1) + abs(agents[i].w2)) * conf::BOOSTSIZEMULT * agents[i].boost;
+		} else { // no boost
+			healthloss +=
+				conf::LOSS_SPEED * conf::BOTSPEED * (abs(agents[i].w1) + abs(agents[i].w2));
+		}
+		
+		// shouting costs energy.
+		healthloss += conf::LOSS_SHOUTING*agents[i].soundmul;
+
+		//process temperature preferences
         //calculate temperature at the agents spot. (based on distance from equator)
-        float dd= 2.0*abs(agents[i].pos.x/conf::WIDTH - 0.5);
-        float discomfort= abs(dd-agents[i].temperature_preference);
-        discomfort= discomfort*discomfort;
+        dd = 2.0*abs(agents[i].pos.x/conf::WIDTH - 0.5);
+        discomfort = abs(dd-agents[i].temperature_preference);
+        discomfort = discomfort*discomfort;
         if (discomfort<0.08)
 			discomfort=0;
-        agents[i].health -= 0.005*discomfort;
-    }
+        healthloss +=conf:: LOSS_TEMP*discomfort;
 
-    //process indicator (used in drawing)
-    for (int i=0;i<agents.size();i++){
-        if(agents[i].indicator>0)
-			agents[i].indicator -= 1;
-    }
+		
+		// apply the health changes
+        agents[i].health -= healthloss;
+     }
+    
 
     //remove dead agents and distribute food
     for (int i=0;i<agents.size();i++) {
@@ -207,10 +215,13 @@ void World::update()
 
     //handle reproduction
     for (int i=0;i<agents.size();i++) {
-        if (agents[i].repcounter<0 && agents[i].health>0.65 && modcounter%15==0 && randf(0,1)<0.1) { //agent is healthy and is ready to reproduce. Also inject a bit non-determinism
+        if (agents[i].repcounter<0 && agents[i].health>0.65 && modcounter%15==0 && randf(0,1)<0.1) {
+			//agent is healthy and is ready to reproduce. Also inject a bit non-determinism
             //agents[i].health= 0.8; //the agent is left vulnerable and weak, a bit
             reproduce(i, agents[i].MUTRATE1, agents[i].MUTRATE2); //this adds conf::BABIES new agents to agents[]
-            agents[i].repcounter= agents[i].herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) + (1-agents[i].herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
+            agents[i].repcounter =
+				agents[i].herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) +
+				(1-agents[i].herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
         }
     }
 
@@ -438,12 +449,11 @@ void World::processOutputs()
         Vector2f w1p= a->pos+ v; //wheel positions
         Vector2f w2p= a->pos- v;
 
-        float BW1= conf::BOTSPEED*a->w1;
+        float BW1= conf::BOTSPEED*a->w1; // bot speed * wheel speed
         float BW2= conf::BOTSPEED*a->w2;
+
         if (a->boost) {
             BW1=BW1*conf::BOOSTSIZEMULT;
-        }
-        if (a->boost) {
             BW2=BW2*conf::BOOSTSIZEMULT;
         }
 
