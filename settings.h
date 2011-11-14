@@ -16,6 +16,8 @@ namespace conf {
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
 
+	const bool CLOSED = false; // world is closed and no new agents are added
+	
 	// BOT PROPERTIES ---------------------------------------------
     const int NUMBOTS=200; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
@@ -47,13 +49,14 @@ namespace conf {
 	const int FOOD_MODEL_GROW = 2; // Food Model Options
 
 	const int   FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
-    const float FOODGROWTH= 0.0002; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
+    const float FOODGROWTH= 0.0004; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
     const int   FOODADDFREQ= 120; //how often does random square get to full food?
 	const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
-
+	const float FOOD_MEAT_VALUE = 2.0; // percentage that health is transferred to another agent when eaten
+		
     const float FOODTRANSFER= 0.00325; //how much is transfered between two agents trading food? per iteration
     const float FOOD_SHARING_DISTANCE= 50; //how far away is food shared between bots?
 

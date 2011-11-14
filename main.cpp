@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     
     printf("p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
     printf("Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
-	printf("Bot Status Colors: \n WHITE: they just ate part of another agent\n");
+	printf("Bot Status Colors: \nWHITE: they just ate part of another agent\n");
 	printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
     
     World* world = new World();

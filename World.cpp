@@ -15,7 +15,7 @@ World::World() :
         idcounter(0),
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ),
-        CLOSED(true)
+        CLOSED(false)
 {
     addRandomBots(conf::NUMBOTS);
 
@@ -34,6 +34,10 @@ World::World() :
 		   }
        }
     }
+
+	// Decide if world if closed
+	if(conf::CLOSED)
+		CLOSED = true;
 }
 
 
@@ -165,7 +169,7 @@ void World::update()
             //first figure out how many are around, to distribute this evenly
             numaround=0;
             for (j=0;j<agents.size();j++) {
-                if (agents[j].herbivore < .5 && i!=j ) { //only carnivores get food. not same agent as dying
+                if (agents[j].herbivore < .5 && agents[j].health > .1) { //only carnivores get food. not same agent as dying
                     d= (agents[i].pos-agents[j].pos).length();
                     if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
                         numaround++;
@@ -183,8 +187,9 @@ void World::update()
             if (numaround>0) {
                 //distribute its food evenly
                 for (j=0;j<agents.size();j++) {
-                    if (agents[j].health>0) {
-                        d= (agents[i].pos-agents[j].pos).length();
+					if (agents[j].herbivore < .5 && agents[j].health > .1) { //only carnivores get food. not same agent as dying
+
+						d= (agents[i].pos-agents[j].pos).length();
                         if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
 							// add to agent's health
 							/*  percent_carnivore = 1-agents[j].herbivore
@@ -201,7 +206,9 @@ void World::update()
                             //ents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
 
 							// NEW FORMULA:
-							agents[j].health += agents[i].health / numaround; // split evenly between all agents that can eat others
+							// split evenly between all agents that can eat others:
+							agents[j].health += agents[i].health / numaround * conf::FOOD_MEAT_VALUE;
+							
 							agents[j].repcounter -= conf::REPRATEC * .5; // eating makes them reproduce up to twice as fast!
 							
                             if (agents[j].health>2)
