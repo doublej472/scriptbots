@@ -19,14 +19,19 @@ World::World() :
 {
     addRandomBots(conf::NUMBOTS);
 
-    //srand(time(0));
+    srand(time(0));
 
+	double rand1; // store temp random float
+		
     //inititalize food layer
     for (int x=0;x<FW;x++) {
        for (int y=0;y<FH;y++) {
 
-    	   //if(randf(0,1) > .8)
-   		   food[x][y] = conf::FOODMAX; //randf(0, conf::FOODMAX);
+		   rand1 = randf(0,1);
+    	   if(rand1 > .5)
+		   {
+			   food[x][y] = rand1 * conf::FOODMAX;
+		   }
        }
     }
 }
