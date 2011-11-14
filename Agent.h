@@ -54,7 +54,7 @@ public:
     
     //variables for drawing purposes
     float indicator;
-    float ir;float ig;float ib; //indicator colors
+    float ir, ig, ib; //indicator colors
     int selectflag; //is this agent selected?
     float dfood; //what is change in health of this agent due to giving/receiving?
 

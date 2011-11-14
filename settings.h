@@ -22,10 +22,13 @@ namespace conf {
     const float BOTSPEED= 0.1;
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
     const float SPIKEMULT= 1.5; //essentially the strength of every spike impact
-    const int BABIES=2; //number of babies per agent when they reproduce
     const float BOOSTSIZEMULT=2; //how much boost do agents get? when boost neuron is on
+
+	// REPRODUCTION ----------------------------------------------
+    const int BABIES=2; //number of babies per agent when they reproduce
     const float REPRATEH=7; //reproduction rate for herbivors
     const float REPRATEC=7; //reproduction rate for carnivors
+	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
     const float DIST= 150;		//how far can the eyes see on each bot?
     const float EYE_SENSITIVITY= 2; //how sensitive are the eyes?
@@ -34,7 +37,7 @@ namespace conf {
     const float METAMUTRATE2= 0.05;
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.0002;
+	const float LOSS_BASE     = 0.0003;
 	const float LOSS_SHOUTING = 0.00005;
 	const float LOSS_SPEED    = 0.00005;
 	const float LOSS_TEMP     = 0.005;
@@ -43,12 +46,13 @@ namespace conf {
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
 	const int FOOD_MODEL_GROW = 2; // Food Model Options
 
-	const int FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
-    const float FOODGROWTH= 0.0005; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
+	const int   FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
+    const float FOODGROWTH= 0.0002; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
-    const int FOODADDFREQ= 120; //how often does random square get to full food?
+    const int   FOODADDFREQ= 120; //how often does random square get to full food?
+	const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
 
     const float FOODTRANSFER= 0.00325; //how much is transfered between two agents trading food? per iteration
     const float FOOD_SHARING_DISTANCE= 50; //how far away is food shared between bots?

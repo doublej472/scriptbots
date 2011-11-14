@@ -39,12 +39,14 @@ World::World() :
 
 void World::update()
 {
+	int i; // counter var used throughout for counting entire agent amount
+	
     modcounter++;
 
-    //Process periodic events
+    //Process periodic events --------------------------------------------------------
     //Age goes up!
     if (modcounter%100==0) {
-        for (int i=0;i<agents.size();i++) {
+        for (i=0;i<agents.size();i++) {
             agents[i].age+= 1;    //agents age...
         }
     }
@@ -71,7 +73,7 @@ void World::update()
 						growFood(x,y);
 
 						//Grow surrounding squares sometimes and only if well grown
-						//if(randf(0,food[x][y]) > .1){
+						if(randf(0,food[x][y]) > .1){
 							//Spread to surrounding squares
 							growFood(x+1,y-1);
 							growFood(x+1,y);
@@ -81,8 +83,7 @@ void World::update()
 							growFood(x-1,y+1);
 							growFood(x,y-1);
 							growFood(x,y+1);
-							//}
-
+						}
 					}
 				}
 			}
@@ -99,7 +100,7 @@ void World::update()
 	}
 	
 	// general settings loop
-    for(int i=0;i<agents.size();i++){
+    for(i=0;i<agents.size();i++){
 
 		// says that agent was not hit this turn
         agents[i].spiked= false; 
@@ -120,9 +121,11 @@ void World::update()
 
     float healthloss; // amount of health lost
 	float dd, discomfort; // temperature preference vars
+	int numaround, j; // used for dead agents
+	float d, agemult; //used for dead agents
 	
     //process bots health
-    for (int i=0;i<agents.size();i++) {
+    for (i=0;i<agents.size();i++) {
         healthloss = conf::LOSS_BASE; // base amount of health lost every turn for being alive
 
 		// remove health based on wheel speed
@@ -144,16 +147,15 @@ void World::update()
         discomfort = discomfort*discomfort;
         if (discomfort<0.08)
 			discomfort=0;
-        healthloss +=conf:: LOSS_TEMP*discomfort;
+        healthloss +=conf::LOSS_TEMP*discomfort;
 
 		
 		// apply the health changes
         agents[i].health -= healthloss;
-     }
-    
 
-    //remove dead agents and distribute food
-    for (int i=0;i<agents.size();i++) {
+		//----------------------------------------------------------------------------------------------		
+		//remove dead agents and distribute food
+
         //if this agent was spiked this round as well (i.e. killed). This will make it so that
         //natural deaths can't be capitalized on. I feel I must do this or otherwise agents
         //will sit on spot and wait for things to die around them. They must do work!
@@ -161,10 +163,10 @@ void World::update()
         
             //distribute its food. It will be erased soon
             //first figure out how many are around, to distribute this evenly
-            int numaround=0;
-            for (int j=0;j<agents.size();j++) {
+            numaround=0;
+            for (j=0;j<agents.size();j++) {
                 if (agents[j].herbivore < .5 && i!=j ) { //only carnivores get food. not same agent as dying
-                    float d= (agents[i].pos-agents[j].pos).length();
+                    d= (agents[i].pos-agents[j].pos).length();
                     if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
                         numaround++;
                     }
@@ -174,18 +176,19 @@ void World::update()
             //young killed agents should give very little resources
             //at age 5, they mature and give full. This can also help prevent
             //agents eating their young right away
-            float agemult= 1.0;
+            agemult= 1.0;
             if(agents[i].age<5)
 				agemult= agents[i].age*0.2;
             
             if (numaround>0) {
                 //distribute its food evenly
-                for (int j=0;j<agents.size();j++) {
+                for (j=0;j<agents.size();j++) {
                     if (agents[j].health>0) {
-                        float d= (agents[i].pos-agents[j].pos).length();
+                        d= (agents[i].pos-agents[j].pos).length();
                         if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
                             agents[j].health += 5*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
-                            agents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult; //good job, can use spare parts to make copies
+                            agents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
+							//good job, can use spare parts to make copies
                             if (agents[j].health>2) agents[j].health=2; //cap it!
                             agents[j].initEvent(30,1,1,1); //white means they ate! nice
                         }
@@ -193,11 +196,8 @@ void World::update()
                 }
             }else{
             	//if no agents are around to eat it, it becomes regular food
-            	//food[agents[i].pos.x,agents[i].pos.y] = conf.FOODMAX;
-
-            	int cx= (int) agents[i].pos.x/conf::CZ;
-            	int cy= (int) agents[i].pos.y/conf::CZ;
-            	food[cx][cy] = .1*conf::FOODMAX; // since it was dying it is not much food
+            	food[(int) agents[i].pos.x/conf::CZ][(int) agents[i].pos.y/conf::CZ]
+					= conf::FOOD_DEAD*conf::FOODMAX; // since it was dying it is not much food
             }
 
         }
@@ -214,10 +214,14 @@ void World::update()
     }
 
     //handle reproduction
-    for (int i=0;i<agents.size();i++) {
-        if (agents[i].repcounter<0 && agents[i].health>0.65 && modcounter%15==0 && randf(0,1)<0.1) {
-			//agent is healthy and is ready to reproduce. Also inject a bit non-determinism
-            //agents[i].health= 0.8; //the agent is left vulnerable and weak, a bit
+    for (i=0;i<agents.size();i++) {
+        if (agents[i].repcounter<0 && agents[i].health>conf::REP_MIN_HEALTH && modcounter%15==0 && randf(0,1)<0.1) {
+			//agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
+			//Also inject a bit non-determinism
+
+			//the parent splits it health evenly with all of its babies
+            agents[i].health -= agents[i].health / (conf::BABIES + 1);
+			
             reproduce(i, agents[i].MUTRATE1, agents[i].MUTRATE2); //this adds conf::BABIES new agents to agents[]
             agents[i].repcounter =
 				agents[i].herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) +
@@ -408,7 +412,7 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
-        a->in[20]= discomfort;        
+        a->in[20]= discomfort;   
         
     }
 }

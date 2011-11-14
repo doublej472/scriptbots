@@ -52,9 +52,11 @@ Agent::Agent()
 void Agent::printSelf()
 {
     printf("Agent age=%i\n", age);
+    printf("      temp pref=%f\n", temperature_preference);
     for (int i=0;i<mutations.size();i++) {
         cout << mutations[i];
     }
+	cout << endl;
 }
 
 void Agent::initEvent(float size, float r, float g, float b)
@@ -84,7 +86,8 @@ Agent Agent::reproduce(float MR, float MR2)
     if (a2.pos.y>=conf::HEIGHT) a2.pos.y= a2.pos.y-conf::HEIGHT;
 
     a2.gencount= this->gencount+1;
-    a2.repcounter= a2.herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) + (1-a2.herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
+    a2.repcounter
+		= a2.herbivore*randf(conf::REPRATEH-0.1,conf::REPRATEH+0.1) + (1-a2.herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
 
     //noisy attribute passing
     a2.MUTRATE1= this->MUTRATE1;
