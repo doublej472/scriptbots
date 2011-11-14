@@ -106,7 +106,9 @@ void GLView::processMouseActiveMotion(int x, int y)
     if(downb[1]==1){
         //mouse wheel. Change scale
         scalemult -= 0.002*(y-mousey);
-        if(scalemult<0.01) scalemult=0.01;
+        if(scalemult<0.01)
+			scalemult=0.01;
+
     }
     
     if(downb[2]==1){
@@ -115,7 +117,7 @@ void GLView::processMouseActiveMotion(int x, int y)
         ytranslate += 2*(y-mousey);
     }
     
-//    printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
+    printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
     
     mousex=x;
     mousey=y;
@@ -380,21 +382,24 @@ void GLView::drawAgent(const Agent& agent)
 
     glEnd();
 
-    //print stats
-    //generation count
-    sprintf(buf2, "%i", agent.gencount);
-    RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
-    //age
-    sprintf(buf2, "%i", agent.age);
-    RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+12, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
+    //print stats if zoomed in enough
+	if(scalemult > .5)
+	{
+		//generation count
+		sprintf(buf2, "%i", agent.gencount);
+		RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
+		//age
+		sprintf(buf2, "%i", agent.age);
+		RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+12, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
 
-    //health
-    sprintf(buf2, "%.2f", agent.health);
-    RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+24, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
+		//health
+		sprintf(buf2, "%.2f", agent.health);
+		RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+24, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
 
-    //repcounter
-    sprintf(buf2, "%.2f", agent.repcounter);
-    RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+36, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
+		//repcounter
+		sprintf(buf2, "%.2f", agent.repcounter);
+		RenderString(agent.pos.x-conf::BOTRADIUS*1.5, agent.pos.y+conf::BOTRADIUS*1.8+36, GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
+	}
 }
 
 void GLView::drawFood(int x, int y, float quantity)

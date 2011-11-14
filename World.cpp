@@ -71,7 +71,7 @@ void World::update()
 						growFood(x,y);
 
 						//Grow surrounding squares sometimes and only if well grown
-						if(randf(0,food[x][y]) > .1){
+						//if(randf(0,food[x][y]) > .1){
 							//Spread to surrounding squares
 							growFood(x+1,y-1);
 							growFood(x+1,y);
@@ -81,7 +81,7 @@ void World::update()
 							growFood(x-1,y+1);
 							growFood(x,y-1);
 							growFood(x,y+1);
-						}
+							//}
 
 					}
 				}
@@ -114,7 +114,7 @@ void World::update()
 
     //process bots: health and deaths
     for (int i=0;i<agents.size();i++) {
-        float baseloss= 0.0002; // + 0.0001*(abs(agents[i].w1) + abs(agents[i].w2))/2;
+        float baseloss= 0.0001; // + 0.0001*(abs(agents[i].w1) + abs(agents[i].w2))/2;
         //if (agents[i].w1<0.1 && agents[i].w2<0.1) baseloss=0.0001; //hibernation :p
         //baseloss += 0.00005*agents[i].soundmul; //shouting costs energy. just a tiny bit
 
@@ -133,17 +133,18 @@ void World::update()
         float dd= 2.0*abs(agents[i].pos.x/conf::WIDTH - 0.5);
         float discomfort= abs(dd-agents[i].temperature_preference);
         discomfort= discomfort*discomfort;
-        if (discomfort<0.08) discomfort=0;
+        if (discomfort<0.08)
+			discomfort=0;
         agents[i].health -= 0.005*discomfort;
     }
 
     //process indicator (used in drawing)
     for (int i=0;i<agents.size();i++){
-        if(agents[i].indicator>0) agents[i].indicator -= 1;
+        if(agents[i].indicator>0)
+			agents[i].indicator -= 1;
     }
 
-    //remove dead agents.
-    //first distribute foods
+    //remove dead agents and distribute food
     for (int i=0;i<agents.size();i++) {
         //if this agent was spiked this round as well (i.e. killed). This will make it so that
         //natural deaths can't be capitalized on. I feel I must do this or otherwise agents
@@ -154,7 +155,7 @@ void World::update()
             //first figure out how many are around, to distribute this evenly
             int numaround=0;
             for (int j=0;j<agents.size();j++) {
-                if (agents[j].health>0) {
+                if (agents[j].herbivore < .5 && i!=j ) { //only carnivores get food. not same agent as dying
                     float d= (agents[i].pos-agents[j].pos).length();
                     if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
                         numaround++;
@@ -166,7 +167,8 @@ void World::update()
             //at age 5, they mature and give full. This can also help prevent
             //agents eating their young right away
             float agemult= 1.0;
-            if(agents[i].age<5) agemult= agents[i].age*0.2;
+            if(agents[i].age<5)
+				agemult= agents[i].age*0.2;
             
             if (numaround>0) {
                 //distribute its food evenly
@@ -187,7 +189,7 @@ void World::update()
 
             	int cx= (int) agents[i].pos.x/conf::CZ;
             	int cy= (int) agents[i].pos.y/conf::CZ;
-            	food[cx][cy] = conf::FOODMAX;
+            	food[cx][cy] = .1*conf::FOODMAX; // since it was dying it is not much food
             }
 
         }
@@ -223,8 +225,9 @@ void World::update()
         if (modcounter%100==0) {
             if (randf(0,1)<0.5){
                 addRandomBots(1); //every now and then add random bots in
-            }else
+            }else{
                 addNewByCrossover(); //or by crossover
+			}
         }
     }
 
@@ -371,6 +374,11 @@ void World::setInputs()
         else
 			touch = 0;
 
+        //temperature varies from 0 to 1 across screen.
+        //it is 0 at equator (in middle), and 1 on edges. Agents can sense discomfort
+        float dd= 2.0*abs(a->pos.x/conf::WIDTH - 0.5);
+        float discomfort= abs(dd - a->temperature_preference);
+		
         a->in[0]= cap(p1);
         a->in[1]= cap(r1);
         a->in[2]= cap(g1);
@@ -389,13 +397,8 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
-        
-        //temperature varies from 0 to 1 across screen.
-        //it is 0 at equator (in middle), and 1 on edges. Agents can sense discomfort
-        float dd= 2.0*abs(a->pos.x/conf::WIDTH - 0.5);
-        float discomfort= abs(dd - a->temperature_preference);
         a->in[20]= discomfort;        
-
+        
     }
 }
 
