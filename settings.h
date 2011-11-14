@@ -23,18 +23,18 @@ namespace conf {
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
     const float SPIKEMULT= 1.5; //essentially the strength of every spike impact
     const float BOOSTSIZEMULT=2; //how much boost do agents get? when boost neuron is on
+    const float DIST= 150;		//how far can the eyes see on each bot?
+    const float EYE_SENSITIVITY= 2; //how sensitive are the eyes?
+    const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
+    const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
+    const float METAMUTRATE2= 0.05;
+
 
 	// REPRODUCTION ----------------------------------------------
     const int BABIES=2; //number of babies per agent when they reproduce
     const float REPRATEH=7; //reproduction rate for herbivors
     const float REPRATEC=7; //reproduction rate for carnivors
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
-
-    const float DIST= 150;		//how far can the eyes see on each bot?
-    const float EYE_SENSITIVITY= 2; //how sensitive are the eyes?
-    const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
-    const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
-    const float METAMUTRATE2= 0.05;
 
 	// HEALTH DEDUCTIONS
 	const float LOSS_BASE     = 0.0003;

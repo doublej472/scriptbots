@@ -186,10 +186,27 @@ void World::update()
                     if (agents[j].health>0) {
                         d= (agents[i].pos-agents[j].pos).length();
                         if (d<conf::FOOD_DISTRIBUTION_RADIUS) {
-                            agents[j].health += 5*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
-                            agents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
-							//good job, can use spare parts to make copies
-                            if (agents[j].health>2) agents[j].health=2; //cap it!
+							// add to agent's health
+							/*  percent_carnivore = 1-agents[j].herbivore
+								coefficient = 5
+								numaround = # of other agents within vicinity
+								agemult = 1 if agent is older than 4
+								health += percent_carnivore ^ 2 * agemult * 5
+								          -----------------------------------
+									               numaround ^ 1.25
+							    
+							 */
+							//ents[j].health += 5*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
+							// make this bot reproduce sooner
+                            //ents[j].repcounter -= 6*(1-agents[j].herbivore)*(1-agents[j].herbivore)/pow(numaround,1.25)*agemult;
+
+							// NEW FORMULA:
+							agents[j].health += agents[i].health / numaround; // split evenly between all agents that can eat others
+							agents[j].repcounter -= conf::REPRATEC * .5; // eating makes them reproduce up to twice as fast!
+							
+                            if (agents[j].health>2)
+								agents[j].health=2; //cap it!
+							
                             agents[j].initEvent(30,1,1,1); //white means they ate! nice
                         }
                     }
