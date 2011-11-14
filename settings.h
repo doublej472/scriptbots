@@ -19,7 +19,7 @@ namespace conf {
 	const bool CLOSED = false; // world is closed and no new agents are added
 	
 	// BOT PROPERTIES ---------------------------------------------
-    const int NUMBOTS=200; //initially, and minimally
+    const int NUMBOTS=100; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
     const float BOTSPEED= 0.1;
     const float SPIKESPEED= 0.005; //how quickly can attack spike go up?
@@ -49,7 +49,7 @@ namespace conf {
 	const int FOOD_MODEL_GROW = 2; // Food Model Options
 
 	const int   FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
-    const float FOODGROWTH= 0.0004; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
+    const float FOODGROWTH= 0.0005; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
