@@ -135,7 +135,7 @@ void GLView::processNormalKeys(unsigned char key, int x, int y)
     } else if (key=='d') {
         //drawing
         draw= !draw;
-    } else if (key==43) {
+    } else if (key==43 || key=61) {
         //+
         skipdraw++;
 
