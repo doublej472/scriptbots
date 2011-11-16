@@ -1,5 +1,5 @@
-#define INPUTSIZE 21
-#define OUTPUTSIZE 9
+#define INPUTSIZE 30 // 21 + 9 = 30
+#define OUTPUTSIZE 18 // 9 + 9 = 18
 #define BRAINSIZE 100
 #define CONNS 4
 
@@ -16,7 +16,7 @@ namespace conf {
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
 
-	const bool CLOSED = false; // world is closed and no new agents are added
+	const bool CLOSED = true; // world is closed and no new agents are added
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int NUMBOTS=100; //initially, and minimally
@@ -39,7 +39,7 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.0003;
+	const float LOSS_BASE     = 0.00003;
 	const float LOSS_SHOUTING = 0.00005;
 	const float LOSS_SPEED    = 0.00005;
 	const float LOSS_TEMP     = 0.005;
@@ -48,7 +48,7 @@ namespace conf {
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
 	const int FOOD_MODEL_GROW = 2; // Food Model Options
 
-	const int   FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
+	const int   FOOD_MODEL = FOOD_MODEL_RAND; //what kind of food appearance is to be used
     const float FOODGROWTH= 0.0005; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00325; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?

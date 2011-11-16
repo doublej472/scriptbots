@@ -14,8 +14,8 @@ World::World() :
         current_epoch(0),
         idcounter(0),
         FW(conf::WIDTH/conf::CZ),
-        FH(conf::HEIGHT/conf::CZ),
-        CLOSED(false)
+        FH(conf::HEIGHT/conf::CZ) //,
+		//        CLOSED(false)
 {
     addRandomBots(conf::NUMBOTS);
 
@@ -36,8 +36,7 @@ World::World() :
     }
 
 	// Decide if world if closed
-	if(conf::CLOSED)
-		CLOSED = true;
+	CLOSED = conf::CLOSED;
 }
 
 
@@ -436,8 +435,15 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
-        a->in[20]= discomfort;   
-        
+        a->in[20]= discomfort;
+
+		// Now assign the "plan" from the last outputs as the new inputs
+		// PREV_PLAN is input 21-30
+		// NEXT_PLAN is output 9-17
+		for(int i = 9; i <= 17; ++i)
+		{
+			a->in[i+12] = a->out[i];
+		}
     }
 }
 
@@ -760,6 +766,12 @@ std::pair< int,int > World::numHerbCarnivores() const
 
 int World::numAgents() const
 {
+	if(agents.size() == 0)
+	{
+		cout << "Population is extinct" << endl;
+		exit(1);
+		
+	}
     return agents.size();
 }
 
