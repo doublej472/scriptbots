@@ -48,7 +48,7 @@ USAGE
 ------
 Follow the above instructions to compile then run the program.
 
-Keyboard Shortcuts:
+*Keyboard Shortcuts:*
 
 	 p= pause
 	 d= toggle drawing (for faster computation)
@@ -57,11 +57,10 @@ Keyboard Shortcuts:
 	 += faster
 	 -= slower
 
-Mouse Usage:
-
+*Mouse Usage:*
 Pan around by holding down right mouse button, and zoom by holding down middle button. Click to see brain details.
 
-Bot Status Indicator Colors: 
+*Bot Status Indicator Colors:*
 
 * WHITE: bot just ate part of another agent
 * YELLOW: bot just spiked another bot
