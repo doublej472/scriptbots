@@ -65,8 +65,18 @@ Bot Status Indicator Colors:
     YELLOW: bot just spiked another bot
     GREEN: bot just reproduced
 
+RECORDING
+---------
 
-QUESTIONS COMMENTS are best posted at the google group, available on project site
+On Linux:
+   $ sudo apt-get install xvidcap avidemux audacity ffmpeg2theora mplayer
+   $ xvidcap
+
+
+QUESTIONS COMMENTS 
+------------------
+
+Best posted at the google group, available on project site
 or contact me at andrej.karpathy@gmail.com
 
 Contributors:
