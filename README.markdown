@@ -20,7 +20,9 @@ To compile scriptbots you will need:
 
 It will use OpenMP to speed up everything, in case you have multicore cpu.
 
-If you are on Ubuntu (or debian) you can install all the dependencies with:
+**For Ubuntu/Debian**
+
+Install all the dependencies with:
 
     $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev
 
@@ -39,7 +41,7 @@ To execute ScriptBots simply type the following in the build directory:
 If you are running Linux through VirualBox you will need to run this command:
     $ LIBGL_ALWAYS_INDRECT=1 ./scriptbots
 
-For Windows: 
+**For Windows**
 
 Follow basically the same steps, but after running cmake open up the VS solution (.sln) file it generates and compile the project from VS.
 
@@ -48,7 +50,7 @@ USAGE
 ------
 Follow the above instructions to compile then run the program.
 
-*Keyboard Shortcuts:*
+**Keyboard Shortcuts:**
 
 	 p= pause
 	 d= toggle drawing (for faster computation)
@@ -57,10 +59,11 @@ Follow the above instructions to compile then run the program.
 	 += faster
 	 -= slower
 
-*Mouse Usage:*
+**Mouse Usage:**
+
 Pan around by holding down right mouse button, and zoom by holding down middle button. Click to see brain details.
 
-*Bot Status Indicator Colors:*
+**Bot Status Indicator Colors:**
 
 * WHITE: bot just ate part of another agent
 * YELLOW: bot just spiked another bot
