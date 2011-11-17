@@ -50,19 +50,20 @@ USAGE
 Follow the above instructions to compile then run the program.
 
 Keyboard Shortcuts:
+
 	 p= pause
-
 	 d= toggle drawing (for faster computation)
-
 	 f= draw food too
 	 q= add predators
 	 += faster
 	 -= slower
 
 Mouse Usage:
+
     Pan around by holding down right mouse button, and zoom by holding down middle button. Click to see brain details.
 
 Bot Status Indicator Colors: 
+
     WHITE: bot just ate part of another agent
     YELLOW: bot just spiked another bot
     GREEN: bot just reproduced
@@ -71,6 +72,7 @@ RECORDING
 ---------
 
 On Linux:
+
    $ sudo apt-get install xvidcap avidemux audacity ffmpeg2theora mplayer
    $ xvidcap
 
