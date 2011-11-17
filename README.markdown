@@ -51,7 +51,9 @@ Follow the above instructions to compile then run the program.
 
 Keyboard Shortcuts:
 	 p= pause
+
 	 d= toggle drawing (for faster computation)
+
 	 f= draw food too
 	 q= add predators
 	 += faster
