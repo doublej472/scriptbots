@@ -46,7 +46,6 @@ Follow basically the same steps, but after running cmake open up the VS solution
 
 USAGE
 ------
-
 Follow the above instructions to compile then run the program.
 
 Keyboard Shortcuts:
@@ -60,26 +59,24 @@ Keyboard Shortcuts:
 
 Mouse Usage:
 
-    Pan around by holding down right mouse button, and zoom by holding down middle button. Click to see brain details.
+Pan around by holding down right mouse button, and zoom by holding down middle button. Click to see brain details.
 
 Bot Status Indicator Colors: 
 
-    WHITE: bot just ate part of another agent
-    YELLOW: bot just spiked another bot
-    GREEN: bot just reproduced
+* WHITE: bot just ate part of another agent
+* YELLOW: bot just spiked another bot
+* GREEN: bot just reproduced
 
 RECORDING
 ---------
-
 On Linux:
 
-   $ sudo apt-get install xvidcap avidemux audacity ffmpeg2theora mplayer
-   $ xvidcap
+	$ sudo apt-get install xvidcap avidemux audacity ffmpeg2theora mplayer
+   	$ xvidcap
 
 
 QUESTIONS COMMENTS 
 ------------------
-
 Best posted at the google group, available on project site
 or contact me at andrej.karpathy@gmail.com
 
