@@ -296,9 +296,6 @@ void World::setInputs()
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
-        //HEALTH
-        a->in[11]= cap(a->health/2); //divide by 2 since health is in [0,2]
-
         //FOOD
         int cx= (int) a->pos.x/conf::CZ;
         int cy= (int) a->pos.y/conf::CZ;
@@ -430,7 +427,10 @@ void World::setInputs()
 			a->health += conf::GAIN_GROUPING;
 		else
 			a->health += health_gain;
-
+		
+        if (a->health>2) // limit the amount of health
+		    a->health=2;
+		
         //TOUCH (wall)
         if(	a->pos.x < 2 || a->pos.x > conf::WIDTH - 3 ||
         	a->pos.y < 2 || a->pos.y > conf::HEIGHT - 3 )
@@ -454,6 +454,7 @@ void World::setInputs()
         a->in[8]= cap(b2);
         a->in[9]= cap(soaccum);
         a->in[10]= cap(smaccum);
+        a->in[11]= cap(a->health/2); //divide by 2 since health is in [0,2]		
         a->in[12]= cap(p3);
         a->in[13]= cap(r3);
         a->in[14]= cap(g3);
@@ -464,10 +465,10 @@ void World::setInputs()
         a->in[19]= cap(blood);
         a->in[20]= cap(discomfort);
 		a->in[21]= cap(touch);
-		// change the random input at random intervals (20% chance)
-		if( randf(0,1) < .2 )
+		// change the random input at random intervals (10% chance)
+		if( randf(0,1) < .1 )
 			a->in[22]= randf(0,1); // random input for bot
-	
+		
 		// Copy last ouput and last "plan" to the current inputs
 		// PREV_OUT is 23-32
 	    // PREV_PLAN is 33-42
