@@ -260,19 +260,21 @@ void World::update()
 
     //add new agents, if environment isn't closed
     if (!CLOSED) {
-        //make sure environment is always populated with at least NUMBOTS bots
-        if (agents.size()<conf::NUMBOTS
-           ) {
+        //make sure environment is always populated with at least NUMBOTS_MIN bots
+        if (agents.size() < conf::NUMBOTS_MIN ) {
             //add new agent
-            addRandomBots(1);
+            addRandomBots(10);
+			cout << "Population below " << conf::NUMBOTS_MIN << ", adding 10 random bots." << endl;
         }
+		/*
         if (modcounter%100==0) {
             if (randf(0,1)<0.5){
                 addRandomBots(1); //every now and then add random bots in
             }else{
                 addNewByCrossover(); //or by crossover
 			}
-        }
+	   	}
+		*/
     }
 
 

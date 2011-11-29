@@ -17,12 +17,13 @@ namespace conf {
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
 
-	const bool CLOSED = true; // world is closed and no new agents are added
+	const bool CLOSED = false; // world is closed and no new agents are added
 	
 	// BOT PROPERTIES ---------------------------------------------
-    const int NUMBOTS=200; //initially, and minimally
-    const float BOTRADIUS=10; //for drawing
-    const float BOTSPEED= 0.1;
+    const int   NUMBOTS=200;         //initially
+	const int   NUMBOTS_MIN=100;     //for open world, the threshold to start adding bots
+    const float BOTRADIUS=10;        //for drawing
+    const float BOTSPEED= 0.1;       //how fast they can move
     const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
     const float SPIKEMULT= 2;        //essentially the strength of every spike impact
     const float BOOSTSIZEMULT=2;     //how much boost do agents get? when boost neuron is on
@@ -34,13 +35,13 @@ namespace conf {
     const float METAMUTRATE2= 0.05;
 
 	// REPRODUCTION ----------------------------------------------
-    const int BABIES=2; //number of babies per agent when they reproduce
+    const int   BABIES=2; //number of babies per agent when they reproduce
     const float REPRATEH=7; //reproduction rate for herbivors
     const float REPRATEC=7; //reproduction rate for carnivors
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00005; // loss of health for simply being alive (like breathing)
+	const float LOSS_BASE     = 0.0001; // loss of health for simply being alive (like breathing)
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
