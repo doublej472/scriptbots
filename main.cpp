@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
     printf("Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
 	printf("Bot Status Colors: \nWHITE: they just ate part of another agent\n");
 	printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
+	printf("GREY: bot is getting group health bonus\n");
     
     World* world = new World();
     GLVIEW->setWorld(world);

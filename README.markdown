@@ -61,12 +61,13 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * WHITE: bot just ate part of another agent
 * YELLOW: bot just spiked another bot
 * GREEN: bot just reproduced
+* GREY: bot is getting group health bonus
 
 RECORDING
 ---------
 On Linux:
 
-	$ sudo apt-get install xvidcap avidemux audacity ffmpeg2theora mplayer
+	$ sudo apt-get install xvidcap avidemux ffmpeg2theora mplayer
    	$ xvidcap
 
 
@@ -84,16 +85,13 @@ Contributors:
 BRAIN MAPPING
 ------------
 
-P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING  BLOOD  TEMP   TOUCH  PREV_PLAN
-0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18      19     20     21     22-31
+P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK2 HEARING BLOOD TEMP TOUCH RAND PREV_OUT  PREV_PLAN
+0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15   16     17     18     19    20   21    22    23-32    33-41
 
 
-LEFT RIGHT R G B SPIKE BOOST SOUND_MULTIPLIER GIVING  NEXT_PLAN
-  0   1    2 3 4   5     6         7             8      9-17
+LEFT RIGHT R G B SPIKE BOOST SOUND GIVING  NEXT_PLAN 
+  0   1    2 3 4   5     6    7       8      9-17
 
 TODO
 ------------
-Add grouping health bonus
 Data reporting/stats
-Info about . autostart.h
-Auto-add lots of carnivores at start of simulation

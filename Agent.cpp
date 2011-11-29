@@ -52,7 +52,8 @@ Agent::Agent()
 void Agent::printSelf()
 {
     printf("Agent age=%i\n", age);
-    printf("      temp pref=%f\n", temperature_preference);
+    printf("\ttemp pref=%f\n", temperature_preference);
+		   
     for (int i=0;i<mutations.size();i++) {
         cout << mutations[i];
     }

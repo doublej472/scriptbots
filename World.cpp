@@ -287,8 +287,7 @@ void World::growFood(int x, int y)
 
 void World::setInputs()
 {
-    //P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARING     BLOOD_SENSOR   TEMPERATURE_SENSOR
-    //0   1  2  3  4   5   6  7 8   9     10     11   12 13 14 15 16       17      18           19                 20
+	// See README.markdown for documentation of input ids
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
@@ -326,7 +325,9 @@ void World::setInputs()
 
         //SMELL SOUND EYES
         for (int j=0;j<agents.size();j++) {
-            if (i==j) continue;
+            if (i==j)
+				continue; // do not process self
+			
             Agent* a2= &agents[j];
 
 			// Do manhattan-distance estimation
@@ -336,10 +337,10 @@ void World::setInputs()
             		a->pos.y < a2->pos.y - conf::DIST)
             	continue;
 
-			// standard distance formula
-            float d= (a->pos-a2->pos).length();
+			// standard distance formula (more fine grain)
+            float d= (a->pos - a2->pos).length();
 
-            if (d<conf::DIST) {
+            if (d < conf::DIST) { // two bots are within DIST of each other
 
                 //smell
                 smaccum+= 0.3*(conf::DIST-d)/conf::DIST;
@@ -350,6 +351,13 @@ void World::setInputs()
                 //hearing. Listening to other agents
                 hearaccum+= a2->soundmul*(conf::DIST-d)/conf::DIST;
 
+				//grouping health bonus, as a ratio of closeness, for each bot nearby
+				if(d < conf::DIST_GROUPING)
+				{
+					a->health += conf::GAIN_GROUPING * (conf::DIST_GROUPING-d)/conf::DIST_GROUPING;
+                    a->initEvent(5,.5,.5,.5);
+				}
+				
                 float ang= (a2->pos- a->pos).get_angle(); //current angle between bots
 
                 //left and right eyes
@@ -443,25 +451,26 @@ void World::setInputs()
         a->in[17]= abs(sin(modcounter/a->clockf2));
         a->in[18]= cap(hearaccum);
         a->in[19]= cap(blood);
-        a->in[20]= discomfort;
-		a->in[21] = touch;
-		
-		// Now assign the "plan" from the last outputs as the new inputs
-		// PREV_PLAN is input 21-30
-		// NEXT_PLAN is output 9-17
-		for(int i = 9; i <= 17; ++i)
+        a->in[20]= cap(discomfort);
+		a->in[21]= cap(touch);
+		// change the random input at random intervals (20% chance)
+		if( randf(0,1) < .2 )
+			a->in[22]= randf(0,1); // random input for bot
+	
+		// Copy last ouput and last "plan" to the current inputs
+		// PREV_OUT is 23-32
+	    // PREV_PLAN is 33-42
+		for(int i = 0; i < 19; ++i)
 		{
-			a->in[i+13] = a->out[i];
+			a->in[i+23] = a->out[i];
 		}
     }
 }
 
 void World::processOutputs()
 {
-    //assign meaning
-    //LEFT RIGHT R G B SPIKE BOOST SOUND_MULTIPLIER GIVING
-    // 0    1    2 3 4   5     6         7             8
-
+	// See README.markdown for documentation of output ids
+	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -630,6 +639,10 @@ void World::addRandomBots(int num)
         Agent a;
         a.id= idcounter;
         idcounter++;
+		// Add bias for slightly more carnivores (20%) to give them head up in world
+		if( randf(0, 1) < .2 )
+			a.herbivore = randf(0, 0.1);
+			
         agents.push_back(a);
     }
 }

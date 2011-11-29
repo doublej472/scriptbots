@@ -1,7 +1,8 @@
-#define INPUTSIZE 31 // 22 + 9 = 31
-#define OUTPUTSIZE 18 // 9 + 9 = 18
-#define BRAINSIZE 150
-#define CONNS 4
+// see README.markdown -> BRAIN MAPPING for explanation of input and output size
+#define INPUTSIZE 42
+#define OUTPUTSIZE 18
+#define BRAINSIZE 250
+#define CONNS 6
 
 #ifndef SETTINGS_H
 #define SETTINGS_H
@@ -19,14 +20,15 @@ namespace conf {
 	const bool CLOSED = true; // world is closed and no new agents are added
 	
 	// BOT PROPERTIES ---------------------------------------------
-    const int NUMBOTS=100; //initially, and minimally
+    const int NUMBOTS=200; //initially, and minimally
     const float BOTRADIUS=10; //for drawing
     const float BOTSPEED= 0.1;
-    const float SPIKESPEED= 0.01; //how quickly can attack spike go up?
-    const float SPIKEMULT= 2; //essentially the strength of every spike impact
-    const float BOOSTSIZEMULT=2; //how much boost do agents get? when boost neuron is on
-    const float DIST= 150;		//how far can the eyes see on each bot?
-    const float EYE_SENSITIVITY= 2; //how sensitive are the eyes?
+    const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
+    const float SPIKEMULT= 2;        //essentially the strength of every spike impact
+    const float BOOSTSIZEMULT=2;     //how much boost do agents get? when boost neuron is on
+    const float DIST= 150;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
+	const float DIST_GROUPING = 40;  //how close must another agent be to get grouping health gain
+    const float EYE_SENSITIVITY= 2;  //how sensitive are the eyes?
     const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
     const float METAMUTRATE2= 0.05;
@@ -38,10 +40,11 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00005;
-	const float LOSS_SHOUTING = 0.00005;
-	const float LOSS_SPEED    = 0.00005;
-	const float LOSS_TEMP     = 0.00005;
+	const float LOSS_BASE     = 0.00005; // loss of health for simply being alive (like breathing)
+	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
+	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
+	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
+	const float GAIN_GROUPING = 0.00005; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
 		
 	// FOOD SETTINGS -----------------------------------------------
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
