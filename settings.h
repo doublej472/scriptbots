@@ -38,7 +38,7 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00003;
+	const float LOSS_BASE     = 0.00005;
 	const float LOSS_SHOUTING = 0.00005;
 	const float LOSS_SPEED    = 0.00005;
 	const float LOSS_TEMP     = 0.00005;
