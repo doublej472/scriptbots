@@ -16,8 +16,8 @@ World::World() :
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ)
 {
+	//create the bots
     addRandomBots(conf::NUMBOTS);
-
 	
     //inititalize food layer	
     srand(time(0));
@@ -325,6 +325,9 @@ void World::setInputs()
         //BLOOD ESTIMATOR
         float blood= 0;
 
+		//AMOUNT OF HEALTH GAINED FROM BEING IN GROUP
+		float health_gain = 0;
+		
         //SMELL SOUND EYES
         for (int j=0;j<agents.size();j++) {
             if (i==j)
@@ -356,7 +359,7 @@ void World::setInputs()
 				//grouping health bonus, as a ratio of closeness, for each bot nearby
 				if(d < conf::DIST_GROUPING)
 				{
-					a->health += conf::GAIN_GROUPING * (conf::DIST_GROUPING-d)/conf::DIST_GROUPING;
+					health_gain += conf::GAIN_GROUPING * (conf::DIST_GROUPING-d)/conf::DIST_GROUPING;
                     a->initEvent(5,.5,.5,.5);
 				}
 				
@@ -421,6 +424,12 @@ void World::setInputs()
                 }
             }
         }
+
+		//APPLY HEALTH GAIN
+		if(health_gain > conf::GAIN_GROUPING) //cap at conf value
+			a->health += conf::GAIN_GROUPING;
+		else
+			a->health += health_gain;
 
         //TOUCH (wall)
         if(	a->pos.x < 2 || a->pos.x > conf::WIDTH - 3 ||

@@ -63,6 +63,13 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * GREEN: bot just reproduced
 * GREY: bot is getting group health bonus
 
+**Bot Display Status Numbers:**
+* Row 1: Generation Count
+* Row 2: Age
+* Row 3: Health
+* Row 4: Next reproduction
+
+
 RECORDING
 ---------
 On Linux:

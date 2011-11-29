@@ -255,9 +255,9 @@ void GLView::drawAgent(const Agent& agent)
             glVertex3f(offx+xx+ss*j, yy, 0.0f);
             glVertex3f(offx+xx+ss*j, yy+ss, 0.0f);
             glVertex3f(offx+ss*j, yy+ss, 0.0f);
-            if ((j+1)%30==0) {
+            if ((j+1)%40==0) {
                 yy+=ss;
-                offx-=ss*30;
+                offx-=ss*40;
             }
         }
 

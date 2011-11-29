@@ -20,7 +20,7 @@ namespace conf {
 	const bool CLOSED = false; // world is closed and no new agents are added
 	
 	// BOT PROPERTIES ---------------------------------------------
-    const int   NUMBOTS=200;         //initially
+    const int   NUMBOTS=250;         //initially
 	const int   NUMBOTS_MIN=100;     //for open world, the threshold to start adding bots
     const float BOTRADIUS=10;        //for drawing
     const float BOTSPEED= 0.1;       //how fast they can move
@@ -41,7 +41,7 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.0001; // loss of health for simply being alive (like breathing)
+	const float LOSS_BASE     = 0.00007; // loss of health for simply being alive (like breathing)
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
@@ -56,7 +56,7 @@ namespace conf {
     const float FOODINTAKE= 0.00225; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
-    const int   FOODADDFREQ= 15; //how often does random square get to full food?
+    const int   FOODADDFREQ= 10; //how often does random square get to full food? (the lower the more often food is added)
 	const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
 	const float FOOD_MEAT_VALUE = 2.0; // percentage that health is transferred to another agent when eaten
 		
