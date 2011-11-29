@@ -12,13 +12,13 @@ Mailing List / Forum:
 BUILDING
 ---------
 
-To compile scriptbots you will need:
+Scriptbots uses the following dependencies:
 
 * CMake >= 2.8 (http://www.cmake.org/cmake/resources/software.html)
 * OpenGL and GLUT (http://www.opengl.org/resources/libraries/glut/)
-* * Linux: freeglut (http://freeglut.sourceforge.net/) 
+* Linux: freeglut (http://freeglut.sourceforge.net/) 
 
-It will use OpenMP to speed up everything, in case you have multicore cpu.
+OpenMP is used to speed up everything if you have multicore cpu.
 
 **For Ubuntu/Debian**
 
@@ -26,19 +26,11 @@ Install all the dependencies with:
 
     $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev
 
-To build ScriptBots on Linux:
+To build and run ScriptBots on Linux simply run the batch script:
 
-    $ cd path/to/source
-    $ mkdir build
-    $ cd build
-    $ cmake ../ # this is the equiv of ./configure
-    $ make
+    $ . autorun.sh
 
-To execute ScriptBots simply type the following in the build directory:
-
-    $ ./scriptbots
-
-If you are running Linux through VirualBox you will need to run this command:
+If you are running Linux through VirualBox you might need to add this command to the batch script:
     $ LIBGL_ALWAYS_INDRECT=1 ./scriptbots
 
 **For Windows**
@@ -55,7 +47,8 @@ Follow the above instructions to compile then run the program.
 * p = pause
 * d = toggle drawing (for faster computation)
 * f = draw food too
-* q = add predators
+* q = add 10 predators
+* a = add 10 agents by crossover
 * + = faster
 * - = slower
 
@@ -98,3 +91,9 @@ P1 R1 G1 B1 FOOD P2 R2 G2 B2 SOUND SMELL HEALTH P3 R3 G3 B3 CLOCK1 CLOCK 2 HEARI
 LEFT RIGHT R G B SPIKE BOOST SOUND_MULTIPLIER GIVING  NEXT_PLAN
   0   1    2 3 4   5     6         7             8      9-17
 
+TODO
+------------
+Add grouping health bonus
+Data reporting/stats
+Info about . autostart.h
+Auto-add lots of carnivores at start of simulation

@@ -1,6 +1,10 @@
+mkdir -p build  # only make folder if it does not exist
 cd build
 cmake ../
 make
-cd ..
-read -p "Press any key if no error"
-./build/scriptbots
+if [ $? -eq 0 ] ; then
+    cd ..
+    ./build/scriptbots
+else
+    cd ..
+fi
