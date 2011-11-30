@@ -29,7 +29,7 @@ public:
     
     int numAgents() const;
     int epoch() const;
-    
+
     //mouse interaction
     void processMouse(int button, int state, int x, int y);
 
@@ -51,7 +51,8 @@ private:
     int modcounter;
     int current_epoch;
     int idcounter;
-    
+	int numAgentsAdded; // counts how many agents have been artifically added
+			
     std::vector<Agent> agents;
     
     // food

@@ -1,7 +1,7 @@
 // see README.markdown -> BRAIN MAPPING for explanation of input and output size
 #define INPUTSIZE 42
 #define OUTPUTSIZE 18
-#define BRAINSIZE 250
+#define BRAINSIZE 300
 #define CONNS 6
 
 #ifndef SETTINGS_H
@@ -12,7 +12,7 @@ namespace conf {
 	// WORLD / WINDOW SETTINGS -------------------------------------
     const int WIDTH = 4200;  //width and height of simulation
     const int HEIGHT = 2600;
-    const int WWIDTH = 1800;  //window width and height
+    const int WWIDTH = 1900;  //window width and height
     const int WHEIGHT = 1000;
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
@@ -21,14 +21,14 @@ namespace conf {
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int   NUMBOTS=250;         //initially
-	const int   NUMBOTS_MIN=100;     //for open world, the threshold to start adding bots
+	const int   NUMBOTS_MIN=50;     //for open world, the threshold to start adding bots
     const float BOTRADIUS=10;        //for drawing
     const float BOTSPEED= 0.1;       //how fast they can move
     const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
     const float SPIKEMULT= 2;        //essentially the strength of every spike impact
     const float BOOSTSIZEMULT=2;     //how much boost do agents get? when boost neuron is on
-    const float DIST= 150;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
-	const float DIST_GROUPING = 40;  //how close must another agent be to get grouping health gain
+    const float DIST= 200;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
+	const float DIST_GROUPING = 50;  //how close must another agent be to get grouping health gain
     const float EYE_SENSITIVITY= 2;  //how sensitive are the eyes?
     const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
@@ -41,7 +41,7 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00007; // loss of health for simply being alive (like breathing)
+	const float LOSS_BASE     = 0.00006; // loss of health for simply being alive (like breathing)
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world

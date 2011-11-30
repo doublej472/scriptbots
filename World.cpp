@@ -13,11 +13,14 @@ World::World() :
         modcounter(0),
         current_epoch(0),
         idcounter(0),
+		numAgentsAdded(0),
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ)
 {
-	//create the bots
-    addRandomBots(conf::NUMBOTS);
+	//create the bots but with 20% more carnivores, to give them head start
+    addRandomBots(int(conf::NUMBOTS * .8));
+	for(int i = 0; i < int(conf::NUMBOTS * .2); ++i)
+		addCarnivore();
 	
     //inititalize food layer	
     srand(time(0));
@@ -264,7 +267,8 @@ void World::update()
         if (agents.size() < conf::NUMBOTS_MIN ) {
             //add new agent
             addRandomBots(10);
-			cout << "Population below " << conf::NUMBOTS_MIN << ", adding 10 random bots." << endl;
+			numAgentsAdded += 10;			
+			cout << "Population min reached, adding 10 random bots. Total added is: " << numAgentsAdded << endl;
         }
 		/*
         if (modcounter%100==0) {
@@ -651,9 +655,6 @@ void World::addRandomBots(int num)
         Agent a;
         a.id= idcounter;
         idcounter++;
-		// Add bias for slightly more carnivores (20%) to give them head up in world
-		if( randf(0, 1) < .2 )
-			a.herbivore = randf(0, 0.1);
 			
         agents.push_back(a);
     }
@@ -719,23 +720,27 @@ void World::reproduce(int ai, float MR, float MR2)
 
 void World::writeReport()
 {
-    //TODO fix reporting
-    //save all kinds of nice data stuff
-//     int numherb=0;
-//     int numcarn=0;
-//     int topcarn=0;
-//     int topherb=0;
-//     for(int i=0;i<agents.size();i++){
-//         if(agents[i].herbivore>0.5) numherb++;
-//         else numcarn++;
-// 
-//         if(agents[i].herbivore>0.5 && agents[i].gencount>topherb) topherb= agents[i].gencount;
-//         if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn) topcarn= agents[i].gencount;
-//     }
-// 
-//     FILE* fp = fopen("report.txt", "a");
-//     fprintf(fp, "%i %i %i %i\n", numherb, numcarn, topcarn, topherb);
-//     fclose(fp);
+     //save all kinds of nice data stuff
+     int numherb=0;
+     int numcarn=0;
+     int topcarn=0;
+     int topherb=0;
+	 
+     for(int i=0;i<agents.size();i++){
+         if(agents[i].herbivore>0.5)
+			 numherb++;
+         else
+			 numcarn++;
+ 
+         if(agents[i].herbivore>0.5 && agents[i].gencount>topherb)
+			 topherb= agents[i].gencount;
+         if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn)
+			 topcarn= agents[i].gencount;
+     }
+ 
+     FILE* fp = fopen("report.txt", "a");
+     fprintf(fp, "%i %i %i %i\n", numherb, numcarn, topcarn, topherb);
+     fclose(fp);
 }
 
 
