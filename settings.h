@@ -34,8 +34,9 @@ namespace conf {
 	const float DIST_GROUPING = 50;  //how close must another agent be to get grouping health gain
     const float EYE_SENSITIVITY= 2;  //how sensitive are the eyes?
     const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
-    const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction? lol
+    const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction
     const float METAMUTRATE2= 0.05;
+	const int   OLD_AGE_THRESHOLD = 500; // at what age do they start lossing health for being old?
 
 	// REPRODUCTION ----------------------------------------------
     const int   BABIES=2; //number of babies per agent when they reproduce
@@ -48,6 +49,7 @@ namespace conf {
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
+	const float LOSS_AGE      = 0.00005; // loss of health from old age
 	const float GAIN_GROUPING = 0.00006; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
 		
 	// FOOD SETTINGS -----------------------------------------------

@@ -383,7 +383,7 @@ void GLView::drawAgent(const Agent& agent)
     glEnd();
 
     //print stats if zoomed in enough
-	if(scalemult > .5)
+	if(scalemult > .6)
 	{
 		//generation count
 		sprintf(buf2, "%i", agent.gencount);

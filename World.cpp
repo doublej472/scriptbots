@@ -138,6 +138,13 @@ void World::update()
     for (i=0;i<agents.size();i++) {
         healthloss = conf::LOSS_BASE; // base amount of health lost every turn for being alive
 
+		// remove health based on agent age
+		if(agents[i].age > conf::OLD_AGE_THRESHOLD)
+		{
+			healthloss += conf::LOSS_AGE;
+			cout << "Agent " << i << " has lost health for being old" << endl;
+		}
+		
 		// remove health based on wheel speed
 		if(agents[i].boost) { // is using boost			
 			healthloss +=
@@ -731,10 +738,12 @@ void World::reproduce(int ai, float MR, float MR2)
 void World::writeReport()
 {
      //save all kinds of nice data stuff
-     int numherb=0;
-     int numcarn=0;
-     int topherb=0;
-     int topcarn=0;
+     int numherb = 0;
+     int numcarn = 0;
+     int topherb = 0;
+     int topcarn = 0;
+	 int total_age = 0;
+	 int avg_age;
 	 double epoch_decimal = modcounter / 10000.0 + current_epoch;
 	 
 	 // Count number of herb, carn and top of each
@@ -749,7 +758,10 @@ void World::writeReport()
          if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn)
 			 topcarn= agents[i].gencount;
 
+		 // Average Age:
+		 total_age += agents[i].age;
      }
+	 avg_age = total_age / agents.size();
 	 
 	 // Compute Standard Devitation of every weight in every agents brain
 	 double total_std_dev = 0;
@@ -793,8 +805,8 @@ void World::writeReport()
 	 
      FILE* fp = fopen("report.csv", "a");
 	 
-     fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n",
-			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), numAgentsAdded);
+     fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n",
+			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), avg_age, numAgentsAdded);
 	 
      fclose(fp);
 
