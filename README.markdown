@@ -69,6 +69,13 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * Row 3: Health
 * Row 4: Next reproduction
 
+PLOTTING BOT STATISTICS
+--------
+On Linux, from within scriptbox director:
+
+	$ sudo apt-get install gnuplot
+	$ . plot.sh
+
 
 RECORDING
 ---------
