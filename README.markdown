@@ -108,8 +108,8 @@ BRAIN MAPPING
 
 TODO
 ------------
-Tweak mutation rate
-Reduce amount of IO
-Add more memory/history to bot brain
-Encourage more swarm behavior
+* Tweak mutation rate
+* Reduce amount of IO
+* Add more memory/history to bot brain
+* Encourage more swarm behavior
 

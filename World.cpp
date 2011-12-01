@@ -272,7 +272,6 @@ void World::update()
         if (agents.size() < conf::NUMBOTS_MIN ) {
             //add new agent
             addRandomBots(10);
-			numAgentsAdded += 10;			
 			cout << "Population min reached, adding 10 random bots." << endl;
         }
 		/*
@@ -656,6 +655,8 @@ void World::brainsTick()
 
 void World::addRandomBots(int num)
 {
+	numAgentsAdded += num; // record in report
+	
     for (int i=0;i<num;i++) {
         Agent a;
         a.id= idcounter;
@@ -671,6 +672,8 @@ void World::addCarnivore()
     idcounter++;
     a.herbivore= randf(0, 0.1);
     agents.push_back(a);
+
+	++numAgentsAdded;	// record in report
 }
 
 void World::addNewByCrossover()
@@ -700,6 +703,8 @@ void World::addNewByCrossover()
     anew.id= idcounter;
     idcounter++;
     agents.push_back(anew);
+
+	++numAgentsAdded;	// record in report	
 }
 
 void World::reproduce(int ai, float MR, float MR2)
