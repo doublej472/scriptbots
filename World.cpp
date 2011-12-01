@@ -14,7 +14,6 @@ World::World() :
         current_epoch(0),
         idcounter(0),
 		numAgentsAdded(0),
-		agentsAdded(true),
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ)
 {
@@ -61,7 +60,7 @@ void World::update()
     }
 
 	// Write Report
-    if (modcounter%1000==0)
+    if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % (10000 / conf::REPORTS_PER_EPOCH) ==0) )
     	writeReport();
 
 	// Increment Epoch
@@ -274,8 +273,7 @@ void World::update()
             //add new agent
             addRandomBots(10);
 			numAgentsAdded += 10;			
-			cout << "Population min reached, adding 10 random bots. Total added is: " << numAgentsAdded << endl;
-			agentsAdded = true; // used for reporting
+			cout << "Population min reached, adding 10 random bots." << endl;
         }
 		/*
         if (modcounter%100==0) {
@@ -732,17 +730,9 @@ void World::writeReport()
      int numcarn=0;
      int topherb=0;
      int topcarn=0;
-	 int displayAddition = 0;
 	 double epoch_decimal = modcounter / 10000.0 + current_epoch;
-	 cout << modcounter << " " << epoch_decimal << " " << current_epoch << endl;
 	 
-	 // Show on graph when agents are added
-	 if(agentsAdded)
-	 {
-		 displayAddition = 50;
-		 agentsAdded = false;
-	 }
-	 
+	 // Count number of herb, carn and top of each
      for(int i=0;i<agents.size();i++){
          if(agents[i].herbivore>0.5)
 			 numherb++;
@@ -755,6 +745,7 @@ void World::writeReport()
 			 topcarn= agents[i].gencount;
 
      }
+	 
 	 // Compute Standard Devitation of every weight in every agents brain
 	 double total_std_dev = 0;
 	 double total_mean_std_dev;
@@ -793,15 +784,19 @@ void World::writeReport()
 		 //cout << "BOX Sqr root = " << final_std_dev << endl << endl;
 		 total_std_dev += final_std_dev;
 	 }
-	 total_mean_std_dev = total_std_dev / agents.size() * 100; // scale by 100 for graph readability
+	 total_mean_std_dev = total_std_dev - 200; // reduce by 200 for graph readability
 	 
-	 //cout << "Total standard dev = " << total_mean_std_dev << endl;
+	 cout << "Total standard dev = " << total_mean_std_dev << endl;
 	 
      FILE* fp = fopen("report.csv", "a");
 	 
      fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n",
-			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), displayAddition);
-     fclose(fp); 
+			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), numAgentsAdded);
+	 
+     fclose(fp);
+
+	 // Reset number agents added to zero
+	 numAgentsAdded = 0;
 }
 
 

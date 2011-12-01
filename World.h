@@ -51,8 +51,7 @@ private:
     int modcounter;
     int current_epoch;
     int idcounter;
-	int numAgentsAdded; // counts how many agents have been artifically added
-	bool agentsAdded; // flag used for showing in csv report that agents were added at this point
+	int numAgentsAdded; // counts how many agents have been artifically added per reporting iteration
 	
     std::vector<Agent> agents;
     

@@ -18,6 +18,9 @@ namespace conf {
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
 
 	const bool CLOSED = false; // world is closed and no new agents are added
+
+	// REPORTING --------------------------------------------------
+	const int   REPORTS_PER_EPOCH = 5; // number of times to record data per epoch. 0 for off.
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int   NUMBOTS=250;         //initially
@@ -45,7 +48,7 @@ namespace conf {
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
-	const float GAIN_GROUPING = 0.00005; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
+	const float GAIN_GROUPING = 0.00006; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
 		
 	// FOOD SETTINGS -----------------------------------------------
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
