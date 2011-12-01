@@ -14,6 +14,7 @@ World::World() :
         current_epoch(0),
         idcounter(0),
 		numAgentsAdded(0),
+		agentsAdded(true),
         FW(conf::WIDTH/conf::CZ),
         FH(conf::HEIGHT/conf::CZ)
 {
@@ -56,9 +57,11 @@ void World::update()
         }
     }
 
+	// Write Report
     if (modcounter%1000==0)
-    	writeReport();
+    	writeRport();
 
+	// Increment Epoch
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
@@ -269,6 +272,7 @@ void World::update()
             addRandomBots(10);
 			numAgentsAdded += 10;			
 			cout << "Population min reached, adding 10 random bots. Total added is: " << numAgentsAdded << endl;
+			agentsAdded = true; // used for reporting
         }
 		/*
         if (modcounter%100==0) {
@@ -723,8 +727,16 @@ void World::writeReport()
      //save all kinds of nice data stuff
      int numherb=0;
      int numcarn=0;
-     int topcarn=0;
      int topherb=0;
+     int topcarn=0;
+	 itn displayAddition = 0;
+
+	 // Show on graph when agents are added
+	 if(agentsAdded)
+	 {
+		 displayAddition = 50;
+		 agentsAdded = false;
+	 }
 	 
      for(int i=0;i<agents.size();i++){
          if(agents[i].herbivore>0.5)
@@ -736,10 +748,50 @@ void World::writeReport()
 			 topherb= agents[i].gencount;
          if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn)
 			 topcarn= agents[i].gencount;
+
      }
- 
-     FILE* fp = fopen("report.txt", "a");
-     fprintf(fp, "%i %i %i %i\n", numherb, numcarn, topcarn, topherb);
+	 // Compute Standard Devitation of every weight in every agents brain
+	 double total_std_dev = 0;
+	 
+	 for(int i=0; i<BRAINSIZE; i++) // loop through every box in brain (there are BRAINSIZE of these)
+	 {
+		 double box_sum = 0;
+		 double box_weights[agents.size()];
+		 double box_mean;
+		 double box_square_sum = 0;
+		 double final_std_dev;
+		 
+		 for(int a=0; a<agents.size(); a++) // loop through every agent to get the weight
+		 {
+			 double box_weight_sum = 0;
+			 
+			 for(int b=0; b<CONNS; b++)
+				 box_weight_sum += agent[a].brain.boxes[i].w[b];
+
+			 // Add this sum to total stats:
+			 box_sum += box_weight_sum;
+			 box_weights[a] = box_weight_sum;
+		 }
+
+		 // Computer the mean of the box_weight_sum for this box
+		 box_mean  = box_sum / BRAINSIZE;
+		 cout << "BOX MEAN = " << box_mean << endl;
+
+		 // Now calculate the population standard deviation for this box:
+		 // Compute diff of each weight sum from mean and square the result, then add it:
+		 for(int c=0; c<agents.size(); c++)
+		 {
+			 box_square_sum += pow( box_weights[c] - box_mean, 2);
+		 }
+
+		 final_std_dev = sqrt( box_square_sum / agents.size() );
+		 cout << "BOX Sqr root = " << final_std_dev << endl << endl;
+		 total_std_dev += final_std_dev;
+	 }
+	 cout << "Total standard dev = " << total_std_dev << endl;
+	 
+     FILE* fp = fopen("report.csv", "a");
+     fprintf(fp, "%i,%i,%i,%i,%i,%i,%i\n", current_epoch, numherb, numcarn, topherb, topcarn, total_std_dev, displayAddition);
      fclose(fp);
 }
 
