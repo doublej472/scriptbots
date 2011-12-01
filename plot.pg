@@ -1,0 +1,32 @@
+#!/usr/bin/gnuplot
+reset
+#set terminal png
+
+set terminal wxt size 1800,1000
+
+set xlabel "Epoch"
+
+set ylabel "Population"
+
+#set yrange [0:400]
+set autoscale
+
+set title "ScriptBots Pred vs Prey Plotting"
+set key reverse Left inside
+set grid
+
+set style data lines
+#set style line 1 lw 6
+
+
+set datafile separator ","
+
+plot "report.csv" using 1:2 title 'Herbivores' linecolor rgb "green", \
+     "report.csv" using 1:3 title 'Carnivores' linecolor rgb "red", \
+     "report.csv" using 1:4 title 'Top Herbivore' linecolor rgb "blue", \
+     "report.csv" using 1:5 title 'Top Carnivores' linecolor rgb "orange", \
+     "report.csv" using 1:6 title 'Brain Stand Dev' linecolor rgb "violet", \
+     "report.csv" using 1:7 title 'Agents Added' linecolor rgb  "black" lw 3
+     
+pause 10
+reread

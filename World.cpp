@@ -40,6 +40,9 @@ World::World() :
 
 	// Decide if world if closed based on settings.h
 	CLOSED = conf::CLOSED;
+
+	// Delete the old report to start fresh
+	remove("report.csv");
 }
 
 
@@ -59,7 +62,7 @@ void World::update()
 
 	// Write Report
     if (modcounter%1000==0)
-    	writeRport();
+    	writeReport();
 
 	// Increment Epoch
     if (modcounter>=10000) {
@@ -729,8 +732,10 @@ void World::writeReport()
      int numcarn=0;
      int topherb=0;
      int topcarn=0;
-	 itn displayAddition = 0;
-
+	 int displayAddition = 0;
+	 double epoch_decimal = modcounter / 10000.0 + current_epoch;
+	 cout << modcounter << " " << epoch_decimal << " " << current_epoch << endl;
+	 
 	 // Show on graph when agents are added
 	 if(agentsAdded)
 	 {
@@ -752,7 +757,7 @@ void World::writeReport()
      }
 	 // Compute Standard Devitation of every weight in every agents brain
 	 double total_std_dev = 0;
-	 
+	 double total_mean_std_dev;
 	 for(int i=0; i<BRAINSIZE; i++) // loop through every box in brain (there are BRAINSIZE of these)
 	 {
 		 double box_sum = 0;
@@ -765,9 +770,9 @@ void World::writeReport()
 		 {
 			 double box_weight_sum = 0;
 			 
-			 for(int b=0; b<CONNS; b++)
-				 box_weight_sum += agent[a].brain.boxes[i].w[b];
-
+			 for(int b=0; b<CONNS; b++){
+				 box_weight_sum += agents[a].brain.boxes[i].w[b];
+			 }
 			 // Add this sum to total stats:
 			 box_sum += box_weight_sum;
 			 box_weights[a] = box_weight_sum;
@@ -775,7 +780,7 @@ void World::writeReport()
 
 		 // Computer the mean of the box_weight_sum for this box
 		 box_mean  = box_sum / BRAINSIZE;
-		 cout << "BOX MEAN = " << box_mean << endl;
+		 //cout << "BOX MEAN = " << box_mean << endl;
 
 		 // Now calculate the population standard deviation for this box:
 		 // Compute diff of each weight sum from mean and square the result, then add it:
@@ -785,14 +790,18 @@ void World::writeReport()
 		 }
 
 		 final_std_dev = sqrt( box_square_sum / agents.size() );
-		 cout << "BOX Sqr root = " << final_std_dev << endl << endl;
+		 //cout << "BOX Sqr root = " << final_std_dev << endl << endl;
 		 total_std_dev += final_std_dev;
 	 }
-	 cout << "Total standard dev = " << total_std_dev << endl;
+	 total_mean_std_dev = total_std_dev / agents.size() * 100; // scale by 100 for graph readability
+	 
+	 //cout << "Total standard dev = " << total_mean_std_dev << endl;
 	 
      FILE* fp = fopen("report.csv", "a");
-     fprintf(fp, "%i,%i,%i,%i,%i,%i,%i\n", current_epoch, numherb, numcarn, topherb, topcarn, total_std_dev, displayAddition);
-     fclose(fp);
+	 
+     fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n",
+			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), displayAddition);
+     fclose(fp); 
 }
 
 

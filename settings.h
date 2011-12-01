@@ -10,7 +10,7 @@
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------
-    const int WIDTH = 4200;  //width and height of simulation
+    const int WIDTH = 4800;  //width and height of simulation
     const int HEIGHT = 2600;
     const int WWIDTH = 1900;  //window width and height
     const int WHEIGHT = 1000;
@@ -21,7 +21,7 @@ namespace conf {
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int   NUMBOTS=250;         //initially
-	const int   NUMBOTS_MIN=50;     //for open world, the threshold to start adding bots
+	const int   NUMBOTS_MIN=40;     //for open world, the threshold to start adding bots
     const float BOTRADIUS=10;        //for drawing
     const float BOTSPEED= 0.1;       //how fast they can move
     const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
@@ -56,7 +56,7 @@ namespace conf {
     const float FOODINTAKE= 0.00225; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
-    const int   FOODADDFREQ= 10; //how often does random square get to full food? (the lower the more often food is added)
+    const int   FOODADDFREQ= 8; //how often does random square get to full food? (the lower the more often food is added)
 	const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
 	const float FOOD_MEAT_VALUE = 2.0; // percentage that health is transferred to another agent when eaten
 		
