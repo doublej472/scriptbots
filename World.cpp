@@ -786,8 +786,6 @@ void World::writeReport()
 	 }
 	 total_mean_std_dev = total_std_dev - 200; // reduce by 200 for graph readability
 	 
-	 cout << "Total standard dev = " << total_mean_std_dev << endl;
-	 
      FILE* fp = fopen("report.csv", "a");
 	 
      fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n",

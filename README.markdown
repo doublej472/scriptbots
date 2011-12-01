@@ -77,7 +77,7 @@ On Linux, from within scriptbox director:
 	$ . plot.sh
 
 
-RECORDING
+VIDEO RECORDING
 ---------
 On Linux:
 
@@ -108,8 +108,8 @@ LEFT RIGHT R G B SPIKE BOOST SOUND GIVING  NEXT_PLAN
 
 TODO
 ------------
-Data reporting/stats
+Tweak mutation rate
+Reduce amount of IO
+Add more memory/history to bot brain
+Encourage more swarm behavior
 
-
-
-Changes:
