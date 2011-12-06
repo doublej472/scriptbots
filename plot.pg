@@ -8,8 +8,8 @@ set xlabel "Epoch"
 
 set ylabel "Population"
 
-#set yrange [0:400]
-set autoscale
+set yrange [0:1000]
+#set autoscale
 
 set title "ScriptBots Pred vs Prey Plotting"
 set key reverse Left inside
@@ -29,5 +29,5 @@ plot "report.csv" using 1:2 title 'Herbivores' linecolor rgb "green", \
      "report.csv" using 1:7 title 'Avg Age' linecolor rgb "yellow", \
      "report.csv" using 1:8 title 'Agents Added' linecolor rgb  "black" lw 3
      
-pause 10
-reread
+#pause 10
+#reread

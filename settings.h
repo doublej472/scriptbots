@@ -31,7 +31,7 @@ namespace conf {
     const float SPIKEMULT= 2;        //essentially the strength of every spike impact
     const float BOOSTSIZEMULT=2;     //how much boost do agents get? when boost neuron is on
     const float DIST= 200;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
-	const float DIST_GROUPING = 50;  //how close must another agent be to get grouping health gain
+	const float DIST_GROUPING = 40;  //how close must another agent be to get grouping health gain
     const float EYE_SENSITIVITY= 2;  //how sensitive are the eyes?
     const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
     const float METAMUTRATE1= 0.002; //what is the change in MUTRATE1 and 2 on reproduction
@@ -50,7 +50,7 @@ namespace conf {
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world
 	const float LOSS_AGE      = 0.00005; // loss of health from old age
-	const float GAIN_GROUPING = 0.00006; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
+	const float GAIN_GROUPING = 0.00007; // addition of health for each bot near it, as a ratio of closeness (thermal sharing)
 		
 	// FOOD SETTINGS -----------------------------------------------
 	const int FOOD_MODEL_RAND = 1; // Food Model Options

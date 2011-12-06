@@ -133,18 +133,19 @@ void World::update()
 	float dd, discomfort; // temperature preference vars
 	int numaround, j; // used for dead agents
 	float d, agemult; //used for dead agents
+
+	// check if first agent in vector (the oldest) is too old
+	if(agents[0].age > conf::OLD_AGE_THRESHOLD)
+	{
+		agents[0].health = 0;
+		cout << "Agent has died for being old at epoch " << current_epoch << endl;
+	}
+		
 	
     //process bots health
     for (i=0;i<agents.size();i++) {
         healthloss = conf::LOSS_BASE; // base amount of health lost every turn for being alive
 
-		// remove health based on agent age
-		if(agents[i].age > conf::OLD_AGE_THRESHOLD)
-		{
-			healthloss += conf::LOSS_AGE;
-			cout << "Agent " << i << " has lost health for being old" << endl;
-		}
-		
 		// remove health based on wheel speed
 		if(agents[i].boost) { // is using boost			
 			healthloss +=
@@ -362,17 +363,20 @@ void World::setInputs()
                 //smell
                 smaccum+= 0.3*(conf::DIST-d)/conf::DIST;
 
-                //sound
-                soaccum+= 0.4*(conf::DIST-d)/conf::DIST*(max(fabs(a2->w1),fabs(a2->w2)));
-
-                //hearing. Listening to other agents
+                //hearing. (listening to other agents shouting)
                 hearaccum+= a2->soundmul*(conf::DIST-d)/conf::DIST;
 
-				//grouping health bonus, as a ratio of closeness, for each bot nearby
+				// more fine-tuned closeness
 				if(d < conf::DIST_GROUPING)
 				{
-					health_gain += conf::GAIN_GROUPING * (conf::DIST_GROUPING-d)/conf::DIST_GROUPING;
-                    a->initEvent(5,.5,.5,.5);
+					//grouping health bonus for each agent near by
+					//health gain is most when two bots are just at threshold, is less when they are ontop each other
+					float ratio = (1 - (conf::DIST_GROUPING-d)/conf::DIST_GROUPING );
+					health_gain += conf::GAIN_GROUPING * ratio;
+                    a->initEvent(5*ratio,.5,.5,.5); // visualize it
+
+					//sound (number of agents nearby)
+					soaccum+= 0.4*(conf::DIST-d)/conf::DIST*(max(fabs(a2->w1),fabs(a2->w2)));					
 				}
 				
                 float ang= (a2->pos- a->pos).get_angle(); //current angle between bots
@@ -467,7 +471,7 @@ void World::setInputs()
         a->in[6]= cap(r2);
         a->in[7]= cap(g2);
         a->in[8]= cap(b2);
-        a->in[9]= cap(soaccum);
+        a->in[9]= cap(soaccum); // SOUND (amount of other agents nearby)
         a->in[10]= cap(smaccum);
         a->in[11]= cap(a->health/2); //divide by 2 since health is in [0,2]		
         a->in[12]= cap(p3);
@@ -476,7 +480,7 @@ void World::setInputs()
         a->in[15]= cap(b3);
         a->in[16]= abs(sin(modcounter/a->clockf1));
         a->in[17]= abs(sin(modcounter/a->clockf2));
-        a->in[18]= cap(hearaccum);
+        a->in[18]= cap(hearaccum); // HEARING (other agents shouting)
         a->in[19]= cap(blood);
         a->in[20]= cap(discomfort);
 		a->in[21]= cap(touch);
