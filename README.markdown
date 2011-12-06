@@ -1,6 +1,8 @@
-SCRIPTBOTS
+SCRIPTBOTS V5
 ==========
-* Author: Andrej Karpathy
+* Author: Andrej Karpathy <andrej.karpathy@gmail.com>
+* Contributors: Casey Link <unnamedrambler@gmail.com>
+* Contributors: Dave Coleman <davetcoleman@gmail.com>
 * License: Do whatever you want with this code
 
 Project website: 
@@ -8,6 +10,10 @@ Project website:
 
 Mailing List / Forum:
 (http://groups.google.com/group/scriptbots/topics)
+
+Questions / Comments:
+Best posted at the google group, above
+
 
 BUILDING
 ---------
@@ -22,7 +28,7 @@ OpenMP is used to speed up everything if you have multicore cpu.
 
 **For Ubuntu/Debian**
 
-Install all the dependencies with:
+Install basic dependencies with:
 
     $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev
 
@@ -71,7 +77,7 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 
 PLOTTING BOT STATISTICS
 --------
-On Linux, from within scriptbox director:
+On Linux, from within scriptbox directory:
 
 	$ sudo apt-get install gnuplot
 	$ . plot.sh
@@ -85,17 +91,6 @@ On Linux:
    	$ xvidcap
 
 
-QUESTIONS COMMENTS 
-------------------
-Best posted at the google group, available on project site
-or contact me at andrej.karpathy@gmail.com
-
-Contributors:
-
-* Casey Link <unnamedrambler@gmail.com>
-* Dave Coleman <davetcoleman@gmail.com>
-* Nimisha Morkonda <mgnimisha@gmail.com>
-
 BRAIN MAPPING
 ------------
 
@@ -105,11 +100,4 @@ BRAIN MAPPING
 
 	LEFT RIGHT R G B SPIKE BOOST SOUND GIVING  NEXT_PLAN 
 	  0   1    2 3 4   5     6    7       8      9-17
-
-TODO
-------------
-* Tweak mutation rate
-* Reduce amount of IO
-* Add more memory/history to bot brain
-* Encourage more swarm behavior
 

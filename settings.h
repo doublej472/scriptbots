@@ -1,8 +1,8 @@
 // see README.markdown -> BRAIN MAPPING for explanation of input and output size
 #define INPUTSIZE 42
 #define OUTPUTSIZE 18
-#define BRAINSIZE 300
-#define CONNS 6
+#define BRAINSIZE 200
+#define CONNS 4
 
 #ifndef SETTINGS_H
 #define SETTINGS_H
@@ -10,9 +10,9 @@
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------
-    const int WIDTH = 4800;  //width and height of simulation
-    const int HEIGHT = 2600;
-    const int WWIDTH = 1900;  //window width and height
+    const int WIDTH = 4000;  //width and height of simulation world
+    const int HEIGHT = 2500;
+    const int WWIDTH = 1400;  //computer window width and height
     const int WHEIGHT = 1000;
     
     const int CZ = 50; //cell size in pixels, for food squares. Should divide well into Width Height
@@ -23,14 +23,14 @@ namespace conf {
 	const int   REPORTS_PER_EPOCH = 5; // number of times to record data per epoch. 0 for off.
 	
 	// BOT PROPERTIES ---------------------------------------------
-    const int   NUMBOTS=250;         //initially
+    const int   NUMBOTS=200;         //initially
 	const int   NUMBOTS_MIN=40;     //for open world, the threshold to start adding bots
     const float BOTRADIUS=10;        //for drawing
     const float BOTSPEED= 0.1;       //how fast they can move
     const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
     const float SPIKEMULT= 2;        //essentially the strength of every spike impact
     const float BOOSTSIZEMULT=2;     //how much boost do agents get? when boost neuron is on
-    const float DIST= 200;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
+    const float DIST= 150;	     	 //how far can the eyes see, ears hear, and nose smell on each bot?
 	const float DIST_GROUPING = 40;  //how close must another agent be to get grouping health gain
     const float EYE_SENSITIVITY= 2;  //how sensitive are the eyes?
     const float BLOOD_SENSITIVITY= 2; //how sensitive are blood sensors?
