@@ -1,17 +1,20 @@
-#include "GLView.h"
 #include "World.h"
 #include <ctime>
 #include "config.h"
+#if OPENGL
+	#include "GLView.h"
 #ifdef LOCAL_GLUT32
     #include "glut.h"
 #else
     #include <GL/glut.h>
 #endif
+#endif
 
 #include <stdio.h>
 
-
-GLView* GLVIEW = new GLView(0);
+#if OPENGL
+	GLView* GLVIEW = new GLView(0);
+#endif
 int main(int argc, char **argv) {
     srand(time(0));
     if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0) printf("CAREFUL! The cell size variable conf::CZ should divide evenly into  both conf::WIDTH and conf::HEIGHT! It doesn't right now!");
@@ -24,6 +27,9 @@ int main(int argc, char **argv) {
 	printf("GREY: bot is getting group health bonus\n");
     
     World* world = new World();
+    
+#if OPENGL
+    std::cout << "GLUT found!" << std::endl;
     GLVIEW->setWorld(world);
 
     //GLUT SETUP
@@ -42,5 +48,9 @@ int main(int argc, char **argv) {
     glutMotionFunc(gl_processMouseActiveMotion);
 
     glutMainLoop();
+#else
+     while(true)
+		world->update();
+#endif
     return 0;
 }
