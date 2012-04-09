@@ -4,7 +4,11 @@
 #ifdef LOCAL_GLUT32
 #include "glut.h"
 #else
+#ifdef MAC_GLUT
+#include <GLUT/glut.h>
+#else
 #include <GL/glut.h>
+#endif
 #endif
 
 #include <stdio.h>

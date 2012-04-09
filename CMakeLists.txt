@@ -2,10 +2,18 @@ project(scriptbots)
 cmake_minimum_required(VERSION 2.8)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
+find_package(Boost COMPONENTS serialization REQUIRED)
+
 
 if (WIN32 AND NOT GLUT_FOUND)
     find_library(GLUT32_LIBRARY NAMES glut32 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
     SET (LOCAL_GLUT32 1)
+endif()
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+   # Mac OS X specific code
+   # SET(OperatingSystem "Mac OS X")
+   SET (MAC_GLUT 1)
 endif()
 
 find_package(OpenMP)
@@ -18,6 +26,11 @@ endif()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
+
+# Boost:
+include_directories(${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
+
 
 set( SB_SRCS
     View.cpp
@@ -36,6 +49,11 @@ if (WIN32 AND NOT GLUT_FOUND)
 else()
     target_link_libraries(scriptbots ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 endif()
+
+# Boost:
+target_link_libraries(scriptbots ${Boost_SERIALIZATION_LIBRARY})
+target_link_libraries(scriptbots ${Boost_LIBRARIES})
+
 
 # copy glut32.dll to the output dirs
 # not sure how msvc could be true and win32 not, but just in case..

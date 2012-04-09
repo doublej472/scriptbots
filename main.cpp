@@ -3,26 +3,40 @@
 #include <ctime>
 #include "config.h"
 #ifdef LOCAL_GLUT32
-    #include "glut.h"
+#include "glut.h"
 #else
-    #include <GL/glut.h>
+#ifdef MAC_GLUT
+#include <GLUT/glut.h>
+#else
+#include <GL/glut.h>
+#endif
 #endif
 
 #include <stdio.h>
 
+// Include Boost serialization:
+#include "boosty.h"
 
 GLView* GLVIEW = new GLView(0);
-int main(int argc, char **argv) {
+
+int main(int argc, char **argv)
+{
     srand(time(0));
-    if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0) printf("CAREFUL! The cell size variable conf::CZ should divide evenly into  both conf::WIDTH and conf::HEIGHT! It doesn't right now!");
-    
-    
+    if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
+	{
+		printf("CAREFUL! The cell size variable conf::CZ should divide evenly into  both conf::WIDTH and ");
+		printf("conf::HEIGHT! It doesn't right now!");    
+    }
+	
     printf("p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
     printf("Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
 	printf("Bot Status Colors: \nWHITE: they just ate part of another agent\n");
 	printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
 	printf("GREY: bot is getting group health bonus\n");
-    
+	
+    // create and open a character archive for output
+	std::ofstream ofs("myworld");
+	
     World* world = new World();
     GLVIEW->setWorld(world);
 
@@ -42,5 +56,14 @@ int main(int argc, char **argv) {
     glutMotionFunc(gl_processMouseActiveMotion);
 
     glutMainLoop();
+
+	// save data to archive
+	{
+		boost::archive::text_oarchive oa(ofs);
+		// write class instance to archive
+		oa << world;
+		// archive and stream closed when destructors are called
+	}
+	
     return 0;
 }

@@ -5,10 +5,17 @@
 #include "Agent.h"
 #include "settings.h"
 #include <vector>
+#include "boosty.h"
+
 class World
 {
-public:
-    World();
+	friend class boost::serialization::access;
+	
+	template<class Archive>
+   	void serialize(Archive & ar, const unsigned int /* file_version */);
+		
+ public:
+	World(int _modcounter = 0);
     ~World();
     
     void update();
@@ -37,7 +44,8 @@ public:
     void addRandomBots(int num);
     void addCarnivore();
     
-private:
+ private:
+
     void setInputs();
     void processOutputs();
     void brainsTick();  //takes in[] to out[] for every agent

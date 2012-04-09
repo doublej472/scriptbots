@@ -9,13 +9,18 @@
 
 using namespace std;
 
-World::World() :
-        modcounter(0),
-        current_epoch(0),
-        idcounter(0),
-		numAgentsAdded(0),
-        FW(conf::WIDTH/conf::CZ),
-        FH(conf::HEIGHT/conf::CZ)
+template<class Archive>
+void World::serialize(Archive & ar, const unsigned int /* file_version */){
+	ar & modcounter;
+}
+
+World::World(int _modcounter) :
+	modcounter(_modcounter),
+	current_epoch(0),
+	idcounter(0),
+	numAgentsAdded(0),
+	FW(conf::WIDTH/conf::CZ),
+	FH(conf::HEIGHT/conf::CZ)
 {
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
@@ -27,14 +32,14 @@ World::World() :
 	double rand1; // store temp random float to save randf() call
 	
     for (int x=0;x<FW;x++) {
-       for (int y=0;y<FH;y++) {
+		for (int y=0;y<FH;y++) {
 
-		   rand1 = randf(0,1);
-    	   if(rand1 > .5)
-		   {
-			   food[x][y] = rand1 * conf::FOODMAX;
-		   }
-       }
+			rand1 = randf(0,1);
+			if(rand1 > .5)
+			{
+				food[x][y] = rand1 * conf::FOODMAX;
+			}
+		}
     }
 
 	// Decide if world if closed based on settings.h
@@ -216,9 +221,9 @@ void World::update()
 								numaround = # of other agents within vicinity
 								agemult = 1 if agent is older than 4
 								health += percent_carnivore ^ 2 * agemult * 5
-								          -----------------------------------
-									               numaround ^ 1.25
-							 */
+								-----------------------------------
+								numaround ^ 1.25
+							*/
 							agents[j].health +=
 								5*(1-agents[j].herbivore)*(1-agents[j].herbivore)/
 								pow(numaround,1.25)*agemult;
@@ -283,13 +288,13 @@ void World::update()
 			cout << "Population min reached, adding 10 random bots." << endl;
         }
 		/*
-        if (modcounter%100==0) {
-            if (randf(0,1)<0.5){
-                addRandomBots(1); //every now and then add random bots in
-            }else{
-                addNewByCrossover(); //or by crossover
-			}
-	   	}
+		  if (modcounter%100==0) {
+		  if (randf(0,1)<0.5){
+		  addRandomBots(1); //every now and then add random bots in
+		  }else{
+		  addNewByCrossover(); //or by crossover
+		  }
+		  }
 		*/
     }
 
@@ -557,9 +562,9 @@ void World::processOutputs()
 
         //wrap around the map
         /*if (a->pos.x<0) a->pos.x= conf::WIDTH+a->pos.x;
-        if (a->pos.x>=conf::WIDTH) a->pos.x= a->pos.x-conf::WIDTH;
-        if (a->pos.y<0) a->pos.y= conf::HEIGHT+a->pos.y;
-        if (a->pos.y>=conf::HEIGHT) a->pos.y= a->pos.y-conf::HEIGHT;*/
+		  if (a->pos.x>=conf::WIDTH) a->pos.x= a->pos.x-conf::WIDTH;
+		  if (a->pos.y<0) a->pos.y= conf::HEIGHT+a->pos.y;
+		  if (a->pos.y>=conf::HEIGHT) a->pos.y= a->pos.y-conf::HEIGHT;*/
 
         //have peetree dish borders
         if (a->pos.x<0)
@@ -658,7 +663,7 @@ void World::processOutputs()
 
 void World::brainsTick()
 {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();
     }
@@ -741,81 +746,81 @@ void World::reproduce(int ai, float MR, float MR2)
 
 void World::writeReport()
 {
-     //save all kinds of nice data stuff
-     int numherb = 0;
-     int numcarn = 0;
-     int topherb = 0;
-     int topcarn = 0;
-	 int total_age = 0;
-	 int avg_age;
-	 double epoch_decimal = modcounter / 10000.0 + current_epoch;
+	//save all kinds of nice data stuff
+	int numherb = 0;
+	int numcarn = 0;
+	int topherb = 0;
+	int topcarn = 0;
+	int total_age = 0;
+	int avg_age;
+	double epoch_decimal = modcounter / 10000.0 + current_epoch;
 	 
-	 // Count number of herb, carn and top of each
-     for(int i=0;i<agents.size();i++){
-         if(agents[i].herbivore>0.5)
-			 numherb++;
-         else
-			 numcarn++;
+	// Count number of herb, carn and top of each
+	for(int i=0;i<agents.size();i++){
+		if(agents[i].herbivore>0.5)
+			numherb++;
+		else
+			numcarn++;
  
-         if(agents[i].herbivore>0.5 && agents[i].gencount>topherb)
-			 topherb= agents[i].gencount;
-         if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn)
-			 topcarn= agents[i].gencount;
+		if(agents[i].herbivore>0.5 && agents[i].gencount>topherb)
+			topherb= agents[i].gencount;
+		if(agents[i].herbivore<0.5 && agents[i].gencount>topcarn)
+			topcarn= agents[i].gencount;
 
-		 // Average Age:
-		 total_age += agents[i].age;
-     }
-	 avg_age = total_age / agents.size();
+		// Average Age:
+		total_age += agents[i].age;
+	}
+	avg_age = total_age / agents.size();
 	 
-	 // Compute Standard Devitation of every weight in every agents brain
-	 double total_std_dev = 0;
-	 double total_mean_std_dev;
-	 for(int i=0; i<BRAINSIZE; i++) // loop through every box in brain (there are BRAINSIZE of these)
-	 {
-		 double box_sum = 0;
-		 double box_weights[agents.size()];
-		 double box_mean;
-		 double box_square_sum = 0;
-		 double final_std_dev;
+	// Compute Standard Devitation of every weight in every agents brain
+	double total_std_dev = 0;
+	double total_mean_std_dev;
+	for(int i=0; i<BRAINSIZE; i++) // loop through every box in brain (there are BRAINSIZE of these)
+	{
+		double box_sum = 0;
+		double box_weights[agents.size()];
+		double box_mean;
+		double box_square_sum = 0;
+		double final_std_dev;
 		 
-		 for(int a=0; a<agents.size(); a++) // loop through every agent to get the weight
-		 {
-			 double box_weight_sum = 0;
+		for(int a=0; a<agents.size(); a++) // loop through every agent to get the weight
+		{
+			double box_weight_sum = 0;
 			 
-			 for(int b=0; b<CONNS; b++){
-				 box_weight_sum += agents[a].brain.boxes[i].w[b];
-			 }
-			 // Add this sum to total stats:
-			 box_sum += box_weight_sum;
-			 box_weights[a] = box_weight_sum;
-		 }
+			for(int b=0; b<CONNS; b++){
+				box_weight_sum += agents[a].brain.boxes[i].w[b];
+			}
+			// Add this sum to total stats:
+			box_sum += box_weight_sum;
+			box_weights[a] = box_weight_sum;
+		}
 
-		 // Computer the mean of the box_weight_sum for this box
-		 box_mean  = box_sum / BRAINSIZE;
-		 //cout << "BOX MEAN = " << box_mean << endl;
+		// Computer the mean of the box_weight_sum for this box
+		box_mean  = box_sum / BRAINSIZE;
+		//cout << "BOX MEAN = " << box_mean << endl;
 
-		 // Now calculate the population standard deviation for this box:
-		 // Compute diff of each weight sum from mean and square the result, then add it:
-		 for(int c=0; c<agents.size(); c++)
-		 {
-			 box_square_sum += pow( box_weights[c] - box_mean, 2);
-		 }
+		// Now calculate the population standard deviation for this box:
+		// Compute diff of each weight sum from mean and square the result, then add it:
+		for(int c=0; c<agents.size(); c++)
+		{
+			box_square_sum += pow( box_weights[c] - box_mean, 2);
+		}
 
-		 final_std_dev = sqrt( box_square_sum / agents.size() );
-		 //cout << "BOX Sqr root = " << final_std_dev << endl << endl;
-		 total_std_dev += final_std_dev;
-	 }
-	 total_mean_std_dev = total_std_dev - 200; // reduce by 200 for graph readability
+		final_std_dev = sqrt( box_square_sum / agents.size() );
+		//cout << "BOX Sqr root = " << final_std_dev << endl << endl;
+		total_std_dev += final_std_dev;
+	}
+	total_mean_std_dev = total_std_dev - 200; // reduce by 200 for graph readability
 	 
-     FILE* fp = fopen("report.csv", "a");
+	FILE* fp = fopen("report.csv", "a");
 	 
-     fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n",
-			 epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), avg_age, numAgentsAdded);
+	fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n",
+			epoch_decimal, numherb, numcarn, topherb, topcarn, int(total_mean_std_dev), avg_age, numAgentsAdded);
 	 
-     fclose(fp);
+	fclose(fp);
 
-	 // Reset number agents added to zero
-	 numAgentsAdded = 0;
+	// Reset number agents added to zero
+	numAgentsAdded = 0;
 }
 
 
@@ -838,23 +843,23 @@ bool World::isClosed() const
 
 void World::processMouse(int button, int state, int x, int y)
 {
-     if (state==0) {        
-         float mind=1e10;
-         float mini=-1;
-         float d;
+	if (state==0) {        
+		float mind=1e10;
+		float mini=-1;
+		float d;
 
-         for (int i=0;i<agents.size();i++) {
-             d= pow(x-agents[i].pos.x,2)+pow(y-agents[i].pos.y,2);
-                 if (d<mind) {
-                     mind=d;
-                     mini=i;
-                 }
-             }
-         //toggle selection of this agent
-         for (int i=0;i<agents.size();i++) agents[i].selectflag=false;
-         agents[mini].selectflag= true;
-         agents[mini].printSelf();
-     }
+		for (int i=0;i<agents.size();i++) {
+			d= pow(x-agents[i].pos.x,2)+pow(y-agents[i].pos.y,2);
+			if (d<mind) {
+				mind=d;
+				mini=i;
+			}
+		}
+		//toggle selection of this agent
+		for (int i=0;i<agents.size();i++) agents[i].selectflag=false;
+		agents[mini].selectflag= true;
+		agents[mini].printSelf();
+	}
 }
      
 void World::draw(View* view, bool drawfood)
