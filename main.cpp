@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	
 	// write class instance to archive
 	//	oa << (*world);
-   	oa << world;
+	   	oa << world;
 	// archive and stream closed when destructors are called
 	
 

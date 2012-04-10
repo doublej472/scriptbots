@@ -9,11 +9,9 @@
 
 using namespace std;
 
-template<class Archive>
-void World::serialize(Archive & ar, const unsigned int version )
-{
-	ar & modcounter;
-}
+//template<class Archive>
+//void World::serialize(Archive & ar, const unsigned int version )
+
 
 World::World(int _modcounter) :
 	modcounter(_modcounter),
