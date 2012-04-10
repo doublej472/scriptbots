@@ -65,8 +65,8 @@ int main(int argc, char **argv) {
 
 	glutMainLoop();
 #else
-	int stopper = 0;
-	while(stopper < 100)
+	//int stopper = 0;
+	//while(stopper < 1000)
 	{
 		stopper ++;
 		world->update();
