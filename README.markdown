@@ -1,9 +1,9 @@
 SCRIPTBOTS V5
 ==========
 * Author: Andrej Karpathy <andrej.karpathy@gmail.com>
-* Contributors: Casey Link <unnamedrambler@gmail.com>
 * Contributors: Dave Coleman <davetcoleman@gmail.com>
-* License: Do whatever you want with this code
+* Contributors: Gregory Hopkins <gregory.hopkins@colorado.edu>
+* License: GNU General Public License, version 3 (GPL-3.0)
 
 Project website: 
 (https://sites.google.com/site/scriptbotsevo/home)
@@ -21,27 +21,68 @@ BUILDING
 Scriptbots uses the following dependencies:
 
 * CMake >= 2.8 (http://www.cmake.org/cmake/resources/software.html)
+* Boost (http://www.boost.org/)
+* OpenMP (Dependencies should be already installed)
+
+Optional dependencies for visualization (can read headless):
+
 * OpenGL and GLUT (http://www.opengl.org/resources/libraries/glut/)
 * Linux: freeglut (http://freeglut.sourceforge.net/) 
 
-OpenMP is used to speed up everything if you have multicore cpu.
 
-**For Ubuntu/Debian**
+**For Ubuntu/Debian Linux**
 
 Install basic dependencies with:
 
-    $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev
+    $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev libboost-serialization-dev
 
-To build and run ScriptBots on Linux simply run the batch script:
+To build and run ScriptBots on Linux run the batch script:
 
     $ . autorun.sh
 
 If you are running Linux through VirualBox you might need to add this command to the batch script:
     $ LIBGL_ALWAYS_INDRECT=1 ./scriptbots
 
+**For Mac**
+
+First install homebrew to make installing dependencies easy:
+    
+    https://github.com/mxcl/homebrew/wiki/Installation
+
+Now install dependencies:
+
+    brew install CMake Boost
+
+OpenGL and GLUT come pre-installed on Mac, so you should be ready to go!
+
+To build and run ScriptBots simply cd to the ScriptBots directory and run the batch script:
+
+    $ . autorun.sh
+
+**For Other Flavors of Linux**
+
+Ensure that CMake is installed on system. OpenGL and GLUT are optional but recommended.
+
+To install Boost from binaries download the tar file from http://www.boost.org/. Or, download the current version as of this writing using this command:
+
+    wget http://sourceforge.net/projects/boost/files/boost/1.49.0/boost_1_49_0.tar.gz/download
+
+Untar the file:
+
+    tar xvfz FILENAME
+
+Within the untarred folder:
+
+    ./bootstrap.sh --prefix=/SOME_FOLDER/boost/1.49.0 --with-libraries=serialization
+    ./b2 install
+ 
+You might need to export the install path using:
+
+    export BOOST_ROOT=/SOME_FOLDER/boost/1.49.0/
+
 **For Windows**
 
-Follow basically the same steps, but after running cmake open up the VS solution (.sln) file it generates and compile the project from VS.
+Follow basically the same steps, but after running cmake open up the VS solution (.sln) file it generates and compile the project from VS. NOTE: these instructions have not been updated for the Boost addition.
 
 
 USAGE

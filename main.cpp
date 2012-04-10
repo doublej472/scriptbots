@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 	// save data to archive -----------------------------
 	std::cout << std::endl << std::endl << "Saving file now: " << std::endl;
 	
-	std::ofstream ofs("myworld"); // create and open a character archive for output
+	std::ofstream ofs("myworld.dat"); // create and open a character archive for output
 	
 	boost::archive::text_oarchive oa(ofs);
 
