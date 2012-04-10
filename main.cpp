@@ -34,9 +34,6 @@ int main(int argc, char **argv)
 	printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
 	printf("GREY: bot is getting group health bonus\n");
 	
-    // create and open a character archive for output
-	std::ofstream ofs("myworld");
-	
     World* world = new World();
     GLVIEW->setWorld(world);
 
@@ -57,13 +54,21 @@ int main(int argc, char **argv)
 
     glutMainLoop();
 
-	// save data to archive
-	{
-		boost::archive::text_oarchive oa(ofs);
-		// write class instance to archive
-		oa << world;
-		// archive and stream closed when destructors are called
-	}
+	// save data to archive -----------------------------
+	std::cout << std::endl << std::endl << "Saving file now: " << std::endl;
 	
+	std::ofstream ofs("myworld"); // create and open a character archive for output
+	
+	boost::archive::text_oarchive oa(ofs);
+
+	std::cout << "Number = " << (*world).numAgents() << std::endl;
+	
+	// write class instance to archive
+	//	oa << (*world);
+	oa << (*world);
+	// archive and stream closed when destructors are called
+	
+
+
     return 0;
 }

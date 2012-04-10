@@ -9,10 +9,11 @@
 
 class World
 {
+	//friend std::ostream & operator<<(std::ostream &os, const World &w);	
 	friend class boost::serialization::access;
 	
 	template<class Archive>
-   	void serialize(Archive & ar, const unsigned int /* file_version */);
+	void serialize(Archive & ar, const unsigned int version );
 		
  public:
 	World(int _modcounter = 0);

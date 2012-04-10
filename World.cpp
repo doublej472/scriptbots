@@ -10,7 +10,8 @@
 using namespace std;
 
 template<class Archive>
-void World::serialize(Archive & ar, const unsigned int /* file_version */){
+void World::serialize(Archive & ar, const unsigned int version )
+{
 	ar & modcounter;
 }
 
