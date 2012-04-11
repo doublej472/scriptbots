@@ -16,7 +16,7 @@ void Base::saveWorld()
 {
 	// save data to archive -----------------------------
 	cout << endl << endl << "SAVING FILE" << endl;
-	
+
 	ofstream ofs("myworld.dat"); // create and open a character archive for output
 	boost::archive::text_oarchive oa(ofs);
 
@@ -39,6 +39,11 @@ void Base::loadWorld()
 	cout << endl << "LOADING FILE" << endl;
 		
 	ifstream ifs("myworld.dat");
+	if( !ifs )
+	{
+		cout << "Error: File does not exist." << endl << endl;
+		exit(0);
+	}
 	boost::archive::text_iarchive ia(ifs);
 		
 	//cout << "\tBetween read and unpack" << endl;
