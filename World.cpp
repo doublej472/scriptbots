@@ -683,7 +683,7 @@ void World::brainsTick()
 	//omp_set_num_threads(4);
 	//  printf("Using %d threads", threads);
 	
-#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();
 
