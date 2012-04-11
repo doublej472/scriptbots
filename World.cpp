@@ -301,7 +301,7 @@ void World::update()
         if (agents.size() < conf::NUMBOTS_MIN ) {
             //add new agent
             addRandomBots(10);
-			cout << "Population min reached, adding 10 random bots." << endl;
+			//cout << "Population min reached, adding 10 random bots." << endl;
         }
 		/*
 		  if (modcounter%100==0) {
@@ -679,6 +679,10 @@ void World::processOutputs()
 
 void World::brainsTick()
 {
+	// Set the number of threads
+	//omp_set_num_threads(4);
+	//  printf("Using %d threads", threads);
+	
 #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();

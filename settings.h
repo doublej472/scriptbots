@@ -26,7 +26,7 @@ namespace conf {
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int   NUMBOTS=200;         //initially
-	const int   NUMBOTS_MIN=40;     //for open world, the threshold to start adding bots
+	const int   NUMBOTS_MIN=200;     //for open world, the threshold to start adding bots
     const float BOTRADIUS=10;        //for drawing
     const float BOTSPEED= 0.1;       //how fast they can move
     const float SPIKESPEED= 0.01;    //how quickly can attack spike go up?
@@ -47,7 +47,8 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00006; // loss of health for simply being alive (like breathing)
+	//const float LOSS_BASE     = 0.00006; // loss of health for simply being alive (like breathing)
+	const float LOSS_BASE     = 0.0006; // loss of health for simply being alive (like breathing)	
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world

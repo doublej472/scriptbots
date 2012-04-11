@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "World.h"
+#include "omp.h"
 
 // Include Boost serialization:
 #include "boost.h"
@@ -40,6 +41,7 @@ GLView* GLVIEW = new GLView();
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
+static inline void loadBar(int x, int n, int r, int w);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv)
@@ -53,6 +55,7 @@ int main(int argc, char **argv)
 #endif
 #if OPENMP
 	cout << "   OpenMP found." << endl;
+	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
 #endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
 		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH and conf::HEIGHT\n");
@@ -67,8 +70,8 @@ int main(int argc, char **argv)
 	printf("   GREEN: agent just reproduced\n");
 	printf("   GREY: bot is getting group health bonus\n");
 #else
-	cout << "\nHEADLESS MODE (no graphics)\n";
-	cout << "   Press any key to save and end simulation\n" << endl;	
+	cout << "   Headless Mode - No graphics\n";
+	cout << "      Press any key to save and end simulation\n" << endl;	
 #endif
 	cout << "-------------------------------------------------------------------------------" << endl;	
 	
@@ -79,8 +82,8 @@ int main(int argc, char **argv)
 	// If any argument is passed, just load the file
 	if( argc > 1 )
 	{
-	base.loadWorld();
-}	
+		base.loadWorld();
+	}	
 
 #if OPENGL
 
@@ -105,8 +108,11 @@ int main(int argc, char **argv)
 #else
 	while( !kbhit() )
 	{
-	base.world->update();
-}
+		base.world->update();
+
+		//loadBar(base.world->,  60, 1, 60);
+		
+	}
    	//base.runWorld(12);
 
 	base.saveWorld();
@@ -118,11 +124,38 @@ int main(int argc, char **argv)
 }
 
 // ---------------------------------------------------------------------------
+// Process has done i out of n rounds,
+// and we want a bar of width w and resolution r.
+// ---------------------------------------------------------------------------
+static inline void loadBar(int x, int n, int r, int w)
+{
+	// Only update r times.
+	if ( x % (n/r) != 0 ) return;
+
+	// Calculuate the ratio of complete-to-incomplete.
+	float ratio = x/(float)n;
+	int   c     = ratio * w;
+
+	// Show the percentage complete.
+	printf("%3d%% [", (int)(ratio*100) );
+
+	// Show the load bar.
+	for (int x=0; x<c; x++)
+		printf("=");
+
+	for (int x=c; x<w; x++)
+		printf(" ");
+
+	// ANSI Control codes to go back to the
+	// previous line and clear it.
+	printf("]\n\033[F\033[J");
+}
+// ---------------------------------------------------------------------------
 // Used for detecting keyboard end
 // Cross-platform?
 // --------------------------------------------------------------------------- 
- int kbhit()
- {
+int kbhit()
+{
 	struct termios oldt, newt;
 	int ch;
 	int oldf;
@@ -141,9 +174,9 @@ int main(int argc, char **argv)
 
 	if(ch != EOF)
 	{
-	ungetc(ch, stdin);
-	return 1;
-}
+		ungetc(ch, stdin);
+		return 1;
+	}
 
 	return 0;
 }
