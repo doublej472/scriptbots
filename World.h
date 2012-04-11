@@ -16,6 +16,16 @@ class World
 	void serialize(Archive & ar, const unsigned int version )
 	{
 		ar & modcounter;
+		ar & current_epoch;
+		ar & idcounter;
+		ar & numAgentsAdded;
+		ar & FW;
+		ar & FH;
+		ar & fx;
+		ar & fy;
+		ar & food;
+		ar & CLOSED;
+		ar & touch;
 	}
 	
  public:
@@ -47,7 +57,8 @@ class World
     void addNewByCrossover();
     void addRandomBots(int num);
     void addCarnivore();
-    
+
+    int modcounter; // temp not private	
  private:
 
     void setInputs();
@@ -60,7 +71,7 @@ class World
     
     void reproduce(int ai, float MR, float MR2);
     
-    int modcounter;
+
     int current_epoch;
     int idcounter;
 	int numAgentsAdded; // counts how many agents have been artifically added per reporting iteration

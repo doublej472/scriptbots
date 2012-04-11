@@ -42,6 +42,7 @@ if (GLUT_FOUND)
 		DWRAONBrain.cpp
 		MLPBrain.cpp
 		Agent.cpp
+		Base.cpp
 		World.cpp
 		vmath.cpp )
     
@@ -53,6 +54,7 @@ else()
 		DWRAONBrain.cpp
 		MLPBrain.cpp
 		Agent.cpp
+		Base.cpp
 		World.cpp
 		vmath.cpp )
 endif()

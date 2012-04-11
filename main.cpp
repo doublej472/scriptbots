@@ -1,4 +1,6 @@
 #include "World.h"
+#include "Base.h"
+
 #include <ctime>
 #include "config.h"
 
@@ -35,14 +37,21 @@ int main(int argc, char **argv) {
 		printf("CAREFUL! The cell size variable conf::CZ should divide evenly into  both conf::WIDTH and ");
 		printf("conf::HEIGHT! It doesn't right now!");    
 	}
-	
+	/*	
 	printf("p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
 	printf("Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
 	printf("Bot Status Colors: \nWHITE: they just ate part of another agent\n");
 	printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
 	printf("GREY: bot is getting group health bonus\n");
+	*/
 	
-	World* world = new World();
+	Base base;
+
+	// If any argument is passed, just load the file
+	if( argc > 1 )
+	{
+		base.loadWorld();
+	}	
     
 #if OPENGL
 	std::cout << "GLUT found!" << std::endl;
@@ -65,29 +74,12 @@ int main(int argc, char **argv) {
 
 	glutMainLoop();
 #else
-	//int stopper = 0;
-	//while(stopper < 1000)
-	{
-		stopper ++;
-		world->update();
-	}
+	//		world->update();
+	base.runWorld(12);
+
+	base.saveWorld();
+
 #endif
-
-	// save data to archive -----------------------------
-	std::cout << std::endl << std::endl << "Saving file now: " << std::endl;
-	
-	std::ofstream ofs("myworld.dat"); // create and open a character archive for output
-	
-	boost::archive::text_oarchive oa(ofs);
-
-	std::cout << "Number = " << (*world).numAgents() << std::endl;
-	
-	// write class instance to archive
-	//	oa << (*world);
-	   	oa << world;
-	// archive and stream closed when destructors are called
-	
-
 
 					
 	return 0;

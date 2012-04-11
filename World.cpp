@@ -54,7 +54,8 @@ void World::update()
 	int i; // counter var used throughout for counting entire agent amount
 	
     modcounter++;
-
+	std::cout << "Running World at tick " << modcounter << std::endl;
+	
     //Process periodic events --------------------------------------------------------
     //Age goes up!
     if (modcounter%100==0) {
