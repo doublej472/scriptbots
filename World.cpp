@@ -6,6 +6,7 @@
 #include "helpers.h"
 #include "vmath.h"
 #include <stdio.h>
+#include <omp.h>  // OpenMP multithreading
 
 using namespace std;
 
@@ -681,6 +682,10 @@ void World::brainsTick()
 #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();
+
+		//int num_procs = omp_get_num_procs();
+		//int thread_num = omp_get_thread_num();
+		//printf("Num procs: %d of %d \n", thread_num, num_procs); 
     }
 }
 
@@ -860,7 +865,7 @@ void World::processMouse(int button, int state, int x, int y)
 {
 	if (state==0) {        
 		float mind=1e10;
-		float mini=-1;
+		int mini=-1;
 		float d;
 
 		for (int i=0;i<agents.size();i++) {
