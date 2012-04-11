@@ -57,8 +57,8 @@ void drawCircle(float x, float y, float r) {
 }
 
 
-GLView::GLView(World *s) :
-        world(world),
+GLView::GLView() : //World *s) :
+	//        world(world),
         paused(false),
         draw(true),
         skipdraw(1),
@@ -96,7 +96,7 @@ void GLView::processMouse(int button, int state, int x, int y)
     if(button==0){
         int wx= (int) ((x-conf::WWIDTH/2)/scalemult)-xtranslate;
         int wy= (int) ((y-conf::WHEIGHT/2)/scalemult)-ytranslate;
-        world->processMouse(button, state, wx, wy);
+        base->world->processMouse(button, state, wx, wy);
     }
     
     mousex=x; mousey=y;
@@ -131,9 +131,13 @@ void GLView::processNormalKeys(unsigned char key, int x, int y)
 {
 
     if (key == 27)
+	{
+		printf("ESC key pressed, shutting down\n");
+		base->saveWorld();
         exit(0);
+	}
     else if (key=='r') {
-        world->reset();
+        base->world->reset();
         printf("Agents reset\n");
     } else if (key=='p') {
         //pause
@@ -151,12 +155,12 @@ void GLView::processNormalKeys(unsigned char key, int x, int y)
     } else if (key=='f') {
         drawfood=!drawfood;
     } else if (key=='a') {
-        for (int i=0;i<10;i++){world->addNewByCrossover();}
+        for (int i=0;i<10;i++){base->world->addNewByCrossover();}
     } else if (key=='q') {
-        for (int i=0;i<10;i++){world->addCarnivore();}
+        for (int i=0;i<10;i++){base->world->addCarnivore();}
     } else if (key=='c') {
-        world->setClosed( !world->isClosed() );
-        printf("Environemt closed now= %i\n",world->isClosed());
+        base->world->setClosed( !base->world->isClosed() );
+        printf("Environemt closed now= %i\n",base->world->isClosed());
     } else {
         printf("Unknown key pressed: %i\n", key);
     }
@@ -165,14 +169,14 @@ void GLView::processNormalKeys(unsigned char key, int x, int y)
 void GLView::handleIdle()
 {
     modcounter++;
-    if (!paused) world->update();
+    if (!paused) base->world->update();
 
     //show FPS
     int currentTime = glutGet( GLUT_ELAPSED_TIME );
     frames++;
     if ((currentTime - lastUpdate) >= 1000) {
-        std::pair<int,int> num_herbs_carns = world->numHerbCarnivores();
-        sprintf( buf, "FPS: %d NumAgents: %d Carnivors: %d Herbivors: %d Epoch: %d", frames, world->numAgents(), num_herbs_carns.second, num_herbs_carns.first, world->epoch() );
+        std::pair<int,int> num_herbs_carns = base->world->numHerbCarnivores();
+        sprintf( buf, "FPS: %d NumAgents: %d Carnivors: %d Herbivors: %d Epoch: %d", frames, base->world->numAgents(), num_herbs_carns.second, num_herbs_carns.first, base->world->epoch() );
         glutSetWindowTitle( buf );
         frames = 0;
         lastUpdate = currentTime;
@@ -202,7 +206,7 @@ void GLView::renderScene()
     glScalef(scalemult, scalemult, 1.0f);
     glTranslatef(xtranslate, ytranslate, 0.0f);    
     
-    world->draw(this, drawfood);
+    base->world->draw(this, drawfood);
 
     glPopMatrix();
     glutSwapBuffers();
@@ -420,7 +424,8 @@ void GLView::drawFood(int x, int y, float quantity)
     }
 }
 
-void GLView::setWorld(World* w)
+void GLView::setBase(Base* b)
 {
-    world = w;
+	base = b;
 }
+

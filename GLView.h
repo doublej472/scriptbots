@@ -4,6 +4,7 @@
 
 #include "View.h"
 #include "World.h"
+#include "Base.h"
 
 class GLView;
 
@@ -20,13 +21,13 @@ class GLView : public View
 {
 
 public:
-    GLView(World* w);
+    GLView(); //World* w);
     virtual ~GLView();
     
     virtual void drawAgent(const Agent &a);
     virtual void drawFood(int x, int y, float quantity);
     
-    void setWorld(World* w);
+    void setBase(Base* b);
     
     //GLUT functions
     void processNormalKeys(unsigned char key, int x, int y);
@@ -38,7 +39,8 @@ public:
     
 private:
     
-    World *world;
+	//    World *world;
+	Base *base;
     bool paused;
     bool draw;
     int skipdraw;
