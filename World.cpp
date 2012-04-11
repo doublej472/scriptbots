@@ -48,20 +48,33 @@ World::World(int _modcounter) :
 	remove("report.csv");
 }
 
+void World::printState()
+{
+	cout << "World State Info -----------" << endl;
+	cout << "Epoch:\t\t" << current_epoch<< endl;
+	cout << "Tick:\t\t" << modcounter << endl;	
+	//cout << "ID Counter:\t" << idcounter<< endl;
+	cout << "Num Agents:\t" << agents.size() << endl;
+	cout << "Agents Added:\t" << numAgentsAdded << endl;
+	cout << "----------------------------" << endl;
+}
 
 void World::update()
 {
 	int i; // counter var used throughout for counting entire agent amount
 	
     modcounter++;
-	std::cout << "Running World at tick " << modcounter << std::endl;
-	
+
+	if( current_epoch == 0 && modcounter == 1)
+   		cout << endl << "Epoch " << current_epoch << ": ";
+		
     //Process periodic events --------------------------------------------------------
     //Age goes up!
     if (modcounter%100==0) {
         for (i=0;i<agents.size();i++) {
             agents[i].age+= 1;    //agents age...
         }
+		cout << "|" << flush;
     }
 
 	// Write Report
@@ -72,6 +85,7 @@ void World::update()
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
+		cout << endl << "Epoch " << current_epoch << ": ";
     }
 
 	// What kind of food method are we using?
@@ -856,9 +870,10 @@ void World::processMouse(int button, int state, int x, int y)
 			}
 		}
 		//toggle selection of this agent
-		for (int i=0;i<agents.size();i++) agents[i].selectflag=false;
+		for (int i=0;i<agents.size();i++)
+			agents[i].selectflag=false;
 		agents[mini].selectflag= true;
-		agents[mini].printSelf();
+		//agents[mini].printSelf();
 	}
 }
      
@@ -878,7 +893,7 @@ void World::draw(View* view, bool drawfood)
     }
 }
 
-std::pair< int,int > World::numHerbCarnivores() const
+pair< int,int > World::numHerbCarnivores() const
 {
     int numherb=0;
     int numcarn=0;
@@ -887,7 +902,7 @@ std::pair< int,int > World::numHerbCarnivores() const
         else numcarn++;
     }
     
-    return std::pair<int,int>(numherb,numcarn);
+    return pair<int,int>(numherb,numcarn);
 }
 
 int World::numAgents() const

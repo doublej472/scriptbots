@@ -5,16 +5,16 @@
 #include "Agent.h"
 #include "settings.h"
 #include <vector>
-#include "boosty.h"
+#include "boost.h"
 
 class World
 {
-	//friend std::ostream & operator<<(std::ostream &os, const World &w);	
+	// Serialization ------------------------------------------
 	friend class boost::serialization::access;
-	
 	template<class Archive>
 	void serialize(Archive & ar, const unsigned int version )
 	{
+		// Add all class variables here:
 		ar & modcounter;
 		ar & current_epoch;
 		ar & idcounter;
@@ -26,8 +26,9 @@ class World
 		ar & food;
 		ar & CLOSED;
 		ar & touch;
+		ar & agents;
 	}
-	
+	// ---------------------------------------------------------
  public:
 	World(int _modcounter = 0);
     ~World(){};
@@ -47,7 +48,8 @@ class World
      * second : num carns
      */
     std::pair<int,int> numHerbCarnivores() const;
-    
+
+	void printState();
     int numAgents() const;
     int epoch() const;
 
@@ -58,7 +60,6 @@ class World
     void addRandomBots(int num);
     void addCarnivore();
 
-    int modcounter; // temp not private	
  private:
 
     void setInputs();
@@ -71,7 +72,7 @@ class World
     
     void reproduce(int ai, float MR, float MR2);
     
-
+    int modcounter; // temp not private	
     int current_epoch;
     int idcounter;
 	int numAgentsAdded; // counts how many agents have been artifically added per reporting iteration

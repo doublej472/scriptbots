@@ -3,10 +3,25 @@
 
 #include "settings.h"
 #include "helpers.h"
+#include "boost.h"
 
 #include <vector>
 
 class MLPBox {
+  	// Serialization ------------------------------------------
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version )
+	{
+		// Add all class variables here:
+		ar & w;
+		ar & id;
+		ar & kp;
+		ar & bias;
+		ar & target;
+		ar & out;
+	}
+	// ---------------------------------------------------------	
 public:
 
     MLPBox();
@@ -27,6 +42,15 @@ public:
  */
 class MLPBrain
 {
+  	// Serialization ------------------------------------------
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version )
+	{
+		// Add all class variables here:
+		ar & boxes;
+	}
+	// ---------------------------------------------------------	
 public:
 
     std::vector<MLPBox> boxes;

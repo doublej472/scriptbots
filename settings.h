@@ -10,8 +10,10 @@
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------
-    const int WIDTH = 4000;  //width and height of simulation world
-    const int HEIGHT = 2500;
+    const int WIDTH = 2000;  //width and height of simulation world
+    const int HEIGHT = 1500;
+    //const int WIDTH = 4000;  //width and height of simulation world
+	//    const int HEIGHT = 2500;	
     const int WWIDTH = 1400;  //computer window width and height
     const int WHEIGHT = 1000;
     
@@ -56,7 +58,7 @@ namespace conf {
 	const int FOOD_MODEL_RAND = 1; // Food Model Options
 	const int FOOD_MODEL_GROW = 2; // Food Model Options
 
-	const int   FOOD_MODEL = FOOD_MODEL_RAND; //what kind of food appearance is to be used
+	const int   FOOD_MODEL = FOOD_MODEL_GROW; //what kind of food appearance is to be used
     const float FOODGROWTH= 0.0005; //how quickly does food grow on a square. only used with FOOD_MODEL_GROW
     const float FOODINTAKE= 0.00225; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?

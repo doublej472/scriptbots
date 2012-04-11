@@ -70,7 +70,7 @@ GLView::GLView() : //World *s) :
 
     xtranslate= -conf::WIDTH / 2;
     ytranslate= -conf::HEIGHT / 2;
-    scalemult= 0.2; //1.0;
+    scalemult= 0.4; //1.0;
     downb[0]=0;downb[1]=0;downb[2]=0;
     mousex=0;mousey=0;
     
@@ -132,7 +132,7 @@ void GLView::processNormalKeys(unsigned char key, int x, int y)
 
     if (key == 27)
 	{
-		printf("ESC key pressed, shutting down\n");
+		printf("\n\nESC key pressed, shutting down\n");
 		base->saveWorld();
         exit(0);
 	}

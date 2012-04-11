@@ -23,61 +23,75 @@
 #include <stdio.h>
 
 // Include Boost serialization:
-#include "boosty.h"
+#include "boost.h"
+
+using namespace std;
 
 #if OPENGL
 GLView* GLVIEW = new GLView();
- #endif
+#endif
 
- int main(int argc, char **argv) {
+int main(int argc, char **argv) {
+	cout << "-------------------------------------------------------------------------------" << endl;
+	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
+	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;
+	cout << "Environment:" << endl;
+#if OPENGL
+	cout << "   OpenGL and GLUT found." << endl;
+#endif
+#if OPENMP
+	cout << "   OpenMP found." << endl;
+#endif
+	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
+		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH and conf::HEIGHT\n");
+	
+#if OPENGL
+	printf("\nInstructions:\n");
+	printf("   p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
+	printf("   Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
+	printf("\nBot Status Colors: \n");
+	printf("   WHITE: they just ate part of another agent\n");
+	printf("   YELLOW: bot just spiked another bot\n");
+	printf("   GREEN: agent just reproduced\n");
+	printf("   GREY: bot is getting group health bonus\n");
+#endif
+	cout << "-------------------------------------------------------------------------------" << endl;	
+	
+	srand(time(0));
 
-	 srand(time(0));
-	 if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
-	 {
-		 printf("CAREFUL! The cell size variable conf::CZ should divide evenly into  both conf::WIDTH and ");
-		 printf("conf::HEIGHT! It doesn't right now!");    
-	 }
-	 /*	
-	 printf("p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
-	 printf("Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
-	 printf("Bot Status Colors: \nWHITE: they just ate part of another agent\n");
-	 printf("YELLOW: bot just spiked another bot\nGREEN: agent just reproduced\n");
-	 printf("GREY: bot is getting group health bonus\n");
-	 */
+	Base base;
 
-	 Base base;
+	// If any argument is passed, just load the file
+	if( argc > 1 )
+	{
+		base.loadWorld();
+	}	
 
-	 // If any argument is passed, just load the file
-	 if( argc > 1 )
-	 {
-		 base.loadWorld();
-	 }	
+#if OPENGL
 
- #if OPENGL
-	 std::cout << "GLUT found!" << std::endl;
-	 GLVIEW->setBase(&base);
+	GLVIEW->setBase(&base);
 
-	 //GLUT SETUP
-	 glutInit(&argc, argv);
-	 glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	 glutInitWindowPosition(30,30);
-	 glutInitWindowSize(conf::WWIDTH,conf::WHEIGHT);
-	 glutCreateWindow("Scriptbots");
-	 glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-	 glutDisplayFunc(gl_renderScene);
-	 glutIdleFunc(gl_handleIdle);
-	 glutReshapeFunc(gl_changeSize);
+	//GLUT SETUP
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
+	glutInitWindowPosition(30,30);
+	glutInitWindowSize(conf::WWIDTH,conf::WHEIGHT);
+	glutCreateWindow("Scriptbots");
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glutDisplayFunc(gl_renderScene);
+	glutIdleFunc(gl_handleIdle);
+	glutReshapeFunc(gl_changeSize);
 
-	 glutKeyboardFunc(gl_processNormalKeys);
-	 glutMouseFunc(gl_processMouse);
-	 glutMotionFunc(gl_processMouseActiveMotion);
+	glutKeyboardFunc(gl_processNormalKeys);
+	glutMouseFunc(gl_processMouse);
+	glutMotionFunc(gl_processMouseActiveMotion);
 
-	 glutMainLoop();
- #else
-	 //		world->update();
-	 base.runWorld(12);
+	glutMainLoop();
+#else
+	//		world->update();
+	base.runWorld(12);
 
-	 base.saveWorld();
+	base.saveWorld();
 
 #endif
 
