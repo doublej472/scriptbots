@@ -1,4 +1,4 @@
-SCRIPTBOTS V5
+ScriptBots v5
 ==========
 * Author: Andrej Karpathy <andrej.karpathy@gmail.com>
 * Contributors: Dave Coleman <davetcoleman@gmail.com>

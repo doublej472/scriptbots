@@ -1,37 +1,49 @@
-#include "World.h"
-//#include "Base.h"
-
 #include <ctime>
-#include "config.h"
+#include <stdio.h>
 
+#include "config.h"
+#include "World.h"
+
+// Include Boost serialization:
+#include "boost.h"
+
+// Determine if and what kind of graphics to use:
 #if OPENGL
 #include "GLView.h"
-
 #ifdef LOCAL_GLUT32
 #include "glut.h"
 #else
-
 #ifdef MAC_GLUT
 #include <GLUT/glut.h>
 #else
 #include <GL/glut.h>
 #endif
-
 #endif
+#else
+#include "Base.h" // this is normally included in GLView.h
 #endif
 
-#include <stdio.h>
-
-// Include Boost serialization:
-#include "boost.h"
+// For detecting keyboard:
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 using namespace std;
+
+// ---------------------------------------------------------------------------
+// Global Vars:
 
 #if OPENGL
 GLView* GLVIEW = new GLView();
 #endif
 
-int main(int argc, char **argv) {
+// ---------------------------------------------------------------------------
+// Prototypes:
+int kbhit();
+
+// ---------------------------------------------------------------------------
+int main(int argc, char **argv)
+{
 	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
 	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;
@@ -54,6 +66,9 @@ int main(int argc, char **argv) {
 	printf("   YELLOW: bot just spiked another bot\n");
 	printf("   GREEN: agent just reproduced\n");
 	printf("   GREY: bot is getting group health bonus\n");
+#else
+	cout << "\nHEADLESS MODE (no graphics)\n";
+	cout << "   Press any key to save and end simulation\n" << endl;	
 #endif
 	cout << "-------------------------------------------------------------------------------" << endl;	
 	
@@ -64,8 +79,8 @@ int main(int argc, char **argv) {
 	// If any argument is passed, just load the file
 	if( argc > 1 )
 	{
-		base.loadWorld();
-	}	
+	base.loadWorld();
+}	
 
 #if OPENGL
 
@@ -88,13 +103,47 @@ int main(int argc, char **argv) {
 
 	glutMainLoop();
 #else
-	//		world->update();
-	base.runWorld(12);
+	while( !kbhit() )
+	{
+	base.world->update();
+}
+   	//base.runWorld(12);
 
 	base.saveWorld();
 
 #endif
 
 					
+	return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Used for detecting keyboard end
+// Cross-platform?
+// --------------------------------------------------------------------------- 
+ int kbhit()
+ {
+	struct termios oldt, newt;
+	int ch;
+	int oldf;
+
+	tcgetattr(STDIN_FILENO, &oldt);
+	newt = oldt;
+	newt.c_lflag &= ~(ICANON | ECHO);
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+	fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+	ch = getchar();
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+	if(ch != EOF)
+	{
+	ungetc(ch, stdin);
+	return 1;
+}
+
 	return 0;
 }

@@ -85,7 +85,8 @@ void World::update()
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
-		cout << endl << "Epoch " << current_epoch << ": ";
+		cout << " Agents: " << agents.size() << endl;
+		cout << "Epoch " << current_epoch << ": ";
     }
 
 	// What kind of food method are we using?

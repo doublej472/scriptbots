@@ -4,7 +4,7 @@ find_package(Boost COMPONENTS serialization REQUIRED)
 find_package(OpenGL)
 find_package(GLUT)
 
-#Temp:
+#Uncomment this to run headless:
 #SET (GLUT_FOUND 0)
 
 #if (WIN32 AND NOT GLUT_FOUND)

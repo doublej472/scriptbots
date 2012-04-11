@@ -15,7 +15,7 @@ Base::Base()
 void Base::saveWorld()
 {
 	// save data to archive -----------------------------
-	cout << endl << "SAVING" << endl;
+	cout << endl << endl << "SAVING FILE" << endl;
 	
 	ofstream ofs("myworld.dat"); // create and open a character archive for output
 	boost::archive::text_oarchive oa(ofs);
@@ -36,7 +36,7 @@ void Base::saveWorld()
 
 void Base::loadWorld()
 {
-	cout << endl << "LOADING" << endl;
+	cout << endl << "LOADING FILE" << endl;
 		
 	ifstream ifs("myworld.dat");
 	boost::archive::text_iarchive ia(ifs);
