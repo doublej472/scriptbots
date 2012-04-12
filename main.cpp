@@ -40,6 +40,8 @@ GLView* GLVIEW = new GLView();
 #endif
 bool VERBOSE = false; // Run in verbose mode
 bool HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
+int NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
+									   // Defaults to the number of available processors
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
@@ -50,6 +52,35 @@ void runWithGraphics(int &argc, char** argv, Base &base);
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
+	Base base;
+	
+	bool loadWorldFromFile;
+	
+	// Retrieve command line arguments
+	// -h: Run program headless
+	// -v: Run program in verbose mode
+	// -w: Load world state from file
+	// -n: Specify number of threads
+	int c;
+	while( (c = getopt(argc, argv, "vhwn:")) != -1){
+		switch(c){
+			case 'h':
+				HEADLESS = true;
+				break;
+			case 'v':
+				VERBOSE = true;
+				break;
+			case 'w':
+				loadWorldFromFile = true;
+				break;
+			case 'n':
+				NUM_THREADS = atoi(optarg);
+				break;
+			default:
+				break;
+		}
+	}
+
 	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
 	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;
@@ -60,6 +91,7 @@ int main(int argc, char **argv)
 #if OPENMP
 	cout << "   OpenMP found." << endl;
 	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
+	cout << "   Using " << NUM_THREADS << " threads" << endl;
 #endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
 		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH and conf::HEIGHT\n");
@@ -67,35 +99,7 @@ int main(int argc, char **argv)
 	cout << "-------------------------------------------------------------------------------" << endl;	
 	
 	srand(time(0));
-
-	Base base;
 	
-	bool loadWorldFromFile;
-
-	// If any argument is passed, just load the file
-	/*
-	if( argc > 1 )
-	{
-		base.loadWorld();
-	}	
-	*/
-	
-	int c;
-	while( (c = getopt(argc, argv, "vhw")) != -1){
-		switch(c){
-			case 'h':
-				HEADLESS = true;
-				break;
-			case 'v':
-				VERBOSE = true;
-				break;
-			case 'w':
-				loadWorldFromFile = true;
-			default:
-				break;
-		}
-	}
-
 	if(loadWorldFromFile)
 		base.loadWorld();
 		
