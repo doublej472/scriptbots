@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "World.h"
+#include "PerfTimer.h"
 #include "omp.h"
 
 // Include Boost serialization:
@@ -38,10 +39,7 @@ using namespace std;
 #if OPENGL
 GLView* GLVIEW = new GLView();
 #endif
-bool VERBOSE = false; // Run in verbose mode
-bool HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
-int NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
-									   // Defaults to the number of available processors
+
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
@@ -52,17 +50,24 @@ void runWithGraphics(int &argc, char** argv, Base &base);
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
+	TIMER = PerfTimer();
+	VERBOSE = false; // Run in verbose mode
+	HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
+	NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
+									   // Defaults to the number of available processors
 	Base base;
 	
 	bool loadWorldFromFile;
+	int maxEpochs = INT_MAX;
 	
 	// Retrieve command line arguments
 	// -h: Run program headless
 	// -v: Run program in verbose mode
 	// -w: Load world state from file
 	// -n: Specify number of threads
+	// -e: Specify maximum epochs to run
 	int c;
-	while( (c = getopt(argc, argv, "vhwn:")) != -1){
+	while( (c = getopt(argc, argv, "vhwn:e:")) != -1){
 		switch(c){
 			case 'h':
 				HEADLESS = true;
@@ -75,6 +80,9 @@ int main(int argc, char **argv)
 				break;
 			case 'n':
 				NUM_THREADS = atoi(optarg);
+				break;
+			case 'e':
+				maxEpochs = atoi(optarg);
 				break;
 			default:
 				break;
@@ -217,6 +225,9 @@ void runHeadless(Base &base){
 	cout << "   Headless Mode - No graphics\n";
 	cout << "      Press any key to save and end simulation\n" << endl;	
 	
+	if(VERBOSE)
+		TIMER.start("total");
+		
 	while( !kbhit() )
 	{
 		base.world->update();
@@ -225,6 +236,12 @@ void runHeadless(Base &base){
 		
 	}
    	//base.runWorld(12);
+   	
+   	if(VERBOSE)
+   	{
+   	TIMER.end("total");
+   	TIMER.printTimes();
+	}
 
 	base.saveWorld();
 }

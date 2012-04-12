@@ -6,6 +6,12 @@
 #include "settings.h"
 #include <vector>
 #include "boost.h"
+#include "PerfTimer.h"
+
+extern bool VERBOSE;
+extern bool HEADLESS;
+extern int NUM_THREADS;
+extern PerfTimer TIMER; 
 
 class World
 {

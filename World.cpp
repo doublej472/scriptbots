@@ -5,8 +5,14 @@
 #include "settings.h"
 #include "helpers.h"
 #include "vmath.h"
+#include "PerfTimer.h"
 #include <stdio.h>
 #include <omp.h>  // OpenMP multithreading
+
+bool VERBOSE;
+bool HEADLESS;
+int NUM_THREADS;
+PerfTimer TIMER; 
 
 using namespace std;
 
@@ -144,11 +150,23 @@ void World::update()
     //give input to every agent. Sets in[] array
     setInputs();
 
+	if(VERBOSE)
+		TIMER.start("brainsTick");
+		
     //brains tick. computes in[] -> out[]
     brainsTick();
+    
+    if(VERBOSE)
+		TIMER.end("brainsTick");
+		
+	if (VERBOSE)
+		TIMER.start("processOutputs");
 
     //read output and process consequences of bots on environment. requires out[]
     processOutputs();
+    
+    if (VERBOSE)
+		TIMER.end("processOutputs");
 
     float healthloss; // amount of health lost
 	float dd, discomfort; // temperature preference vars
@@ -161,7 +179,9 @@ void World::update()
 		agents[0].health = 0;
 		cout << "Agent has died for being old at epoch " << current_epoch << endl;
 	}
-		
+	
+	if(VERBOSE)	
+		TIMER.start("Processing agent health");
 	
     //process bots health
     for (i=0;i<agents.size();i++) {
@@ -264,7 +284,13 @@ void World::update()
         }
 
     }
-
+	
+	if(VERBOSE)
+		TIMER.end("Processing agent health");
+	
+	if(VERBOSE)
+		TIMER.start("Deleting dead agents");
+		
 	// Delete dead agents
     vector<Agent>::iterator iter= agents.begin();
 
@@ -276,6 +302,12 @@ void World::update()
         }
     }
 
+	if(VERBOSE)
+		TIMER.end("Deleting dead agents");
+		
+	if(VERBOSE)
+		TIMER.start("Reproduction");
+		
     // Handle reproduction
     for (i=0;i<agents.size();i++) {
         if (agents[i].repcounter<0 && agents[i].health>conf::REP_MIN_HEALTH &&
@@ -294,7 +326,13 @@ void World::update()
 				(1-agents[i].herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
         }
     }
+    
+    if(VERBOSE)
+		TIMER.end("Reproduction");
 
+	if(VERBOSE)
+		TIMER.start("Adding new agents");
+		
     //add new agents, if environment isn't closed
     if (!CLOSED) {
         //make sure environment is always populated with at least NUMBOTS_MIN bots
@@ -313,6 +351,9 @@ void World::update()
 		  }
 		*/
     }
+    
+    if(VERBOSE)
+		TIMER.end("Adding new agents");
 
 
 }
@@ -680,7 +721,7 @@ void World::processOutputs()
 void World::brainsTick()
 {
 	// Set the number of threads
-	//omp_set_num_threads(4);
+	omp_set_num_threads(NUM_THREADS);
 	//  printf("Using %d threads", threads);
 	
 	//#pragma omp parallel for
