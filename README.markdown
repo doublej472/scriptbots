@@ -117,6 +117,7 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * Row 4: Next reproduction
 
 **Optional Command Line Arguments:**
+
 * -h: Run without graphics
 * -v: Run in verbose mode
 * -w: Load existing world
