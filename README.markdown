@@ -116,6 +116,14 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * Row 3: Health
 * Row 4: Next reproduction
 
+**Optional Command Line Arguments:**
+
+* -h: Run without graphics
+* -v: Run in verbose mode
+* -w: Load existing world
+* -e <max epochs>: Specify the maximum number of epochs to run the program 
+* -n <thread count>: Specify the number of threads
+
 PLOTTING BOT STATISTICS
 --------
 On Linux, from within scriptbox directory:
