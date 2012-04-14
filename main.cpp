@@ -38,6 +38,7 @@ using namespace std;
 
 #if OPENGL
 GLView* GLVIEW = new GLView();
+int MAX_EPOCHS = INT_MAX;
 #endif
 
 // ---------------------------------------------------------------------------
@@ -58,7 +59,6 @@ int main(int argc, char **argv)
 	Base base;
 	
 	bool loadWorldFromFile;
-	int maxEpochs = INT_MAX;
 	
 	// Retrieve command line arguments
 	// -h: Run program headless
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 				NUM_THREADS = atoi(optarg);
 				break;
 			case 'e':
-				maxEpochs = atoi(optarg);
+				MAX_EPOCHS = atoi(optarg);
 				break;
 			default:
 				break;
@@ -228,7 +228,7 @@ void runHeadless(Base &base){
 	if(VERBOSE)
 		TIMER.start("total");
 		
-	while( !kbhit() )
+	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
 	{
 		base.world->update();
 

@@ -4,7 +4,7 @@ cmake ../
 make
 if [ $? -eq 0 ] ; then
     cd ..
-    ./build/scriptbots -h -v 
+    ./build/scriptbots -h -v -e 1
 else
     cd ..
 fi
