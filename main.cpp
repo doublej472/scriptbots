@@ -199,6 +199,7 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 	printf("   GREEN: agent just reproduced\n");
 	printf("   GREY: bot is getting group health bonus\n");
 	
+#if OPENGL
 	GLVIEW->setBase(&base);
 
 	//GLUT SETUP
@@ -217,6 +218,7 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 	glutMotionFunc(gl_processMouseActiveMotion);
 
 	glutMainLoop();
+#endif
 }
 // ---------------------------------------------------------------------------
 // Run Scriptbots headless
