@@ -28,10 +28,13 @@ World::World(int _modcounter) :
 	FW(conf::WIDTH/conf::CZ),
 	FH(conf::HEIGHT/conf::CZ)
 {
+	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
 	for(int i = 0; i < int(conf::NUMBOTS * .2); ++i)
 		addCarnivore();
+	
+	TIMER.end("Bot creation");
 	
     //inititalize food layer	
     srand(time(0));
