@@ -38,8 +38,8 @@ using namespace std;
 
 #if OPENGL
 GLView* GLVIEW = new GLView();
-int MAX_EPOCHS = INT_MAX;
 #endif
+int MAX_EPOCHS = INT_MAX;
 
 // ---------------------------------------------------------------------------
 // Prototypes:
