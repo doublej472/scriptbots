@@ -1,23 +1,29 @@
 #include "PerfTimer.h"
 #include <iostream>
+#include <stdio.h>
+#include <omp.h>
+#include <time.h>
 
 using namespace std;
 
 PerfTimer::PerfTimer()
 {
 	totalTimes = map<string, double>();
-	intermediateTimes = map<string, clock_t>();
+	intermediateTimes = map<string, time_t>();
 }
 
 void PerfTimer::start(string key)
 {
-	intermediateTimes[key] = clock();
+	time(&(intermediateTimes[key]));
+	//intermediateTimes[key] = time();
 }
 
 void PerfTimer::end(string key)
 {
-	clock_t endTime = clock();
-	totalTimes[key] += ((endTime - intermediateTimes[key])/(double)CLOCKS_PER_SEC);
+	clock_t endTime;
+	time(&endTime);
+	//totalTimes[key] += (endTime - intermediateTimes[key]);
+	totalTimes[key] += difftime(endTime, intermediateTimes[key]);
 }
 
 void PerfTimer::printTimes(){
@@ -29,6 +35,7 @@ void PerfTimer::printTimes(){
 	
 	for(it=totalTimes.begin(); it != totalTimes.end(); it++)
 	{
-		cout << "      " << it->first << ": " << it->second << endl;
+		printf("%s : %.2lf\n", it->first.c_str(), it->second);
+		//cout << "      " << it->first << ": " << it->second << endl;
 	}
 }

@@ -17,7 +17,7 @@ public:
 
 private:
 	std::map<std::string, double> totalTimes;
-	std::map<std::string, clock_t> intermediateTimes;
+	std::map<std::string, time_t> intermediateTimes;
 };
 
 #endif
