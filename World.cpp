@@ -28,6 +28,9 @@ World::World(int _modcounter) :
 	FW(conf::WIDTH/conf::CZ),
 	FH(conf::HEIGHT/conf::CZ)
 {
+	// Set number of threads
+	omp_set_num_threads(NUM_THREADS);
+	
 	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
@@ -149,27 +152,15 @@ void World::update()
         if(agents[i].indicator > 0)
 			agents[i].indicator -= 1;
     }
-
+		
     //give input to every agent. Sets in[] array
     setInputs();
-
-	if(VERBOSE)
-		TIMER.start("brainsTick");
 		
     //brains tick. computes in[] -> out[]
     brainsTick();
-    
-    if(VERBOSE)
-		TIMER.end("brainsTick");
-		
-	if (VERBOSE)
-		TIMER.start("processOutputs");
 
     //read output and process consequences of bots on environment. requires out[]
     processOutputs();
-    
-    if (VERBOSE)
-		TIMER.end("processOutputs");
 
     float healthloss; // amount of health lost
 	float dd, discomfort; // temperature preference vars
@@ -372,6 +363,9 @@ void World::setInputs()
 {
 	// See README.markdown for documentation of input ids
 
+	if(VERBOSE)
+		TIMER.start("setInputs");
+
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
     for (int i=0;i<agents.size();i++) {
@@ -561,11 +555,17 @@ void World::setInputs()
 			a->in[i+23] = a->out[i];
 		}
     }
+    
+    if(VERBOSE)
+		TIMER.end("setInputs");
 }
 
 void World::processOutputs()
 {
 	// See README.markdown for documentation of output ids
+	
+	if (VERBOSE)
+		TIMER.start("processOutputs");
 	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
@@ -719,15 +719,20 @@ void World::processOutputs()
             }
         }
     }
+    
+    if (VERBOSE)
+		TIMER.end("processOutputs");
 }
 
 void World::brainsTick()
 {
+	if(VERBOSE)
+		TIMER.start("brainsTick");
 	// Set the number of threads
-	omp_set_num_threads(NUM_THREADS);
+	//omp_set_num_threads(NUM_THREADS);
 	//  printf("Using %d threads", threads);
 	
-	//#pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].tick();
 
@@ -735,12 +740,18 @@ void World::brainsTick()
 		//int thread_num = omp_get_thread_num();
 		//printf("Num procs: %d of %d \n", thread_num, num_procs); 
     }
+    
+    if(VERBOSE)
+		TIMER.end("brainsTick");
 }
 
 void World::addRandomBots(int num)
 {
 	numAgentsAdded += num; // record in report
 	
+	//omp_set_num_threads(NUM_THREADS);
+	
+	//#pragma omp parallel for
     for (int i=0;i<num;i++) {
         Agent a;
         a.id= idcounter;
