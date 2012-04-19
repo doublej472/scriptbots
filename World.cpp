@@ -729,7 +729,7 @@ void World::brainsTick()
 	if(VERBOSE)
 		TIMER.start("brainsTick");
 	// Set the number of threads
-	//omp_set_num_threads(NUM_THREADS);
+	omp_set_num_threads(NUM_THREADS);
 	//  printf("Using %d threads", threads);
 	
 	#pragma omp parallel for
