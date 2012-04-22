@@ -368,6 +368,8 @@ void World::setInputs()
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -588,7 +590,8 @@ void World::processOutputs()
     }
 
     //move bots
-    //#pragma omp parallel for
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
