@@ -141,7 +141,9 @@ void World::update()
 			food[fx][fy]= conf::FOODMAX;
 		}
 	}
-	
+
+    if(VERBOSE)
+	TIMER.start("general settings");	
 	// general settings loop
     for(i=0;i<agents.size();i++){
 
@@ -152,7 +154,9 @@ void World::update()
         if(agents[i].indicator > 0)
 			agents[i].indicator -= 1;
     }
-		
+    if(VERBOSE)
+	TIMER.end("general settings");
+
     //give input to every agent. Sets in[] array
     setInputs();
 		
@@ -568,7 +572,9 @@ void World::processOutputs()
 	
 	if (VERBOSE)
 		TIMER.start("processOutputs");
-	
+
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -590,7 +596,6 @@ void World::processOutputs()
     }
 
     //move bots
-    omp_set_num_threads(NUM_THREADS);
     #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
@@ -641,6 +646,7 @@ void World::processOutputs()
     }
 
     //process food intake for herbivors
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
 
         int cx= (int) agents[i].pos.x/conf::CZ;
@@ -658,9 +664,11 @@ void World::processOutputs()
     }
 
     //process giving and receiving of food
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].dfood=0;
     }
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         if (agents[i].give>0.5) {
             for (int j=0;j<agents.size();j++) {
