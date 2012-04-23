@@ -17,6 +17,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   SET (MAC_GLUT 1)
 endif()
 
+#GProf
+SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
+
 find_package(OpenMP)
 
 if (OPENMP_FOUND)

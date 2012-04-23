@@ -1,2 +1,2 @@
 all:
-	cd build && cmake ../ && make
+	cd build && cmake ../ && make VERBOSE=0
