@@ -1,8 +1,10 @@
 #include <ctime>
 #include <stdio.h>
+#include <getopt.h>
 
 #include "config.h"
 #include "World.h"
+#include "PerfTimer.h"
 #include "omp.h"
 
 // Include Boost serialization:
@@ -37,15 +39,56 @@ using namespace std;
 #if OPENGL
 GLView* GLVIEW = new GLView();
 #endif
+int MAX_EPOCHS = INT_MAX;
 
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
 static inline void loadBar(int x, int n, int r, int w);
+void runHeadless(Base &base);
+void runWithGraphics(int &argc, char** argv, Base &base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
+	TIMER = PerfTimer();
+	VERBOSE = false; // Run in verbose mode
+	HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
+	NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
+									   // Defaults to the number of available processors
+	Base base;
+	
+	bool loadWorldFromFile;
+	
+	// Retrieve command line arguments
+	// -h: Run program headless
+	// -v: Run program in verbose mode
+	// -w: Load world state from file
+	// -n: Specify number of threads
+	// -e: Specify maximum epochs to run
+	int c;
+	while( (c = getopt(argc, argv, "vhwn:e:")) != -1){
+		switch(c){
+			case 'h':
+				HEADLESS = true;
+				break;
+			case 'v':
+				VERBOSE = true;
+				break;
+			case 'w':
+				loadWorldFromFile = true;
+				break;
+			case 'n':
+				NUM_THREADS = atoi(optarg);
+				break;
+			case 'e':
+				MAX_EPOCHS = atoi(optarg);
+				break;
+			default:
+				break;
+		}
+	}
+
 	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
 	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;
@@ -56,66 +99,29 @@ int main(int argc, char **argv)
 #if OPENMP
 	cout << "   OpenMP found." << endl;
 	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
+	cout << "   Using " << NUM_THREADS << " threads" << endl;
 #endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
 		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH and conf::HEIGHT\n");
-	
-#if OPENGL
-	printf("\nInstructions:\n");
-	printf("   p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
-	printf("   Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
-	printf("\nBot Status Colors: \n");
-	printf("   WHITE: they just ate part of another agent\n");
-	printf("   YELLOW: bot just spiked another bot\n");
-	printf("   GREEN: agent just reproduced\n");
-	printf("   GREY: bot is getting group health bonus\n");
-#else
-	cout << "   Headless Mode - No graphics\n";
-	cout << "      Press any key to save and end simulation\n" << endl;	
-#endif
+
 	cout << "-------------------------------------------------------------------------------" << endl;	
 	
 	srand(time(0));
-
-	Base base;
-
-	// If any argument is passed, just load the file
-	if( argc > 1 )
-	{
+	
+	if(loadWorldFromFile)
 		base.loadWorld();
-	}	
-
+		
 #if OPENGL
 
-	GLVIEW->setBase(&base);
-
-	//GLUT SETUP
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowPosition(30,30);
-	glutInitWindowSize(conf::WWIDTH,conf::WHEIGHT);
-	glutCreateWindow("Scriptbots");
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-	glutDisplayFunc(gl_renderScene);
-	glutIdleFunc(gl_handleIdle);
-	glutReshapeFunc(gl_changeSize);
-
-	glutKeyboardFunc(gl_processNormalKeys);
-	glutMouseFunc(gl_processMouse);
-	glutMotionFunc(gl_processMouseActiveMotion);
-
-	glutMainLoop();
-#else
-	while( !kbhit() )
+	if(HEADLESS)
 	{
-		base.world->update();
-
-		//loadBar(base.world->,  60, 1, 60);
-		
+		runHeadless(base);
 	}
-   	//base.runWorld(12);
-
-	base.saveWorld();
+	else{
+		runWithGraphics(argc, argv, base);
+	}
+#else
+	runHeadless(base);
 
 #endif
 
@@ -179,4 +185,65 @@ int kbhit()
 	}
 
 	return 0;
+}
+// ---------------------------------------------------------------------------
+// Run Scriptbots with graphics
+// --------------------------------------------------------------------------- 
+void runWithGraphics(int &argc, char** argv, Base &base){
+	printf("\nInstructions:\n");
+	printf("   p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
+	printf("   Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
+	printf("\nBot Status Colors: \n");
+	printf("   WHITE: they just ate part of another agent\n");
+	printf("   YELLOW: bot just spiked another bot\n");
+	printf("   GREEN: agent just reproduced\n");
+	printf("   GREY: bot is getting group health bonus\n");
+	
+#if OPENGL
+	GLVIEW->setBase(&base);
+
+	//GLUT SETUP
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
+	glutInitWindowPosition(30,30);
+	glutInitWindowSize(conf::WWIDTH,conf::WHEIGHT);
+	glutCreateWindow("Scriptbots");
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glutDisplayFunc(gl_renderScene);
+	glutIdleFunc(gl_handleIdle);
+	glutReshapeFunc(gl_changeSize);
+
+	glutKeyboardFunc(gl_processNormalKeys);
+	glutMouseFunc(gl_processMouse);
+	glutMotionFunc(gl_processMouseActiveMotion);
+
+	glutMainLoop();
+#endif
+}
+// ---------------------------------------------------------------------------
+// Run Scriptbots headless
+// --------------------------------------------------------------------------- 
+void runHeadless(Base &base){
+	cout << "   Headless Mode - No graphics\n";
+	cout << "      Press any key to save and end simulation\n" << endl;	
+	
+	if(VERBOSE)
+		TIMER.start("total");
+		
+	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
+	{
+		base.world->update();
+
+		//loadBar(base.world->,  60, 1, 60);
+		
+	}
+   	//base.runWorld(12);
+   	
+   	if(VERBOSE)
+   	{
+   	TIMER.end("total");
+   	TIMER.printTimes();
+	}
+
+	base.saveWorld();
 }

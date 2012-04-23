@@ -5,12 +5,12 @@ find_package(OpenGL)
 find_package(GLUT)
 
 #Uncomment this to run headless:
-SET (GLUT_FOUND 0)
+#SET (GLUT_FOUND 0)
 
-#if (WIN32 AND NOT GLUT_FOUND)
-#   find_library(GLUT32_LIBRARY NAMES glut32 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
-#  SET (LOCAL_GLUT32 1)
-#endif()
+if (WIN32 AND NOT GLUT_FOUND)
+   find_library(GLUT32_LIBRARY NAMES glut32 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
+  SET (LOCAL_GLUT32 1)
+endif()
 
 # Mac OS X specific code
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -50,6 +50,7 @@ if (GLUT_FOUND)
     MLPBrain.cpp
     Agent.cpp
     Base.cpp
+    PerfTimer.cpp
     World.cpp
     vmath.cpp )
   
@@ -62,6 +63,7 @@ else()
     MLPBrain.cpp
     Agent.cpp
     Base.cpp
+    PerfTimer.cpp
     World.cpp
     vmath.cpp )
 endif()

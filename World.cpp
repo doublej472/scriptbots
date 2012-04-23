@@ -5,8 +5,14 @@
 #include "settings.h"
 #include "helpers.h"
 #include "vmath.h"
+#include "PerfTimer.h"
 #include <stdio.h>
 #include <omp.h>  // OpenMP multithreading
+
+bool VERBOSE;
+bool HEADLESS;
+int NUM_THREADS;
+PerfTimer TIMER; 
 
 using namespace std;
 
@@ -22,10 +28,16 @@ World::World(int _modcounter) :
 	FW(conf::WIDTH/conf::CZ),
 	FH(conf::HEIGHT/conf::CZ)
 {
+	// Set number of threads
+	omp_set_num_threads(NUM_THREADS);
+	
+	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
 	for(int i = 0; i < int(conf::NUMBOTS * .2); ++i)
 		addCarnivore();
+	
+	TIMER.end("Bot creation");
 	
     //inititalize food layer	
     srand(time(0));
@@ -129,7 +141,9 @@ void World::update()
 			food[fx][fy]= conf::FOODMAX;
 		}
 	}
-	
+
+    if(VERBOSE)
+	TIMER.start("general settings");	
 	// general settings loop
     for(i=0;i<agents.size();i++){
 
@@ -140,10 +154,12 @@ void World::update()
         if(agents[i].indicator > 0)
 			agents[i].indicator -= 1;
     }
+    if(VERBOSE)
+	TIMER.end("general settings");
 
     //give input to every agent. Sets in[] array
     setInputs();
-
+		
     //brains tick. computes in[] -> out[]
     brainsTick();
 
@@ -161,7 +177,9 @@ void World::update()
 		agents[0].health = 0;
 		cout << "Agent has died for being old at epoch " << current_epoch << endl;
 	}
-		
+	
+	if(VERBOSE)	
+		TIMER.start("Processing agent health");
 	
     //process bots health
     for (i=0;i<agents.size();i++) {
@@ -264,7 +282,13 @@ void World::update()
         }
 
     }
-
+	
+	if(VERBOSE)
+		TIMER.end("Processing agent health");
+	
+	if(VERBOSE)
+		TIMER.start("Deleting dead agents");
+		
 	// Delete dead agents
     vector<Agent>::iterator iter= agents.begin();
 
@@ -276,6 +300,12 @@ void World::update()
         }
     }
 
+	if(VERBOSE)
+		TIMER.end("Deleting dead agents");
+		
+	if(VERBOSE)
+		TIMER.start("Reproduction");
+		
     // Handle reproduction
     for (i=0;i<agents.size();i++) {
         if (agents[i].repcounter<0 && agents[i].health>conf::REP_MIN_HEALTH &&
@@ -294,7 +324,13 @@ void World::update()
 				(1-agents[i].herbivore)*randf(conf::REPRATEC-0.1,conf::REPRATEC+0.1);
         }
     }
+    
+    if(VERBOSE)
+		TIMER.end("Reproduction");
 
+	if(VERBOSE)
+		TIMER.start("Adding new agents");
+		
     //add new agents, if environment isn't closed
     if (!CLOSED) {
         //make sure environment is always populated with at least NUMBOTS_MIN bots
@@ -313,6 +349,9 @@ void World::update()
 		  }
 		*/
     }
+    
+    if(VERBOSE)
+		TIMER.end("Adding new agents");
 
 
 }
@@ -328,8 +367,13 @@ void World::setInputs()
 {
 	// See README.markdown for documentation of input ids
 
+	if(VERBOSE)
+		TIMER.start("setInputs");
+
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -517,12 +561,20 @@ void World::setInputs()
 			a->in[i+23] = a->out[i];
 		}
     }
+    
+    if(VERBOSE)
+		TIMER.end("setInputs");
 }
 
 void World::processOutputs()
 {
 	// See README.markdown for documentation of output ids
 	
+	if (VERBOSE)
+		TIMER.start("processOutputs");
+
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -544,7 +596,7 @@ void World::processOutputs()
     }
 
     //move bots
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -594,6 +646,7 @@ void World::processOutputs()
     }
 
     //process food intake for herbivors
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
 
         int cx= (int) agents[i].pos.x/conf::CZ;
@@ -611,9 +664,11 @@ void World::processOutputs()
     }
 
     //process giving and receiving of food
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].dfood=0;
     }
+    #pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         if (agents[i].give>0.5) {
             for (int j=0;j<agents.size();j++) {
@@ -675,12 +730,17 @@ void World::processOutputs()
             }
         }
     }
+    
+    if (VERBOSE)
+		TIMER.end("processOutputs");
 }
 
 void World::brainsTick()
 {
+	if(VERBOSE)
+		TIMER.start("brainsTick");
 	// Set the number of threads
-	//omp_set_num_threads(4);
+	omp_set_num_threads(NUM_THREADS);
 	//  printf("Using %d threads", threads);
 	
 	#pragma omp parallel for
@@ -691,12 +751,18 @@ void World::brainsTick()
 		//int thread_num = omp_get_thread_num();
 		//printf("Num procs: %d of %d \n", thread_num, num_procs); 
     }
+    
+    if(VERBOSE)
+		TIMER.end("brainsTick");
 }
 
 void World::addRandomBots(int num)
 {
 	numAgentsAdded += num; // record in report
 	
+	//omp_set_num_threads(NUM_THREADS);
+	
+	//#pragma omp parallel for
     for (int i=0;i<num;i++) {
         Agent a;
         a.id= idcounter;
