@@ -39,12 +39,15 @@ using namespace std;
 #if OPENGL
 GLView* GLVIEW = new GLView();
 #endif
-int MAX_EPOCHS = INT_MAX;
+int MAX_EPOCHS = INT_MAX; // inifinity
+extern bool VERBOSE;
+extern bool HEADLESS;
+extern int NUM_THREADS;
+extern PerfTimer TIMER; // used throughout program to do benchmark timing
 
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
-static inline void loadBar(int x, int n, int r, int w);
 void runHeadless(Base &base);
 void runWithGraphics(int &argc, char** argv, Base &base);
 
@@ -130,33 +133,6 @@ int main(int argc, char **argv)
 }
 
 // ---------------------------------------------------------------------------
-// Process has done i out of n rounds,
-// and we want a bar of width w and resolution r.
-// ---------------------------------------------------------------------------
-static inline void loadBar(int x, int n, int r, int w)
-{
-	// Only update r times.
-	if ( x % (n/r) != 0 ) return;
-
-	// Calculuate the ratio of complete-to-incomplete.
-	float ratio = x/(float)n;
-	int   c     = ratio * w;
-
-	// Show the percentage complete.
-	printf("%3d%% [", (int)(ratio*100) );
-
-	// Show the load bar.
-	for (int x=0; x<c; x++)
-		printf("=");
-
-	for (int x=c; x<w; x++)
-		printf(" ");
-
-	// ANSI Control codes to go back to the
-	// previous line and clear it.
-	printf("]\n\033[F\033[J");
-}
-// ---------------------------------------------------------------------------
 // Used for detecting keyboard end
 // Cross-platform?
 // --------------------------------------------------------------------------- 
@@ -234,7 +210,6 @@ void runHeadless(Base &base){
 	{
 		base.world->update();
 
-		//loadBar(base.world->,  60, 1, 60);
 		
 	}
    	//base.runWorld(12);
