@@ -4,8 +4,9 @@ cmake ../
 make
 if [ $? -eq 0 ] ; then
     cd ..
-    #./build/scriptbots -h -v -e 1
-    numactl --interleave=all ./build/scriptbots -h -v -e 1
+    #./build/scriptbots -h -v -e 2 -n 1
+    #./build/scriptbots -h -v -e 2 -n 12
+    numactl --interleave=all ./build/scriptbots -h -v -e 2 -n 12
 else
     cd ..
 fi

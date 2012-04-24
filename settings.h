@@ -57,8 +57,8 @@ namespace conf {
 	const float REP_MIN_HEALTH=.75; // health level required of agent before it can reproduce
 
 	// HEALTH DEDUCTIONS
-	const float LOSS_BASE     = 0.00006; // loss of health for simply being alive (like breathing)
-	//const float LOSS_BASE     = 0.0006; // loss of health for simply being alive (like breathing)	
+	const float LOSS_BASE     = 0.0001; // loss of health for simply being alive (like breathing)
+	//const float LOSS_BASE   = 0.00006; // loss of health for simply being alive (like breathing)	
 	const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 	const float LOSS_SPEED    = 0.00005; // loss of health for movement speed
 	const float LOSS_TEMP     = 0.00005; // loss of health from temperature distribution across world

@@ -6,7 +6,7 @@ find_package(GLUT)
 find_package(OpenMP)
 
 # Force to compile headless
-SET (GLUT_FOUND 0)
+#SET (GLUT_FOUND 0)
 
 # Windows support (untested)
 if (WIN32 AND NOT GLUT_FOUND)
@@ -24,7 +24,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 #GProf and general debugging
-SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
+#SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
+
+#Performance
+SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 
 # OpenMP Multithreading
 if (OPENMP_FOUND)

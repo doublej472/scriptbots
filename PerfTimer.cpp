@@ -33,7 +33,7 @@ void PerfTimer::printTimes(){
 	map<string, double>::iterator it;
 	
 	cout << endl;
-	cout << "-----------------------------------------------------------------" << endl;
+	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "Timing metrics:   " << endl;
 
 	double total_time = totalTimes["total"];
@@ -44,6 +44,12 @@ void PerfTimer::printTimes(){
 		printf("%6.2f%% : %s\n", it->second/total_time*100, it->first.c_str());		
 		//cout << "      " << it->first << ": " << it->second << endl;
 	}
+	
+	cout << endl << "Copy to Spreadsheet:" << endl;
+	for(it=totalTimes.begin(); it != totalTimes.end(); it++)
+	{
+		printf("%.2lf\t", it->second);
+	}	
 }
 
 

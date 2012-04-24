@@ -57,7 +57,6 @@ void World::printState()
 	cout << "World State Info -----------" << endl;
 	cout << "Epoch:\t\t" << current_epoch<< endl;
 	cout << "Tick:\t\t" << modcounter << endl;	
-	//cout << "ID Counter:\t" << idcounter<< endl;
 	cout << "Num Agents:\t" << agents.size() << endl;
 	cout << "Agents Added:\t" << numAgentsAdded << endl;
 	cout << "----------------------------" << endl;
@@ -96,8 +95,6 @@ void World::update()
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
-		cout << " Agents: " << agents.size() << endl;
-		cout << "Epoch " << current_epoch << ": ";
     }
 
 	// What kind of food method are we using?
@@ -738,7 +735,7 @@ void World::brainsTick()
 		TIMER.start("brainsTick");
 	
 	#pragma omp parallel for
-    for (int i=0;i<agents.size();i++) {
+    for (inPt i=0;i<agents.size();i++) {
         agents[i].tick();
 
 		//int num_procs = omp_get_num_procs();
