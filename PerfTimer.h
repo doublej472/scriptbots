@@ -3,7 +3,7 @@
 
 #include <map>
 #include <string>
-#include <time.h>
+//#include <time.h>
 #include <cstdlib>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -19,7 +19,7 @@ public:
 	
 private:
 	std::map<std::string, double> totalTimes;
-	std::map<std::string, time_t> intermediateTimes;
+	std::map<std::string, double> intermediateTimes;
 };
 
 #endif
