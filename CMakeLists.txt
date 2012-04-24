@@ -3,25 +3,30 @@ cmake_minimum_required(VERSION 2.8)
 find_package(Boost COMPONENTS serialization REQUIRED)
 find_package(OpenGL)
 find_package(GLUT)
+find_package(OpenMP)
 
-#Uncomment this to run headless:
-#SET (GLUT_FOUND 0)
+# Force to compile headless
+SET (GLUT_FOUND 0)
 
+# Windows support (untested)
 if (WIN32 AND NOT GLUT_FOUND)
    find_library(GLUT32_LIBRARY NAMES glut32 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
   SET (LOCAL_GLUT32 1)
 endif()
 
-# Mac OS X specific code
+# Mac OS X support for XCode 4.2
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   SET (MAC_GLUT 1)
+  #SET (CMAKE_CXX_COMPILER "/usr/bin/g++-4.2" )
+  #SET (CMAKE_CC_COMPILER "/usr/bin/gcc" )
+  SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I /usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include")
+  #SET (OPENMP_FOUND 1) # override
 endif()
 
-#GProf
+#GProf and general debugging
 SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
 
-find_package(OpenMP)
-
+# OpenMP Multithreading
 if (OPENMP_FOUND)
   SET (HAVE_OPENMP 1)
   SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -36,10 +41,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DI
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
 
-# Boost:
+# Boost Serialization Library
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 
+# Compile required files
 if (GLUT_FOUND)
   SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENGL=1")
   set( SB_SRCS
@@ -53,7 +59,6 @@ if (GLUT_FOUND)
     PerfTimer.cpp
     World.cpp
     vmath.cpp )
-  
 else()
   SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENGL=0")
   set( SB_SRCS

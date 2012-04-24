@@ -59,11 +59,11 @@ int main(int argc, char **argv)
 	TIMER = PerfTimer();
 	VERBOSE = false; // Run in verbose mode
 	HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
-	NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
+	NUM_THREADS = 1; //omp_get_num_procs(); // Specifies the number of threads to use
 									   // Defaults to the number of available processors
 	Base base;
 	
-	bool loadWorldFromFile;
+	bool loadWorldFromFile = false;
 	
 	// Retrieve command line arguments
 	// -h: Run program headless
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 	#endif
 	#if OPENMP
 	cout << "   OpenMP found." << endl;
-	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
+	//cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
 	cout << "   Using " << NUM_THREADS << " threads" << endl;
 	#endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)

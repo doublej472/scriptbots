@@ -10,12 +10,6 @@
 #include <omp.h>  // OpenMP multithreading
 
 
-/*bool VERBOSE;
-bool HEADLESS;
-int NUM_THREADS;
-PerfTimer TIMER; 
-*/
-
 using namespace std;
 
 World::World() :
@@ -27,7 +21,7 @@ World::World() :
 	FH(conf::HEIGHT/conf::CZ)
 {
 	// Set number of threads
-	omp_set_num_threads(NUM_THREADS);
+	//omp_set_num_threads(NUM_THREADS);
 	
 	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
@@ -370,7 +364,7 @@ void World::setInputs()
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
-    omp_set_num_threads(NUM_THREADS);
+    //omp_set_num_threads(NUM_THREADS);
 	
 	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
@@ -555,7 +549,7 @@ void World::setInputs()
 		// Copy last ouput and last "plan" to the current inputs
 		// PREV_OUT is 23-32
 	    // PREV_PLAN is 33-42
-		for(int i = 0; i < 19; ++i)
+		for(int i = 0; i < OUTPUTSIZE; ++i)
 		{
 			a->in[i+23] = a->out[i];
 		}
@@ -572,7 +566,7 @@ void World::processOutputs()
 	if (VERBOSE)
 		TIMER.start("processOutputs");
 
-    omp_set_num_threads(NUM_THREADS);
+    //omp_set_num_threads(NUM_THREADS);
 
 	#pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
@@ -740,7 +734,7 @@ void World::brainsTick()
 	if(VERBOSE)
 		TIMER.start("brainsTick");
 	// Set the number of threads
-	omp_set_num_threads(NUM_THREADS);
+	//omp_set_num_threads(NUM_THREADS);
 	//  printf("Using %d threads", threads);
 	
 	#pragma omp parallel for
