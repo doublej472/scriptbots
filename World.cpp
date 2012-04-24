@@ -22,7 +22,8 @@ World::World() :
 {
 	// Set number of threads
 	//omp_set_num_threads(NUM_THREADS);
-	
+	startTime = TIMER.getSimpleTime();
+		
 	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
@@ -70,18 +71,25 @@ void World::update()
 	
     modcounter++;
 
-	if( current_epoch == 0 && modcounter == 1)
-   		cout << endl << "Epoch " << current_epoch << ": ";
-		
     //Process periodic events --------------------------------------------------------
     //Age goes up!
     if (modcounter%100==0) {
+		
+		// Update agents age
         for (i=0;i<agents.size();i++) {
             agents[i].age+= 1;    //agents age...
         }
-		cout << "|" << flush;
+		
+		// Update GUI
+		double endTime = TIMER.getSimpleTime();
+		
+   		printf("Simulation Running... Epoch: %d.%d - Agents: %i - FPS: %i       \r",
+			   current_epoch, modcounter/100, int(agents.size()), int(100 / (endTime - startTime)));
+
+   		startTime = endTime;
     }
 
+	
 	// Write Report
     if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % (10000 / conf::REPORTS_PER_EPOCH) ==0) )
     	writeReport();

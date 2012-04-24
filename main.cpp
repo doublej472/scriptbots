@@ -213,7 +213,8 @@ void runHeadless(Base &base){
 	
 	if(VERBOSE)
 		TIMER.start("total");
-		
+
+  	printf("Simulation Loading...\r");	
 	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
 	{
 		base.world->update();		

@@ -7,6 +7,8 @@
 #include <vector>
 #include "boost.h"
 #include "PerfTimer.h"
+#include <sys/time.h>
+#include <sys/resource.h>
 
 class World
 {
@@ -89,6 +91,9 @@ class World
     bool CLOSED; //if environment is closed, then no random bots are added per time interval
 
     bool touch;
+
+	double startTime; // used for tracking fps
+	
 };
 
 #endif // WORLD_H

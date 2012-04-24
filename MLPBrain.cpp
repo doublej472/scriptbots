@@ -97,7 +97,7 @@ void MLPBrain::tick(vector< float >& in, vector< float >& out)
         acc += abox->bias;
         
         //put through sigmoid
-        acc= 1.0/(1.0+exp(-acc)); // logistic function, ranges from 0 to 1
+        acc = 1.0/(1.0+exp(-acc)); // logistic function, ranges from 0 to 1
         
         abox->target= acc;
     }
