@@ -10,12 +10,6 @@
 #include <omp.h>  // OpenMP multithreading
 
 
-/*bool VERBOSE;
-bool HEADLESS;
-int NUM_THREADS;
-PerfTimer TIMER; 
-*/
-
 using namespace std;
 
 World::World() :
@@ -26,9 +20,8 @@ World::World() :
 	FW(conf::WIDTH/conf::CZ),
 	FH(conf::HEIGHT/conf::CZ)
 {
-	// Set number of threads
-	omp_set_num_threads(NUM_THREADS);
-	
+	startTime = TIMER.getSimpleTime();
+		
 	TIMER.start("Bot creation");
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
@@ -64,7 +57,6 @@ void World::printState()
 	cout << "World State Info -----------" << endl;
 	cout << "Epoch:\t\t" << current_epoch<< endl;
 	cout << "Tick:\t\t" << modcounter << endl;	
-	//cout << "ID Counter:\t" << idcounter<< endl;
 	cout << "Num Agents:\t" << agents.size() << endl;
 	cout << "Agents Added:\t" << numAgentsAdded << endl;
 	cout << "----------------------------" << endl;
@@ -76,18 +68,25 @@ void World::update()
 	
     modcounter++;
 
-	if( current_epoch == 0 && modcounter == 1)
-   		cout << endl << "Epoch " << current_epoch << ": ";
-		
     //Process periodic events --------------------------------------------------------
     //Age goes up!
     if (modcounter%100==0) {
+		
+		// Update agents age
         for (i=0;i<agents.size();i++) {
             agents[i].age+= 1;    //agents age...
         }
-		cout << "|" << flush;
+		
+		// Update GUI
+		double endTime = TIMER.getSimpleTime();
+		
+   		printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: %i       \r",
+			   current_epoch, modcounter/100, int(agents.size()), int(100 / (endTime - startTime)));
+
+   		startTime = endTime;
     }
 
+	
 	// Write Report
     if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % (10000 / conf::REPORTS_PER_EPOCH) ==0) )
     	writeReport();
@@ -96,8 +95,6 @@ void World::update()
     if (modcounter>=10000) {
         modcounter=0;
         current_epoch++;
-		cout << " Agents: " << agents.size() << endl;
-		cout << "Epoch " << current_epoch << ": ";
     }
 
 	// What kind of food method are we using?
@@ -370,9 +367,8 @@ void World::setInputs()
 
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
-    omp_set_num_threads(NUM_THREADS);
 	
-	#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -555,7 +551,7 @@ void World::setInputs()
 		// Copy last ouput and last "plan" to the current inputs
 		// PREV_OUT is 23-32
 	    // PREV_PLAN is 33-42
-		for(int i = 0; i < 19; ++i)
+		for(int i = 0; i < OUTPUTSIZE; ++i)
 		{
 			a->in[i+23] = a->out[i];
 		}
@@ -572,9 +568,7 @@ void World::processOutputs()
 	if (VERBOSE)
 		TIMER.start("processOutputs");
 
-    omp_set_num_threads(NUM_THREADS);
-
-	#pragma omp parallel for	
+	//#pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -596,7 +590,7 @@ void World::processOutputs()
     }
 
     //move bots
-	#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -646,7 +640,7 @@ void World::processOutputs()
     }
 
     //process food intake for herbivors
-	#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
 
         int cx= (int) agents[i].pos.x/conf::CZ;
@@ -664,11 +658,11 @@ void World::processOutputs()
     }
 
     //process giving and receiving of food
-	#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].dfood=0;
     }
-	#pragma omp parallel for
+	//#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         if (agents[i].give>0.5) {
             for (int j=0;j<agents.size();j++) {
@@ -739,12 +733,9 @@ void World::brainsTick()
 {
 	if(VERBOSE)
 		TIMER.start("brainsTick");
-	// Set the number of threads
-	omp_set_num_threads(NUM_THREADS);
-	//  printf("Using %d threads", threads);
 	
 	#pragma omp parallel for
-    for (int i=0;i<agents.size();i++) {
+    for (inPt i=0;i<agents.size();i++) {
         agents[i].tick();
 
 		//int num_procs = omp_get_num_procs();
@@ -759,8 +750,6 @@ void World::brainsTick()
 void World::addRandomBots(int num)
 {
 	numAgentsAdded += num; // record in report
-	
-	//omp_set_num_threads(NUM_THREADS);
 	
 	//#pragma omp parallel for
     for (int i=0;i<num;i++) {

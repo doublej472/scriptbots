@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 									   // Defaults to the number of available processors
 	Base base;
 	
-	bool loadWorldFromFile;
+	bool loadWorldFromFile = false;
 	
 	// Retrieve command line arguments
 	// -h: Run program headless
@@ -93,6 +93,9 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	// Set the number of threads now, just once, here:
+	omp_set_num_threads(NUM_THREADS);	
 
 	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
@@ -213,7 +216,8 @@ void runHeadless(Base &base){
 	
 	if(VERBOSE)
 		TIMER.start("total");
-		
+
+  	printf("Simulation Loading...\r");	
 	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
 	{
 		base.world->update();		

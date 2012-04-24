@@ -4,7 +4,9 @@ cmake ../
 make
 if [ $? -eq 0 ] ; then
     cd ..
-    ./build/scriptbots -h -v -e 1
+    valgrind --tool=memcheck --dsymutil=yes --track-origins=yes ./build/scriptbots
 else
     cd ..
 fi
+
+
