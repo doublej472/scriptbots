@@ -7,6 +7,9 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+// Includes
+#include "PerfTimer.h"
+
 // Global variables
 extern bool VERBOSE;
 extern bool HEADLESS;

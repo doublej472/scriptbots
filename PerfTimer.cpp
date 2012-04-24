@@ -20,7 +20,7 @@ void PerfTimer::start(string key)
 
 void PerfTimer::end(string key)
 {
-	clock_t endTime;
+	time_t endTime;
 	time(&endTime);
 	//totalTimes[key] += (endTime - intermediateTimes[key]);
 	totalTimes[key] += difftime(endTime, intermediateTimes[key]);
