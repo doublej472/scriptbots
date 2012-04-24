@@ -9,19 +9,17 @@
 #include <stdio.h>
 #include <omp.h>  // OpenMP multithreading
 
-bool VERBOSE;
+
+/*bool VERBOSE;
 bool HEADLESS;
 int NUM_THREADS;
 PerfTimer TIMER; 
+*/
 
 using namespace std;
 
-//template<class Archive>
-//void World::serialize(Archive & ar, const unsigned int version )
-
-
-World::World(int _modcounter) :
-	modcounter(_modcounter),
+World::World() :
+	modcounter(0),
 	current_epoch(0),
 	idcounter(0),
 	numAgentsAdded(0),
@@ -143,7 +141,7 @@ void World::update()
 	}
 
     if(VERBOSE)
-	TIMER.start("general settings");	
+		TIMER.start("general settings");	
 	// general settings loop
     for(i=0;i<agents.size();i++){
 
@@ -155,7 +153,7 @@ void World::update()
 			agents[i].indicator -= 1;
     }
     if(VERBOSE)
-	TIMER.end("general settings");
+		TIMER.end("general settings");
 
     //give input to every agent. Sets in[] array
     setInputs();
@@ -373,7 +371,8 @@ void World::setInputs()
     float PI8=M_PI/8/2; //pi/8/2
     float PI38= 3*PI8; //3pi/8/2
     omp_set_num_threads(NUM_THREADS);
-    #pragma omp parallel for
+	
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -415,7 +414,7 @@ void World::setInputs()
 
 			// Do manhattan-distance estimation
             if (	a->pos.x < a2->pos.x - conf::DIST ||
-            		a->pos.x > a2->pos.x + conf::DIST ||
+						a->pos.x > a2->pos.x + conf::DIST ||
             		a->pos.y > a2->pos.y + conf::DIST ||
             		a->pos.y < a2->pos.y - conf::DIST)
             	continue;
@@ -574,7 +573,8 @@ void World::processOutputs()
 		TIMER.start("processOutputs");
 
     omp_set_num_threads(NUM_THREADS);
-    #pragma omp parallel for	
+
+	#pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -596,7 +596,7 @@ void World::processOutputs()
     }
 
     //move bots
-    #pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -646,7 +646,7 @@ void World::processOutputs()
     }
 
     //process food intake for herbivors
-    #pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
 
         int cx= (int) agents[i].pos.x/conf::CZ;
@@ -664,11 +664,11 @@ void World::processOutputs()
     }
 
     //process giving and receiving of food
-    #pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].dfood=0;
     }
-    #pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         if (agents[i].give>0.5) {
             for (int j=0;j<agents.size();j++) {

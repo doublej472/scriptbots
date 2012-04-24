@@ -46,20 +46,10 @@ void Base::loadWorld()
 	}
 	boost::archive::text_iarchive ia(ifs);
 		
-	//cout << "\tBetween read and unpack" << endl;
    	ia >> (*world);
 
 	cout << endl;
 	world->printState();
 
 	cout << endl << "Epoch " << world->epoch() << ": ";
-}
-
-
-void Base::runWorld(int ticks)
-{
-	for(int i = 0; i < ticks; ++i)		
-		world->update();
-
-
 }

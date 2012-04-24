@@ -31,7 +31,7 @@ class World
 	}
 	// ---------------------------------------------------------
  public:
-	World(int _modcounter = 0);
+	World();
     ~World(){};
     
     void update();

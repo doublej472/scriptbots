@@ -7,6 +7,13 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+// Global variables
+extern bool VERBOSE;
+extern bool HEADLESS;
+extern int NUM_THREADS;
+extern PerfTimer TIMER; // used throughout program to do benchmark timing
+
+// Program configuration settings
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------

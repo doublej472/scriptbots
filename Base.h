@@ -8,7 +8,6 @@ class Base
 	Base();
 	void saveWorld();
 	void loadWorld();
-	void runWorld(int ticks);
 };
 
 

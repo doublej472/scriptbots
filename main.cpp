@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "World.h"
+#include "setting.h"
 #include "PerfTimer.h"
 #include "omp.h"
 
@@ -37,13 +38,14 @@ using namespace std;
 // Global Vars:
 
 #if OPENGL
-GLView* GLVIEW = new GLView();
+GLView* GLVIEW = new GLView(); // only use when graphic support is enabled
 #endif
+
 int MAX_EPOCHS = INT_MAX; // inifinity
-extern bool VERBOSE;
-extern bool HEADLESS;
-extern int NUM_THREADS;
-extern PerfTimer TIMER; // used throughout program to do benchmark timing
+bool VERBOSE;
+bool HEADLESS;
+int NUM_THREADS;
+PerfTimer TIMER; // used throughout program to do benchmark timing
 
 // ---------------------------------------------------------------------------
 // Prototypes:
@@ -72,23 +74,23 @@ int main(int argc, char **argv)
 	int c;
 	while( (c = getopt(argc, argv, "vhwn:e:")) != -1){
 		switch(c){
-			case 'h':
-				HEADLESS = true;
-				break;
-			case 'v':
-				VERBOSE = true;
-				break;
-			case 'w':
-				loadWorldFromFile = true;
-				break;
-			case 'n':
-				NUM_THREADS = atoi(optarg);
-				break;
-			case 'e':
-				MAX_EPOCHS = atoi(optarg);
-				break;
-			default:
-				break;
+		case 'h':
+			HEADLESS = true;
+			break;
+		case 'v':
+			VERBOSE = true;
+			break;
+		case 'w':
+			loadWorldFromFile = true;
+			break;
+		case 'n':
+			NUM_THREADS = atoi(optarg);
+			break;
+		case 'e':
+			MAX_EPOCHS = atoi(optarg);
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -96,37 +98,39 @@ int main(int argc, char **argv)
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
 	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;
 	cout << "Environment:" << endl;
-#if OPENGL
+	#if OPENGL
 	cout << "   OpenGL and GLUT found." << endl;
-#endif
-#if OPENMP
+	#endif
+	#if OPENMP
 	cout << "   OpenMP found." << endl;
 	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
 	cout << "   Using " << NUM_THREADS << " threads" << endl;
-#endif
+	#endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
-		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH and conf::HEIGHT\n");
-
-	cout << "-------------------------------------------------------------------------------" << endl;	
+	{
+		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH");
+		printf(" and conf::HEIGHT\n");
+	}	
 	
 	srand(time(0));
-	
+
+	// Load file if needed
 	if(loadWorldFromFile)
 		base.loadWorld();
-		
-#if OPENGL
 
+	// Decide if to graphics or not
+	#if OPENGL
 	if(HEADLESS)
 	{
 		runHeadless(base);
 	}
-	else{
+	else
+	{
 		runWithGraphics(argc, argv, base);
 	}
-#else
+	#else
 	runHeadless(base);
-
-#endif
+	#endif
 
 					
 	return 0;
@@ -162,6 +166,7 @@ int kbhit()
 
 	return 0;
 }
+
 // ---------------------------------------------------------------------------
 // Run Scriptbots with graphics
 // --------------------------------------------------------------------------- 
@@ -174,8 +179,9 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 	printf("   YELLOW: bot just spiked another bot\n");
 	printf("   GREEN: agent just reproduced\n");
 	printf("   GREY: bot is getting group health bonus\n");
-	
-#if OPENGL
+	cout << "-------------------------------------------------------------------------------" << endl;	
+
+	#if OPENGL	
 	GLVIEW->setBase(&base);
 
 	//GLUT SETUP
@@ -193,31 +199,30 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 	glutMouseFunc(gl_processMouse);
 	glutMotionFunc(gl_processMouseActiveMotion);
 
-	glutMainLoop();
-#endif
+	glutMainLoop(); // spin
+	#endif
 }
+
 // ---------------------------------------------------------------------------
 // Run Scriptbots headless
 // --------------------------------------------------------------------------- 
 void runHeadless(Base &base){
 	cout << "   Headless Mode - No graphics\n";
 	cout << "      Press any key to save and end simulation\n" << endl;	
+	cout << "-------------------------------------------------------------------------------" << endl;	
 	
 	if(VERBOSE)
 		TIMER.start("total");
 		
 	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
 	{
-		base.world->update();
-
-		
+		base.world->update();		
 	}
-   	//base.runWorld(12);
    	
    	if(VERBOSE)
    	{
-   	TIMER.end("total");
-   	TIMER.printTimes();
+		TIMER.end("total");
+		TIMER.printTimes();
 	}
 
 	base.saveWorld();
