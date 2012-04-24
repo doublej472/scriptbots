@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include "World.h"
-#include "setting.h"
+#include "settings.h"
 #include "PerfTimer.h"
 #include "omp.h"
 
