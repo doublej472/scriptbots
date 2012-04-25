@@ -145,7 +145,14 @@ int main(int argc, char **argv)
 
 	// Load file if needed
 	if(loadWorldFromFile)
+	{
 		base.loadWorld();
+
+		// check if epoch is greater than passed parameter
+		if( base.world->epoch() > MAX_EPOCHS )
+			cout << endl
+				 << "Warning: the loaded file has an epoch later than the specefied end time parameter" << endl;
+	}
 
 	// Decide if to graphics or not
 	if(HEADLESS)

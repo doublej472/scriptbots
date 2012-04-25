@@ -65,11 +65,11 @@ Ensure that CMake is installed on system. OpenGL and GLUT are optional but recom
 
 To install Boost from binaries download the tar file from http://www.boost.org/. Or, download the current version as of this writing using this command:
 
-    wget http://sourceforge.net/projects/boost/files/boost/1.49.0/boost_1_49_0.tar.gz/download
+    wget http://sourceforge.net/projects/boost/files/boost/1.49.0/boost_1_49_0.tar.gz
 
 Untar the file:
 
-    tar xvfz FILENAME
+    tar xvfz boost_1_49_0.tar.gz
 
 Within the untarred folder:
 
