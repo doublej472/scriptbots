@@ -42,6 +42,7 @@ GLView* GLVIEW = new GLView(); // only use when graphic support is enabled
 #endif
 
 int MAX_EPOCHS = INT_MAX; // inifinity
+int MAX_SECONDS = INT_MAX; 
 bool VERBOSE;
 bool HEADLESS;
 int NUM_THREADS;
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
 	// -n: Specify number of threads
 	// -e: Specify maximum epochs to run
 	int c;
-	while( (c = getopt(argc, argv, "vhwn:e:")) != -1){
+	while( (c = getopt(argc, argv, "vhwn:e:s:")) != -1){
 		switch(c){
 		case 'h':
 			HEADLESS = true;
@@ -91,6 +92,9 @@ int main(int argc, char **argv)
 		case 'e':
 			MAX_EPOCHS = atoi(optarg);
 			break;
+		case 's':
+			MAX_SECONDS = atoi(optarg);
+			break;			
 		default:
 			break;
 		}
@@ -229,16 +233,18 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 // Run Scriptbots headless
 // --------------------------------------------------------------------------- 
 void runHeadless(Base &base){
-	
+
 	if(VERBOSE)
 		TIMER.start("total");
 
+	
   	printf("Simulation Starting...\r");	
-	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
+	while( !kbhit() && !base.world->stopSim )
 	{
-		base.world->update();		
+		base.world->update();
 	}
-   	cout << endl << "Ended " << base.world->epoch() << " max " << MAX_EPOCHS << endl;
+   	
+	
    	if(VERBOSE)
    	{
 		TIMER.end("total");

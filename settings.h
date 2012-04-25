@@ -15,6 +15,8 @@
 extern bool VERBOSE;
 extern bool HEADLESS;
 extern int NUM_THREADS;
+extern int MAX_EPOCHS;
+extern int MAX_SECONDS;
 extern PerfTimer TIMER; // used throughout program to do benchmark timing
 
 // Program configuration settings

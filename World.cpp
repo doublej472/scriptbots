@@ -15,6 +15,7 @@ using namespace std;
 World::World() :
 	modcounter(0),
 	current_epoch(0),
+	stopSim(false),
 	idcounter(0),
 	numAgentsAdded(0),
 	FW(conf::WIDTH/conf::CZ),
@@ -24,6 +25,9 @@ World::World() :
 
 	if(VERBOSE)
 		TIMER.start("Bot creation");
+
+	// Track total running time:
+	totalStartTime = TIMER.getSimpleTime();
 	
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
@@ -94,10 +98,16 @@ void World::update()
 		// Update GUI
 		double endTime = TIMER.getSimpleTime();
 		
-   		printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: %i       \r",
-			   current_epoch, modcounter/100, int(agents.size()), int(conf::reportInterval / (endTime - startTime)));
+   		printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: %i - Time: %.2f sec     \r",
+			   current_epoch, modcounter/100, int(agents.size()),
+			   int(conf::reportInterval / (endTime - startTime)), (endTime - totalStartTime));
 
    		startTime = endTime;
+		
+		// Check if simulation needs to end
+		
+		if( current_epoch >= MAX_EPOCHS || (endTime-totalStartTime) >= MAX_SECONDS )
+			stopSim = true;
     }
 	
 	// What kind of food method are we using?

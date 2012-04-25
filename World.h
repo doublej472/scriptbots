@@ -63,6 +63,7 @@ class World
     void addRandomBots(int num);
     void addCarnivore();
 
+	bool stopSim;
  private:
 
     void setInputsRunBrain();
@@ -92,7 +93,7 @@ class World
     bool touch;
 
 	double startTime; // used for tracking fps
-
+	double totalStartTime; // used for deciding when to quit the simulation
 };
 
 #endif // WORLD_H

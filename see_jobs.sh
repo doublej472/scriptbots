@@ -1,0 +1,1 @@
+showq -u $USER

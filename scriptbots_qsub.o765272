@@ -1,0 +1,13 @@
+-------------------------------------------------------------------------------
+ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics
+   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins
+
+Environment:
+   OpenMP found.
+      12 processors available
+      Using 12 threads
+   Termination:
+      Press any key to save and end simulation
+
+   Headless Mode - No graphics
+-------------------------------------------------------------------------------
