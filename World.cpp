@@ -41,9 +41,13 @@ World::World() :
 		for (int y=0;y<FH;y++) {
 
 			rand1 = randf(0,1);
-			if(rand1 < .6)
+			if(rand1 > .5)
 			{
 				food[x][y] = rand1 * conf::FOODMAX;
+			}
+			else
+			{
+				food[x][y] = 0;
 			}
 		}
     }
