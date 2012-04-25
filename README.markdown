@@ -63,22 +63,22 @@ To build and run ScriptBots simply cd to the ScriptBots directory and run the ba
 
 Ensure that CMake is installed on system. OpenGL and GLUT are optional but recommended.
 
-To install Boost from binaries download the tar file from http://www.boost.org/. Or, download the current version as of this writing using this command:
+To install Boost from binaries download the tar file from http://www.boost.org/. However, we recommend you download the older version 1.42 because this is the current debian distro for Ubuntu, and newer version of Boost serialization files are not backwards compatibile:
 
-    wget http://sourceforge.net/projects/boost/files/boost/1.49.0/boost_1_49_0.tar.gz
+    wget http://sourceforge.net/projects/boost/files/boost/1.42.0/boost_1_42_0.tar.gz
 
 Untar the file:
 
-    tar xvfz boost_1_49_0.tar.gz
+    tar xvfz boost_1_42_0.tar.gz
 
 Within the untarred folder:
 
-    ./bootstrap.sh --prefix=/SOME_FOLDER/boost/1.49.0 --with-libraries=serialization
-    ./b2 install
+    ./bootstrap.sh --prefix=/SOME_FOLDER/boost/1.42.0 --with-libraries=serialization
+    ./bjam install OR ./b2 install
  
 You might need to export the install path using:
 
-    export BOOST_ROOT=/SOME_FOLDER/boost/1.49.0/
+    export BOOST_ROOT=/SOME_FOLDER/boost/1.42.0/
 
 **For Windows**
 
