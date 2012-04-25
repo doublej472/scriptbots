@@ -61,8 +61,6 @@ int main(int argc, char **argv)
 	HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
 	NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
 									   // Defaults to the number of available processors
-	Base base;
-	
 	bool loadWorldFromFile = false;
 	
 	// Retrieve command line arguments
@@ -97,6 +95,8 @@ int main(int argc, char **argv)
 	// Set the number of threads now, just once, here:
 	omp_set_num_threads(NUM_THREADS);	
 
+	Base base;
+	
 	cout << "-------------------------------------------------------------------------------" << endl;
 	cout << "ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics" << endl;
 	cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins" << endl << endl;

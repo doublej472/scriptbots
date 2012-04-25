@@ -65,9 +65,8 @@ class World
 
  private:
 
-    void setInputs();
+    void setInputsRunBrain();
     void processOutputs();
-    void brainsTick();  //takes in[] to out[] for every agent
     
     void growFood(int x, int y);
 
@@ -93,7 +92,7 @@ class World
     bool touch;
 
 	double startTime; // used for tracking fps
-	
+
 };
 
 #endif // WORLD_H

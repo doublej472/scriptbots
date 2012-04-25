@@ -30,7 +30,7 @@ void Base::saveWorld()
 	cout << "World file is " << filestatus.st_size/1048576 << " MB" << endl;
 	
 	cout << endl;
-	world->printState();	
+	//world->printState();	
 }
 
 

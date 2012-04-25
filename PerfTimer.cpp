@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <omp.h>
 #include <time.h>
+#include "settings.h" // so we can access NUM_THREADS
 
 using namespace std;
 
@@ -49,7 +50,8 @@ void PerfTimer::printTimes(){
 	for(it=totalTimes.begin(); it != totalTimes.end(); it++)
 	{
 		printf("%.2lf\t", it->second);
-	}	
+	}
+	printf("%d", NUM_THREADS);
 }
 
 

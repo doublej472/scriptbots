@@ -9,6 +9,7 @@
 
 // Includes
 #include "PerfTimer.h"
+#include <cmath> // for the math consts below
 
 // Global variables
 extern bool VERBOSE;
@@ -32,7 +33,7 @@ namespace conf {
 	const bool CLOSED = false; // world is closed and no new agents are added
 
 	// REPORTING --------------------------------------------------
-	const int   REPORTS_PER_EPOCH = 5; // number of times to record data per epoch. 0 for off.
+	const int   REPORTS_PER_EPOCH = 5; // number of times to record data and output status info, per epoch
 	
 	// BOT PROPERTIES ---------------------------------------------
     const int   NUMBOTS=200;         //initially
@@ -82,6 +83,11 @@ namespace conf {
     const float FOOD_SHARING_DISTANCE= 40; //how far away is food shared between bots?
 
     const float FOOD_DISTRIBUTION_RADIUS=100; //when bot is killed, how far is its body distributed?
+
+	// GEOMETRIC CALCULATION CONSTATNS (DO NOT CHANGE)
+	const float PI8  = M_PI/8/2; //pi/8/2
+    const float PI38 = 3*PI8; //3pi/8/2
+	const int reportInterval = 10000 / REPORTS_PER_EPOCH;					
 
 }
 

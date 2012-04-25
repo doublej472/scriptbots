@@ -21,14 +21,17 @@ World::World() :
 	FH(conf::HEIGHT/conf::CZ)
 {
 	startTime = TIMER.getSimpleTime();
-		
-	TIMER.start("Bot creation");
+
+	if(VERBOSE)
+		TIMER.start("Bot creation");
+	
 	//create the bots but with 20% more carnivores, to give them head start
     addRandomBots(int(conf::NUMBOTS * .8));
 	for(int i = 0; i < int(conf::NUMBOTS * .2); ++i)
 		addCarnivore();
-	
-	TIMER.end("Bot creation");
+
+	if(VERBOSE)
+		TIMER.end("Bot creation");
 	
     //inititalize food layer	
     srand(time(0));
@@ -65,31 +68,9 @@ void World::printState()
 void World::update()
 {
 	int i; // counter var used throughout for counting entire agent amount
-	
+
+	// Increment Tick
     modcounter++;
-
-    //Process periodic events --------------------------------------------------------
-    //Age goes up!
-    if (modcounter%100==0) {
-		
-		// Update agents age
-        for (i=0;i<agents.size();i++) {
-            agents[i].age+= 1;    //agents age...
-        }
-		
-		// Update GUI
-		double endTime = TIMER.getSimpleTime();
-		
-   		printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: %i       \r",
-			   current_epoch, modcounter/100, int(agents.size()), int(100 / (endTime - startTime)));
-
-   		startTime = endTime;
-    }
-
-	
-	// Write Report
-    if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % (10000 / conf::REPORTS_PER_EPOCH) ==0) )
-    	writeReport();
 
 	// Increment Epoch
     if (modcounter>=10000) {
@@ -97,6 +78,20 @@ void World::update()
         current_epoch++;
     }
 
+	// Update GUI every REPORTS_PER_EPOCH amount:
+	if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % conf::reportInterval == 0) )
+	{
+    	writeReport();
+	
+		// Update GUI
+		double endTime = TIMER.getSimpleTime();
+		
+   		printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: %i       \r",
+			   current_epoch, modcounter/100, int(agents.size()), int(conf::reportInterval / (endTime - startTime)));
+
+   		startTime = endTime;
+    }
+	
 	// What kind of food method are we using?
 	if(conf::FOOD_MODEL == conf::FOOD_MODEL_GROW)
 	{
@@ -138,26 +133,39 @@ void World::update()
 	}
 
     if(VERBOSE)
-		TIMER.start("general settings");	
+		TIMER.start("general settings");
+
 	// general settings loop
+	#pragma omp parallel for
     for(i=0;i<agents.size();i++){
 
+		// keep a pointer
+        Agent* a= &agents[i];
+		
 		// says that agent was not hit this turn
-        agents[i].spiked= false; 
+        a->spiked= false; 
 
 		// process indicator used in drawing
-        if(agents[i].indicator > 0)
-			agents[i].indicator -= 1;
+        if(a->indicator > 0)
+			a->indicator --;
+
+		// Update agents age		
+		if (!modcounter%100)
+            a->age ++;
     }
+	
     if(VERBOSE)
 		TIMER.end("general settings");
 
-    //give input to every agent. Sets in[] array
-    setInputs();
+    //give input to every agent. Sets in[] array. Runs brain
+    setInputsRunBrain();
 		
-    //brains tick. computes in[] -> out[]
-    brainsTick();
-
+	if(VERBOSE) //placeholderr
+	{
+		TIMER.start("brainsTick");
+		TIMER.end("brainsTick");
+	}
+	
     //read output and process consequences of bots on environment. requires out[]
     processOutputs();
 
@@ -170,7 +178,6 @@ void World::update()
 	if(agents[0].age > conf::OLD_AGE_THRESHOLD)
 	{
 		agents[0].health = 0;
-		cout << "Agent has died for being old at epoch " << current_epoch << endl;
 	}
 	
 	if(VERBOSE)	
@@ -358,18 +365,17 @@ void World::growFood(int x, int y)
 		food[x][y] += conf::FOODGROWTH;
 }
 
-void World::setInputs()
+void World::setInputsRunBrain()
 {
 	// See README.markdown for documentation of input ids
 
 	if(VERBOSE)
-		TIMER.start("setInputs");
+		TIMER.start("setInputsRunBrain");
 
-    float PI8=M_PI/8/2; //pi/8/2
-    float PI38= 3*PI8; //3pi/8/2
-	
-	//#pragma omp parallel for
-    for (int i=0;i<agents.size();i++) {
+	#pragma omp parallel for 
+    for (int i=0;i<agents.size();i++)
+	{
+
         Agent* a= &agents[i];
 
         //FOOD
@@ -442,8 +448,8 @@ void World::setInputs()
                 float ang= (a2->pos- a->pos).get_angle(); //current angle between bots
 
                 //left and right eyes
-                float leyeangle= a->angle - PI8;
-                float reyeangle= a->angle + PI8;
+                float leyeangle= a->angle - conf::PI8;
+                float reyeangle= a->angle + conf::PI8;
                 float backangle= a->angle + M_PI;
                 float forwangle= a->angle;
                 if (leyeangle<-M_PI) leyeangle+= 2*M_PI;
@@ -462,9 +468,9 @@ void World::setInputs()
                 if (fabs(forwangle)>M_PI) diff4= 2*M_PI- fabs(forwangle);
                 diff4= fabs(diff4);
 
-                if (diff1<PI38) {
+                if (diff1<conf::PI38) {
                     //we see this agent with left eye. Accumulate info
-                    float mul1= conf::EYE_SENSITIVITY*((PI38-diff1)/PI38)*((conf::DIST-d)/conf::DIST);
+                    float mul1= conf::EYE_SENSITIVITY*((conf::PI38-diff1)/conf::PI38)*((conf::DIST-d)/conf::DIST);
                     //float mul1= 100*((conf::DIST-d)/conf::DIST);
                     p1 += mul1*(d/conf::DIST);
                     r1 += mul1*a2->red;
@@ -472,9 +478,9 @@ void World::setInputs()
                     b1 += mul1*a2->blu;
                 }
 
-                if (diff2<PI38) {
+                if (diff2<conf::PI38) {
                     //we see this agent with left eye. Accumulate info
-                    float mul2= conf::EYE_SENSITIVITY*((PI38-diff2)/PI38)*((conf::DIST-d)/conf::DIST);
+                    float mul2= conf::EYE_SENSITIVITY*((conf::PI38-diff2)/conf::PI38)*((conf::DIST-d)/conf::DIST);
                     //float mul2= 100*((conf::DIST-d)/conf::DIST);
                     p2 += mul2*(d/conf::DIST);
                     r2 += mul2*a2->red;
@@ -482,9 +488,9 @@ void World::setInputs()
                     b2 += mul2*a2->blu;
                 }
 
-                if (diff3<PI38) {
+                if (diff3<conf::PI38) {
                     //we see this agent with back eye. Accumulate info
-                    float mul3= conf::EYE_SENSITIVITY*((PI38-diff3)/PI38)*((conf::DIST-d)/conf::DIST);
+                    float mul3= conf::EYE_SENSITIVITY*((conf::PI38-diff3)/conf::PI38)*((conf::DIST-d)/conf::DIST);
                     //float mul2= 100*((conf::DIST-d)/conf::DIST);
                     p3 += mul3*(d/conf::DIST);
                     r3 += mul3*a2->red;
@@ -492,8 +498,8 @@ void World::setInputs()
                     b3 += mul3*a2->blu;
                 }
 
-                if (diff4<PI38) {
-                    float mul4= conf::BLOOD_SENSITIVITY*((PI38-diff4)/PI38)*((conf::DIST-d)/conf::DIST);
+                if (diff4<conf::PI38) {
+                    float mul4= conf::BLOOD_SENSITIVITY*((conf::PI38-diff4)/conf::PI38)*((conf::DIST-d)/conf::DIST);
                     //if we can see an agent close with both eyes in front of us
                     blood+= mul4*(1-agents[j].health/2); //remember: health is in [0 2]
                     //agents with high life dont bleed. low life makes them bleed more
@@ -555,10 +561,13 @@ void World::setInputs()
 		{
 			a->in[i+23] = a->out[i];
 		}
+
+		// Now process brain
+        a->tick();
     }
     
     if(VERBOSE)
-		TIMER.end("setInputs");
+		TIMER.end("setInputsRunBrain");
 }
 
 void World::processOutputs()
@@ -568,18 +577,18 @@ void World::processOutputs()
 	if (VERBOSE)
 		TIMER.start("processOutputs");
 
-	//#pragma omp parallel for	
+	#pragma omp parallel for	
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
-        a->red= a->out[2];
-        a->gre= a->out[3];
-        a->blu= a->out[4];
-        a->w1= a->out[0]; //-(2*a->out[0]-1);
-        a->w2= a->out[1]; //-(2*a->out[1]-1);
-        a->boost= a->out[6]>0.5;
-        a->soundmul= a->out[7];
-        a->give= a->out[8];
+		a->red= a->out[2];
+		a->gre= a->out[3];
+		a->blu= a->out[4];
+		a->w1= a->out[0]; //-(2*a->out[0]-1);
+		a->w2= a->out[1]; //-(2*a->out[1]-1);
+		a->boost= a->out[6]>0.5;
+		a->soundmul= a->out[7];
+		a->give= a->out[8];
 
         //spike length should slowly tend towards out[5]
         float g= a->out[5];
@@ -590,7 +599,7 @@ void World::processOutputs()
     }
 
     //move bots
-	//#pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         Agent* a= &agents[i];
 
@@ -640,7 +649,7 @@ void World::processOutputs()
     }
 
     //process food intake for herbivors
-	//#pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
 
         int cx= (int) agents[i].pos.x/conf::CZ;
@@ -658,11 +667,11 @@ void World::processOutputs()
     }
 
     //process giving and receiving of food
-	//#pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         agents[i].dfood=0;
     }
-	//#pragma omp parallel for
+	#pragma omp parallel for
     for (int i=0;i<agents.size();i++) {
         if (agents[i].give>0.5) {
             for (int j=0;j<agents.size();j++) {
@@ -729,34 +738,17 @@ void World::processOutputs()
 		TIMER.end("processOutputs");
 }
 
-void World::brainsTick()
-{
-	if(VERBOSE)
-		TIMER.start("brainsTick");
-	
-	#pragma omp parallel for
-    for (inPt i=0;i<agents.size();i++) {
-        agents[i].tick();
-
-		//int num_procs = omp_get_num_procs();
-		//int thread_num = omp_get_thread_num();
-		//printf("Num procs: %d of %d \n", thread_num, num_procs); 
-    }
-    
-    if(VERBOSE)
-		TIMER.end("brainsTick");
-}
-
 void World::addRandomBots(int num)
 {
 	numAgentsAdded += num; // record in report
 	
-	//#pragma omp parallel for
+	#pragma omp parallel for default(shared)
     for (int i=0;i<num;i++) {
         Agent a;
         a.id= idcounter;
         idcounter++;
-			
+
+		#pragma omp critical
         agents.push_back(a);
     }
 }
