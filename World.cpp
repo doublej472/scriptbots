@@ -81,7 +81,11 @@ void World::update()
 	// Update GUI every REPORTS_PER_EPOCH amount:
 	if ( conf::REPORTS_PER_EPOCH > 0 && ( modcounter % conf::reportInterval == 0) )
 	{
+		if(VERBOSE)
+			TIMER.start("write report");		
     	writeReport();
+		if(VERBOSE)
+			TIMER.end("write report");				
 	
 		// Update GUI
 		double endTime = TIMER.getSimpleTime();
@@ -337,9 +341,7 @@ void World::update()
     if (!CLOSED) {
         //make sure environment is always populated with at least NUMBOTS_MIN bots
         if (agents.size() < conf::NUMBOTS_MIN ) {
-            //add new agent
-            addRandomBots(10);
-			//cout << "Population min reached, adding 10 random bots." << endl;
+            addRandomBots(10); //add new agent
         }
 		/*
 		  if (modcounter%100==0) {
@@ -416,7 +418,7 @@ void World::setInputsRunBrain()
 
 			// Do manhattan-distance estimation
             if (	a->pos.x < a2->pos.x - conf::DIST ||
-						a->pos.x > a2->pos.x + conf::DIST ||
+					a->pos.x > a2->pos.x + conf::DIST ||
             		a->pos.y > a2->pos.y + conf::DIST ||
             		a->pos.y < a2->pos.y - conf::DIST)
             	continue;
@@ -742,14 +744,14 @@ void World::addRandomBots(int num)
 {
 	numAgentsAdded += num; // record in report
 	
-	#pragma omp parallel for default(shared)
+	//#pragma omp parallel for default(shared)
     for (int i=0;i<num;i++) {
         Agent a;
         a.id= idcounter;
         idcounter++;
 
-		#pragma omp critical
-        agents.push_back(a);
+		//#pragma omp critical
+			agents.push_back(a);
     }
 }
 void World::addCarnivore()
@@ -765,7 +767,6 @@ void World::addCarnivore()
 
 void World::addNewByCrossover()
 {
-
     //find two success cases
     int i1= randi(0, agents.size());
     int i2= randi(0, agents.size());
@@ -846,6 +847,8 @@ void World::writeReport()
 	// Compute Standard Devitation of every weight in every agents brain
 	double total_std_dev = 0;
 	double total_mean_std_dev;
+	
+	#pragma omp parallel for default(shared) reduction(+:total_std_dev)
 	for(int i=0; i<BRAINSIZE; i++) // loop through every box in brain (there are BRAINSIZE of these)
 	{
 		double box_sum = 0;
@@ -879,8 +882,9 @@ void World::writeReport()
 
 		final_std_dev = sqrt( box_square_sum / agents.size() );
 		//cout << "BOX Sqr root = " << final_std_dev << endl << endl;
-		total_std_dev += final_std_dev;
+		//total_std_dev += final_std_dev;
 	}
+	
 	total_mean_std_dev = total_std_dev - 200; // reduce by 200 for graph readability
 	 
 	FILE* fp = fopen("report.csv", "a");

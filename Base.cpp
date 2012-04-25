@@ -15,8 +15,6 @@ Base::Base()
 void Base::saveWorld()
 {
 	// save data to archive -----------------------------
-	cout << endl << endl << "SAVING FILE" << endl;
-
 	ofstream ofs("myworld.dat"); // create and open a character archive for output
 	boost::archive::text_oarchive oa(ofs);
 
@@ -27,7 +25,7 @@ void Base::saveWorld()
 	// Get file size:
 	struct stat filestatus;
 	stat( "myworld.dat", &filestatus);
-	cout << "World file is " << filestatus.st_size/1048576 << " MB" << endl;
+	cout << endl << endl << "World Saved: " << filestatus.st_size/1048576 << " MB" << endl;
 	
 	cout << endl;
 	//world->printState();	
