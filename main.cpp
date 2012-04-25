@@ -58,7 +58,11 @@ int main(int argc, char **argv)
 {
 	TIMER = PerfTimer();
 	VERBOSE = false; // Run in verbose mode
-	HEADLESS = false; // Run without graphics even if OpenGL and GLUT available
+	#if OPENGL
+	HEADLESS = false;
+	#else
+	HEADLESS = true;
+	#endif	
 	NUM_THREADS = omp_get_num_procs(); // Specifies the number of threads to use
 									   // Defaults to the number of available processors
 	bool loadWorldFromFile = false;
@@ -108,15 +112,35 @@ int main(int argc, char **argv)
 	cout << "   OpenMP found." << endl;
 	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
 	cout << "      Using " << NUM_THREADS << " threads" << endl;
+	cout << "   Termination:" << endl;
 	if(MAX_EPOCHS < INT_MAX)
-		cout << "  Stopping at " << MAX_EPOCHS << " epochs" << endl;
+		cout << "      Stopping at " << MAX_EPOCHS << " epochs" << endl;
+	else
+		cout << "      Press any key to save and end simulation\n" << endl;			
 	#endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
 	{
 		printf("   WARNING: The cell size variable conf::CZ should divide evenly into conf::WIDTH");
 		printf(" and conf::HEIGHT\n");
-	}	
-	
+	}
+	if(HEADLESS)
+	{
+		cout << "   Headless Mode - No graphics\n";
+		cout << "-------------------------------------------------------------------------------" << endl;	
+	}
+	else
+	{
+		printf("\nInstructions:\n");
+		printf("   p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
+		printf("   Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
+		printf("\nBot Status Colors: \n");
+		printf("   WHITE: they just ate part of another agent\n");
+		printf("   YELLOW: bot just spiked another bot\n");
+		printf("   GREEN: agent just reproduced\n");
+		printf("   GREY: bot is getting group health bonus\n");
+		cout << "-------------------------------------------------------------------------------" << endl;	
+	}
+		
 	srand(time(0));
 
 	// Load file if needed
@@ -124,7 +148,6 @@ int main(int argc, char **argv)
 		base.loadWorld();
 
 	// Decide if to graphics or not
-	#if OPENGL
 	if(HEADLESS)
 	{
 		runHeadless(base);
@@ -133,10 +156,6 @@ int main(int argc, char **argv)
 	{
 		runWithGraphics(argc, argv, base);
 	}
-	#else
-	runHeadless(base);
-	#endif
-
 					
 	return 0;
 }
@@ -176,15 +195,6 @@ int kbhit()
 // Run Scriptbots with graphics
 // --------------------------------------------------------------------------- 
 void runWithGraphics(int &argc, char** argv, Base &base){
-	printf("\nInstructions:\n");
-	printf("   p= pause, d= toggle drawing (for faster computation), f= draw food too, += faster, -= slower\n");
-	printf("   Pan around by holding down right mouse button, and zoom by holding down middle button.\n");
-	printf("\nBot Status Colors: \n");
-	printf("   WHITE: they just ate part of another agent\n");
-	printf("   YELLOW: bot just spiked another bot\n");
-	printf("   GREEN: agent just reproduced\n");
-	printf("   GREY: bot is getting group health bonus\n");
-	cout << "-------------------------------------------------------------------------------" << endl;	
 
 	#if OPENGL	
 	GLVIEW->setBase(&base);
@@ -212,19 +222,16 @@ void runWithGraphics(int &argc, char** argv, Base &base){
 // Run Scriptbots headless
 // --------------------------------------------------------------------------- 
 void runHeadless(Base &base){
-	cout << "   Headless Mode - No graphics\n";
-	cout << "      Press any key to save and end simulation\n" << endl;	
-	cout << "-------------------------------------------------------------------------------" << endl;	
 	
 	if(VERBOSE)
 		TIMER.start("total");
 
-  	printf("Simulation Loading...\r");	
+  	printf("Simulation Starting...\r");	
 	while( !kbhit() && base.world->epoch() < MAX_EPOCHS)
 	{
 		base.world->update();		
 	}
-   	
+   	cout << endl << "Ended " << base.world->epoch() << " max " << MAX_EPOCHS << endl;
    	if(VERBOSE)
    	{
 		TIMER.end("total");

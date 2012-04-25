@@ -48,6 +48,5 @@ void Base::loadWorld()
 
 	cout << endl;
 	world->printState();
-
-	cout << endl << "Epoch " << world->epoch() << ": ";
+	
 }
