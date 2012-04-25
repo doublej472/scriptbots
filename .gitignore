@@ -3,6 +3,5 @@
 *.kdev4
 Debug/
 Release/
-build/
-report.csv
+*.csv
 *.dat

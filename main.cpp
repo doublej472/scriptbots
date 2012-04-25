@@ -107,7 +107,9 @@ int main(int argc, char **argv)
 	#if OPENMP
 	cout << "   OpenMP found." << endl;
 	cout << "      " << omp_get_num_procs()	<< " processors available" << endl;
-	cout << "   Using " << NUM_THREADS << " threads" << endl;
+	cout << "      Using " << NUM_THREADS << " threads" << endl;
+	if(MAX_EPOCHS < INT_MAX)
+		cout << "  Stopping at " << MAX_EPOCHS << " epochs" << endl;
 	#endif
 	if (conf::WIDTH%conf::CZ!=0 || conf::HEIGHT%conf::CZ!=0)
 	{
