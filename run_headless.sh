@@ -6,7 +6,7 @@ if [ $? -eq 0 ] ; then
     cd ..
     #./build/scriptbots -h -v -e 2 -n 1
     #./build/scriptbots -h -v -e 2
-    numactl --interleave=all ./build/scriptbots -h -v -e 100
+    numactl --interleave=all ./build/scriptbots -h -v -e 10
 else
     cd ..
 fi
