@@ -21,10 +21,10 @@ extern PerfTimer TIMER; // used throughout program to do benchmark timing
 namespace conf {
 
 	// WORLD / WINDOW SETTINGS -------------------------------------
-    const int WIDTH = 2000;  //width and height of simulation world
-    const int HEIGHT = 1500;
-    //const int WIDTH = 4000;  //width and height of simulation world
-	//const int HEIGHT = 2500;	
+    //const int WIDTH = 2000;  //width and height of simulation world
+    //const int HEIGHT = 1500;
+    const int WIDTH = 4000;  //width and height of simulation world
+	const int HEIGHT = 2500;	
     const int WWIDTH = 1400;  //computer window width and height
     const int WHEIGHT = 1000;
     
@@ -75,7 +75,7 @@ namespace conf {
     const float FOODINTAKE= 0.00225; //how much does every agent consume?
     const float FOODWASTE= 0.001; //how much food disapears if agent eats?
     const float FOODMAX= 0.5; //how much food per cell can there be at max?
-    const int   FOODADDFREQ= 14; //how often does random square get to full food? (the lower the more often food is added)
+    const int   FOODADDFREQ= 8; //how often does random square get to full food? (the lower the more often food is added)
 	const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
 	const float FOOD_MEAT_VALUE = 0.75; // percentage that health is transferred to another agent when eaten
 		
