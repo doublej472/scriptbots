@@ -15,6 +15,15 @@ Questions / Comments:
 Best posted at the google group, above
 
 
+ABOUT
+---------
+There are several forks of the ScriptBots project, started by Andrej Karpathy. In this fork we have added a lot more settings to the settings.h file, added features to encourage swarming behavior of the bots and altered the MLP brain to have very simply memory. This last feature is the most controversial and something that is still experiemental.
+
+Finally and most importantly, this fork has been optimized for multi-core systems, in particular super computers. It is designed to run on a single node using OpenMP, and was tested on the Janus super computer at the University of Colordo to run with 12 cores. This means it can run headless (without OpenGL/GLUT installed) and has the ability to save the world state and later reload it. This fork also has a lot of useful command line tags that are documented below.
+
+We would like to see many of these features integrated back into the main repository of ScriptBots, and welcome and feedback. Thanks!
+
+
 BUILDING
 ---------
 
@@ -34,14 +43,14 @@ Optional dependencies for visualization (can read headless):
 
 Install basic dependencies with:
 
-    $ sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev libboost-serialization-dev
+     sudo apt-get install cmake build-essential libopenmpi-dev freeglut3-dev libxi-dev libxmu-dev libboost-serialization-dev
 
 To build and run ScriptBots on Linux run the batch script:
 
-    $ . autorun.sh
+     . autorun.sh
 
 If you are running Linux through VirualBox you might need to add this command to the batch script:
-    $ LIBGL_ALWAYS_INDRECT=1 ./scriptbots
+     LIBGL_ALWAYS_INDRECT=1 ./scriptbots
 
 **For Mac**
 
@@ -57,7 +66,7 @@ OpenGL and GLUT come pre-installed on Mac, so you should be ready to go!
 
 To build and run ScriptBots simply cd to the ScriptBots directory and run the batch script:
 
-    $ . autorun.sh
+     . autorun.sh
 
 **For Other Flavors of Linux**
 
@@ -129,16 +138,16 @@ PLOTTING BOT STATISTICS
 --------
 On Linux, from within scriptbox directory:
 
-	$ sudo apt-get install gnuplot
-	$ . plot.sh
+	 sudo apt-get install gnuplot
+	 . plot.sh
 
 
 VIDEO RECORDING
 ---------
 On Linux:
 
-	$ sudo apt-get install xvidcap avidemux ffmpeg2theora mplayer
-   	$ xvidcap
+	sudo apt-get install xvidcap avidemux ffmpeg2theora mplayer
+   	xvidcap
 
 
 BRAIN MAPPING
