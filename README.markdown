@@ -122,6 +122,7 @@ Pan around by holding down right mouse button, and zoom by holding down middle b
 * -v: Run in verbose mode
 * -w: Load existing world
 * -e <max epochs>: Specify the maximum number of epochs to run the program 
+* -s <seconds>: Specify the maxium number of secnods to run the program
 * -n <thread count>: Specify the number of threads
 
 PLOTTING BOT STATISTICS
