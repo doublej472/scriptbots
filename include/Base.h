@@ -1,3 +1,5 @@
+#ifndef BASE_H
+#define BASE_H
 #include "World.h"
 
 class Base {
@@ -9,17 +11,4 @@ public:
   void loadWorld();
 };
 
-// TEMPLATE:
-/*
-        // Serialization ------------------------------------------
-        friend class boost::serialization::access;
-        template<class Archive>
-        void serialize(Archive & ar, const unsigned int version )
-        {
-                // Add all class variables here:
-                ar & ;
-
-        }
-        // ---------------------------------------------------------
-
-*/
+#endif // BASE_H
