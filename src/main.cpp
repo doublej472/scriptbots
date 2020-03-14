@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = true;
 #endif
-  #if OPENMP
+  #ifdef OPENMP
   NUM_THREADS =
       omp_get_num_procs(); // Specifies the number of threads to use
                            // Defaults to the number of available processors
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  #if OPENMP
+  #ifdef OPENMP
   // Set the number of threads now, just once, here:
   omp_set_num_threads(NUM_THREADS);
   #endif
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 #else
   cout << "   OpenGL and GLUT NOT found!" << endl;
 #endif
-#if OPENMP
+#ifdef OPENMP
   cout << "   OpenMP found!" << endl;
   cout << "      " << omp_get_num_procs() << " processors available" << endl;
   cout << "      Using " << NUM_THREADS << " threads" << endl;

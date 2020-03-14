@@ -1,7 +1,7 @@
 project('scriptbots', 'cpp')
 
 conf_data = configuration_data()
-conf_data.set('HAVE_OPENMP', get_option('openmp'))
+conf_data.set('OPENMP', get_option('openmp'))
 conf_data.set('OPENGL', get_option('opengl'))
 configure_file(input : 'config.h.in',
                output : 'config.h',
