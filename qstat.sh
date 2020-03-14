@@ -1,1 +1,0 @@
-qstat | grep daco5652
