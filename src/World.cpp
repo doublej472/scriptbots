@@ -1,8 +1,8 @@
-#include "include/World.h"
 #include <ctime>
 #include <stdio.h>
 
 #include "include/PerfTimer.h"
+#include "include/World.h"
 #include "include/helpers.h"
 #include "include/settings.h"
 #include "include/vmath.h"
@@ -64,8 +64,6 @@ void World::printState() {
 }
 
 void World::update() {
-  int i; // counter var used throughout for counting entire agent amount
-
   // Increment Tick
   modcounter++;
 
@@ -143,7 +141,7 @@ void World::update() {
 
 // general settings loop
 #pragma omp parallel for
-  for (i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
 
     // keep a pointer
     Agent *a = &agents[i];
@@ -189,7 +187,7 @@ void World::update() {
     TIMER.start("Processing agent health");
 
   // process bots health
-  for (i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     healthloss = conf::LOSS_BASE; // base amount of health lost every turn for
                                   // being alive
 
@@ -316,7 +314,7 @@ void World::update() {
     TIMER.start("Reproduction");
 
   // Handle reproduction
-  for (i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].repcounter < 0 && agents[i].health > conf::REP_MIN_HEALTH &&
         modcounter % 15 == 0 && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
@@ -376,7 +374,7 @@ void World::setInputsRunBrain() {
     TIMER.start("setInputsRunBrain");
 
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
 
     Agent *a = &agents[i];
 
@@ -597,7 +595,7 @@ void World::processOutputs() {
     TIMER.start("processOutputs");
 
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     Agent *a = &agents[i];
 
     a->red = a->out[2];
@@ -619,7 +617,7 @@ void World::processOutputs() {
 
   // move bots
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     Agent *a = &agents[i];
 
     Vector2f v(conf::BOTRADIUS / 2, 0);
@@ -669,7 +667,7 @@ void World::processOutputs() {
 
   // process food intake for herbivors
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
 
     int cx = (int)agents[i].pos.x / conf::CZ;
     int cy = (int)agents[i].pos.y / conf::CZ;
@@ -689,11 +687,11 @@ void World::processOutputs() {
 
   // process giving and receiving of food
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     agents[i].dfood = 0;
   }
 #pragma omp parallel for
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].give > 0.5) {
       for (int j = 0; j < agents.size(); j++) {
         float d = (agents[i].pos - agents[j].pos).length();
@@ -712,7 +710,7 @@ void World::processOutputs() {
   // process spike dynamics for carnivors
   if (modcounter % 2 == 0) { // we dont need to do this TOO often. can save
                              // efficiency here since this is n^2 op in #agents
-    for (int i = 0; i < agents.size(); i++) {
+    for (size_t i = 0; i < agents.size(); i++) {
 
       // NOTE: herbivore cant attack. TODO: hmmmmm
       // fot now ok: I want herbivores to run away from carnivores, not kill
@@ -801,7 +799,7 @@ void World::addNewByCrossover() {
   // find two success cases
   int i1 = randi(0, agents.size());
   int i2 = randi(0, agents.size());
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].age > agents[i1].age && randf(0, 1) < 0.1) {
       i1 = i;
     }
@@ -857,7 +855,7 @@ void World::writeReport() {
   double epoch_decimal = modcounter / 10000.0 + current_epoch;
 
   // Count number of herb, carn and top of each
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].herbivore > 0.5)
       numherb++;
     else
@@ -887,7 +885,7 @@ void World::writeReport() {
     double box_square_sum = 0;
     double final_std_dev;
 
-    for (int a = 0; a < agents.size();
+    for (size_t a = 0; a < agents.size();
          a++) // loop through every agent to get the weight
     {
       double box_weight_sum = 0;
@@ -907,7 +905,7 @@ void World::writeReport() {
     // Now calculate the population standard deviation for this box:
     // Compute diff of each weight sum from mean and square the result, then add
     // it:
-    for (int c = 0; c < agents.size(); c++) {
+    for (size_t c = 0; c < agents.size(); c++) {
       box_square_sum += pow(box_weights[c] - box_mean, 2);
     }
 
@@ -942,10 +940,10 @@ bool World::isClosed() const { return CLOSED; }
 void World::processMouse(int button, int state, int x, int y) {
   if (state == 0) {
     float mind = 1e10;
-    int mini = -1;
+    size_t mini = -1;
     float d;
 
-    for (int i = 0; i < agents.size(); i++) {
+    for (size_t i = 0; i < agents.size(); i++) {
       d = pow(x - agents[i].pos.x, 2) + pow(y - agents[i].pos.y, 2);
       if (d < mind) {
         mind = d;
@@ -953,9 +951,14 @@ void World::processMouse(int button, int state, int x, int y) {
       }
     }
     // toggle selection of this agent
-    for (int i = 0; i < agents.size(); i++)
-      agents[i].selectflag = false;
-    agents[mini].selectflag = true;
+    for (size_t i = 0; i < agents.size(); i++) {
+      if (i != mini) {
+        agents[i].selectflag = false;
+      } else {
+        agents[i].selectflag = !agents[mini].selectflag;
+      }
+    }
+
     // agents[mini].printSelf();
   }
 }
@@ -978,7 +981,7 @@ void World::draw(View *view, bool drawfood) {
 pair<int, int> World::numHerbCarnivores() const {
   int numherb = 0;
   int numcarn = 0;
-  for (int i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].herbivore > 0.5)
       numherb++;
     else
