@@ -77,6 +77,19 @@ void GLView::processMouse(int button, int state, int x, int y) {
     base->world->processMouse(button, state, wx, wy);
   }
 
+  // Scroll up
+  if (button == 3) {
+    scalemult += 0.025;
+  }
+
+  // Scroll down
+  if (button == 4) {
+    scalemult -= 0.025;
+  }
+
+  if (scalemult < 0.01)
+    scalemult = 0.01;
+
   mousex = x;
   mousey = y;
   downb[button] = 1 - state; // state is backwards, ah well
