@@ -95,8 +95,8 @@ void GLView::processMouseActiveMotion(int x, int y) {
 
   if (downb[2] == 1) {
     // right mouse button. Pan around
-    xtranslate += 2 * (x - mousex);
-    ytranslate += 2 * (y - mousey);
+    xtranslate += (x - mousex) / scalemult;
+    ytranslate += (y - mousey) / scalemult;
   }
 
   // printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
