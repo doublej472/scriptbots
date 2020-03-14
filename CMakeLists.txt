@@ -1,9 +1,13 @@
 project(scriptbots)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.9.4)
 find_package(Boost COMPONENTS serialization REQUIRED)
 find_package(OpenGL)
 find_package(GLUT)
 find_package(OpenMP)
+
+# Enable LTO support
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT error)
 
 # Force to compile headless
 #SET (GLUT_FOUND 0)
@@ -96,5 +100,12 @@ if (MSVC AND WIN32 AND NOT GLUT_FOUND)
   file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/Release)
   file(COPY glut32.dll DESTINATION ${PROJECT_BINARY_DIR}/Debug)
   file(COPY glut32.dll DESTINATION ${PROJECT_BINARY_DIR}/Release)
+endif()
+
+if (ipo_supported)
+  message(STATUS "IPO / LTO enabled")
+  set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+  message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
