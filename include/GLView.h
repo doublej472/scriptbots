@@ -52,6 +52,7 @@ private:
   float xtranslate, ytranslate;
   int downb[3];
   int mousex, mousey;
+  int wwidth, wheight;
 };
 
 #endif // GLVIEW_H

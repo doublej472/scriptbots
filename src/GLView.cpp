@@ -53,14 +53,19 @@ GLView::GLView()
   downb[2] = 0;
   mousex = 0;
   mousey = 0;
+  wwidth = conf::WWIDTH;
+  wheight = conf::WHEIGHT;
 }
 
 GLView::~GLView() {}
 void GLView::changeSize(int w, int h) {
   // Reset the coordinate system before modifying
+  glViewport(0, 0, w, h);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  glOrtho(0, conf::WWIDTH, conf::WHEIGHT, 0, 0, 1);
+  glOrtho(0, w, h, 0, 0, 1);
+  wwidth = w;
+  wheight = h;
 }
 
 void GLView::processMouse(int button, int state, int x, int y) {
@@ -68,8 +73,8 @@ void GLView::processMouse(int button, int state, int x, int y) {
 
   // have world deal with it. First translate to world coordinates though
   if (button == 0) {
-    int wx = (int)((x - conf::WWIDTH / 2) / scalemult) - xtranslate;
-    int wy = (int)((y - conf::WHEIGHT / 2) / scalemult) - ytranslate;
+    int wx = (int)((x - wwidth / 2) / scalemult) - xtranslate;
+    int wy = (int)((y - wheight / 2) / scalemult) - ytranslate;
     base->world->processMouse(button, state, wx, wy);
   }
 
@@ -192,7 +197,7 @@ void GLView::renderScene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
 
-  glTranslatef(conf::WWIDTH / 2, conf::WHEIGHT / 2, 0.0f);
+  glTranslatef(wwidth / 2, wheight / 2, 0.0f);
   glScalef(scalemult, scalemult, 1.0f);
   glTranslatef(xtranslate, ytranslate, 0.0f);
 
