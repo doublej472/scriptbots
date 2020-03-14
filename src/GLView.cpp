@@ -120,42 +120,48 @@ void GLView::processMouseActiveMotion(int x, int y) {
 }
 
 void GLView::processNormalKeys(unsigned char key, int x, int y) {
-
-  if (key == 27) {
-    printf("\n\nESC key pressed, shutting down\n");
-    base->saveWorld();
-    exit(0);
-  } else if (key == 'r') {
-    base->world->reset();
-    printf("Agents reset\n");
-  } else if (key == 'p') {
-    // pause
-    paused = !paused;
-  } else if (key == 'd') {
-    // drawing
-    draw = !draw;
-  } else if (key == 43 || key == 61) {
-    //+
-    skipdraw++;
-
-  } else if (key == 45) {
-    //-
-    skipdraw--;
-  } else if (key == 'f') {
-    drawfood = !drawfood;
-  } else if (key == 'a') {
-    for (int i = 0; i < 10; i++) {
-      base->world->addNewByCrossover();
-    }
-  } else if (key == 'q') {
-    for (int i = 0; i < 10; i++) {
-      base->world->addCarnivore();
-    }
-  } else if (key == 'c') {
-    base->world->setClosed(!base->world->isClosed());
-    printf("Environemt closed now= %i\n", base->world->isClosed());
-  } else {
-    printf("Unknown key pressed: %i\n", key);
+  switch (key) {
+    case 27:
+      printf("\n\nESC key pressed, shutting down\n");
+      base->saveWorld();
+      exit(0);
+      break;
+    case 'r':
+      base->world->reset();
+      printf("Agents reset\n");
+      break;
+    case 'p':
+      paused = !paused;
+      break;
+    case 'd':
+      draw = !draw;
+      break;
+    case '=':
+    case '+':
+      skipdraw++;
+      break;
+    case '-':
+      skipdraw--;
+      break;
+    case 'f':
+      drawfood = !drawfood;
+      break;
+    case 'a':
+      for (int i = 0; i < 10; i++) {
+        base->world->addNewByCrossover();
+      }
+      break;
+    case 'q':
+      for (int i = 0; i < 10; i++) {
+        base->world->addCarnivore();
+      }
+      break;
+    case 'c':
+      base->world->setClosed(!base->world->isClosed());
+      printf("Environemt closed now= %i\n", base->world->isClosed());
+      break;
+    default:
+      printf("Unknown key pressed: %i\n", key);
   }
 }
 
@@ -169,7 +175,7 @@ void GLView::handleIdle() {
   frames++;
   if ((currentTime - lastUpdate) >= 1000) {
     std::pair<int, int> num_herbs_carns = base->world->numHerbCarnivores();
-    sprintf(buf, "FPS: %d NumAgents: %d Carnivors: %d Herbivors: %d Epoch: %d",
+    sprintf(buf, "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
             frames, base->world->numAgents(), num_herbs_carns.second,
             num_herbs_carns.first, base->world->epoch());
     glutSetWindowTitle(buf);
