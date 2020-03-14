@@ -1,7 +1,6 @@
 #ifndef AGENT_H
 #define AGENT_H
 
-#include "DWRAONBrain.h"
 #include "MLPBrain.h"
 #include "vmath.h"
 
@@ -112,7 +111,6 @@ public:
   float
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
-  //    DWRAONBrain brain; //THE BRAIN!!!!
   MLPBrain brain;
 
   // will store the mutations that this agent has from its parent

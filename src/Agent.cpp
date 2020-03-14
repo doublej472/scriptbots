@@ -1,6 +1,5 @@
 #include "include/Agent.h"
 
-#include "include/DWRAONBrain.h"
 #include "include/MLPBrain.h"
 #include "include/helpers.h"
 #include "include/settings.h"

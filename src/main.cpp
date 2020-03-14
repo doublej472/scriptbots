@@ -64,9 +64,11 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = true;
 #endif
+  #if OPENMP
   NUM_THREADS =
       omp_get_num_procs(); // Specifies the number of threads to use
                            // Defaults to the number of available processors
+  #endif
   bool loadWorldFromFile = false;
 
   // Retrieve command line arguments
@@ -101,8 +103,10 @@ int main(int argc, char **argv) {
     }
   }
 
+  #if OPENMP
   // Set the number of threads now, just once, here:
   omp_set_num_threads(NUM_THREADS);
+  #endif
 
   Base base;
 
@@ -117,10 +121,12 @@ int main(int argc, char **argv) {
        << endl;
   cout << "Environment:" << endl;
 #ifdef OPENGL
-  cout << "   OpenGL and GLUT found." << endl;
+  cout << "   OpenGL and GLUT found!" << endl;
+#else
+  cout << "   OpenGL and GLUT NOT found!" << endl;
 #endif
 #if OPENMP
-  cout << "   OpenMP found." << endl;
+  cout << "   OpenMP found!" << endl;
   cout << "      " << omp_get_num_procs() << " processors available" << endl;
   cout << "      Using " << NUM_THREADS << " threads" << endl;
   cout << "   Termination:" << endl;
@@ -128,6 +134,8 @@ int main(int argc, char **argv) {
     cout << "      Stopping at " << MAX_EPOCHS << " epochs" << endl;
   else
     cout << "      Press any key to save and end simulation\n" << endl;
+#else
+  cout << "   OpenMP NOT found!" << endl;
 #endif
   if (conf::WIDTH % conf::CZ != 0 || conf::HEIGHT % conf::CZ != 0) {
     printf("   WARNING: The cell size variable conf::CZ should divide evenly "
