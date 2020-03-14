@@ -1,54 +1,50 @@
 #ifndef DWRAONBRAIN_H
 #define DWRAONBRAIN_H
 
-#include "settings.h"
 #include "helpers.h"
+#include "settings.h"
 
 #include <vector>
 
 class Box {
 public:
+  Box();
 
-    Box();
+  // props
+  int type;             // 0: AND, 1:OR
+  float kp;             // kp: damping strength
+  std::vector<float> w; // weight of each connecting box (in [0,inf]
+  std::vector<int> id;  // id in boxes[] of the connecting box
+  /* changed from <bool> to <char> because vector<bool> doesn't
+     have true random access, and thus slows the simulation to a crawl.
+     http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=98
+     It still stores boolean values at the cost of space overhead,
+     but with a significant speed improvement.
+  */
+  std::vector<char> notted; // is this input notted before coming in?
+  float bias;
 
-    //props
-    int type; //0: AND, 1:OR
-    float kp; //kp: damping strength
-    std::vector<float> w; //weight of each connecting box (in [0,inf]
-    std::vector<int> id; //id in boxes[] of the connecting box
-	/* changed from <bool> to <char> because vector<bool> doesn't 
-	   have true random access, and thus slows the simulation to a crawl.
-	   http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=98
-	   It still stores boolean values at the cost of space overhead,
-	   but with a significant speed improvement.
-	*/
-	std::vector<char> notted; //is this input notted before coming in?
-    float bias;
-
-    //state variables
-    float target; //target value this node is going toward
-    float out; //current output, and history. 0 is farthest back. -1 is latest
-
-
+  // state variables
+  float target; // target value this node is going toward
+  float out;    // current output, and history. 0 is farthest back. -1 is latest
 };
 /**
  * Damped Weighted Recurrent AND/OR Network
  */
-class DWRAONBrain
-{
+class DWRAONBrain {
 public:
+  std::vector<Box> boxes;
 
-    std::vector<Box> boxes;
+  DWRAONBrain();
+  DWRAONBrain(const DWRAONBrain &other);
+  virtual DWRAONBrain &operator=(const DWRAONBrain &other);
 
-    DWRAONBrain();
-    DWRAONBrain(const DWRAONBrain &other);
-    virtual DWRAONBrain& operator=(const DWRAONBrain& other);
+  void tick(std::vector<float> &in, std::vector<float> &out);
+  void mutate(float MR, float MR2);
+  DWRAONBrain crossover(const DWRAONBrain &other);
 
-    void tick(std::vector<float>& in, std::vector<float>& out);
-    void mutate(float MR, float MR2);
-    DWRAONBrain crossover( const DWRAONBrain &other );
 private:
-    void init();
+  void init();
 };
 
 #endif

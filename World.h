@@ -1,99 +1,99 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include "View.h"
 #include "Agent.h"
-#include "settings.h"
-#include <vector>
-#include "boost.h"
 #include "PerfTimer.h"
-#include <sys/time.h>
+#include "View.h"
+#include "boost.h"
+#include "settings.h"
 #include <sys/resource.h>
+#include <sys/time.h>
+#include <vector>
 
-class World
-{
-	// Serialization ------------------------------------------
-	friend class boost::serialization::access;
-	template<class Archive>
-	void serialize(Archive & ar, const unsigned int version )
-	{
-		// Add all class variables here:
-		ar & modcounter;
-		ar & current_epoch;
-		ar & idcounter;
-		ar & numAgentsAdded;
-		ar & FW;
-		ar & FH;
-		ar & fx;
-		ar & fy;
-		ar & food;
-		ar & CLOSED;
-		ar & touch;
-		ar & agents;
-	}
-	// ---------------------------------------------------------
- public:
-	World();
-    ~World(){};
-    
-    void update();
-    void reset();
-    
-    void draw(View* view, bool drawfood);
-    
-    bool isClosed() const;
-    void setClosed(bool close);
-    
-    /**
-     * Returns the number of herbivores and 
-     * carnivores in the world.
-     * first : num herbs
-     * second : num carns
-     */
-    std::pair<int,int> numHerbCarnivores() const;
+class World {
+  // Serialization ------------------------------------------
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    // Add all class variables here:
+    ar &modcounter;
+    ar &current_epoch;
+    ar &idcounter;
+    ar &numAgentsAdded;
+    ar &FW;
+    ar &FH;
+    ar &fx;
+    ar &fy;
+    ar &food;
+    ar &CLOSED;
+    ar &touch;
+    ar &agents;
+  }
+  // ---------------------------------------------------------
+public:
+  World();
+  ~World(){};
 
-	void printState();
-    int numAgents() const;
-    int epoch() const;
+  void update();
+  void reset();
 
-    //mouse interaction
-    void processMouse(int button, int state, int x, int y);
+  void draw(View *view, bool drawfood);
 
-    void addNewByCrossover();
-    void addRandomBots(int num);
-    void addCarnivore();
+  bool isClosed() const;
+  void setClosed(bool close);
 
-	bool stopSim;
- private:
+  /**
+   * Returns the number of herbivores and
+   * carnivores in the world.
+   * first : num herbs
+   * second : num carns
+   */
+  std::pair<int, int> numHerbCarnivores() const;
 
-    void setInputsRunBrain();
-    void processOutputs();
-    
-    void growFood(int x, int y);
+  void printState();
+  int numAgents() const;
+  int epoch() const;
 
-    void writeReport();
-    
-    void reproduce(int ai, float MR, float MR2);
-    
-    int modcounter; // temp not private	
-    int current_epoch;
-    int idcounter;
-	int numAgentsAdded; // counts how many agents have been artifically added per reporting iteration
-	
-    std::vector<Agent> agents;
-    
-    // food
-    int FW;
-    int FH;
-    int fx;
-    int fy;
-    float food[conf::WIDTH/conf::CZ][conf::HEIGHT/conf::CZ];
-    bool CLOSED; //if environment is closed, then no random bots are added per time interval
+  // mouse interaction
+  void processMouse(int button, int state, int x, int y);
 
-    bool touch;
+  void addNewByCrossover();
+  void addRandomBots(int num);
+  void addCarnivore();
 
-	double startTime; // used for tracking fps
-	double totalStartTime; // used for deciding when to quit the simulation
+  bool stopSim;
+
+private:
+  void setInputsRunBrain();
+  void processOutputs();
+
+  void growFood(int x, int y);
+
+  void writeReport();
+
+  void reproduce(int ai, float MR, float MR2);
+
+  int modcounter; // temp not private
+  int current_epoch;
+  int idcounter;
+  int numAgentsAdded; // counts how many agents have been artifically added per
+                      // reporting iteration
+
+  std::vector<Agent> agents;
+
+  // food
+  int FW;
+  int FH;
+  int fx;
+  int fy;
+  float food[conf::WIDTH / conf::CZ][conf::HEIGHT / conf::CZ];
+  bool CLOSED; // if environment is closed, then no random bots are added per
+               // time interval
+
+  bool touch;
+
+  double startTime;      // used for tracking fps
+  double totalStartTime; // used for deciding when to quit the simulation
 };
 
 #endif // WORLD_H
