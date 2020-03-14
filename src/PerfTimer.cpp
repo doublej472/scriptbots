@@ -1,5 +1,5 @@
-#include "PerfTimer.h"
-#include "settings.h" // so we can access NUM_THREADS
+#include "include/PerfTimer.h"
+#include "include/settings.h" // so we can access NUM_THREADS
 #include <iostream>
 #include <omp.h>
 #include <stdio.h>

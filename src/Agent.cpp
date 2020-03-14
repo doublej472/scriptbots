@@ -1,9 +1,9 @@
-#include "Agent.h"
+#include "include/Agent.h"
 
-#include "DWRAONBrain.h"
-#include "MLPBrain.h"
-#include "helpers.h"
-#include "settings.h"
+#include "include/DWRAONBrain.h"
+#include "include/MLPBrain.h"
+#include "include/helpers.h"
+#include "include/settings.h"
 #include <iostream>
 #include <stdio.h>
 #include <string>

@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "vmath.h"
+#include "include/vmath.h"
 
 #ifdef VMATH_NAMESPACE
 namespace VMATH_NAMESPACE {

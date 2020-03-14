@@ -2,20 +2,21 @@
 #include <getopt.h>
 #include <stdio.h>
 
-#include "PerfTimer.h"
-#include "World.h"
 #include "config.h"
-#include "omp.h"
-#include "settings.h"
+
+#include "include/PerfTimer.h"
+#include "include/World.h"
+#include <omp.h>
+#include "include/settings.h"
 
 // Include Boost serialization:
-#include "boost.h"
+#include "include/boost.h"
 
 // Determine if and what kind of graphics to use:
-#if OPENGL
-#include "GLView.h"
+#ifdef OPENGL
+#include "include/GLView.h"
 #ifdef LOCAL_GLUT32
-#include "glut.h"
+#include "include/glut.h"
 #else
 #ifdef MAC_GLUT
 #include <GLUT/glut.h>
@@ -24,7 +25,7 @@
 #endif
 #endif
 #else
-#include "Base.h" // this is normally included in GLView.h
+#include "include/Base.h" // this is normally included in GLView.h
 #endif
 
 // For detecting keyboard:
@@ -37,7 +38,7 @@ using namespace std;
 // ---------------------------------------------------------------------------
 // Global Vars:
 
-#if OPENGL
+#ifdef OPENGL
 GLView *GLVIEW = new GLView(); // only use when graphic support is enabled
 #endif
 
@@ -58,7 +59,7 @@ void runWithGraphics(int &argc, char **argv, Base &base);
 int main(int argc, char **argv) {
   TIMER = PerfTimer();
   VERBOSE = false; // Run in verbose mode
-#if OPENGL
+#ifdef OPENGL
   HEADLESS = false;
 #else
   HEADLESS = true;
@@ -115,7 +116,7 @@ int main(int argc, char **argv) {
        << endl
        << endl;
   cout << "Environment:" << endl;
-#if OPENGL
+#ifdef OPENGL
   cout << "   OpenGL and GLUT found." << endl;
 #endif
 #if OPENMP
@@ -212,7 +213,7 @@ int kbhit() {
 // ---------------------------------------------------------------------------
 void runWithGraphics(int &argc, char **argv, Base &base) {
 
-#if OPENGL
+#ifdef OPENGL
   GLVIEW->setBase(&base);
 
   // GLUT SETUP

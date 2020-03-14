@@ -1,11 +1,11 @@
-#include "World.h"
+#include "include/World.h"
 #include <ctime>
 #include <stdio.h>
 
-#include "PerfTimer.h"
-#include "helpers.h"
-#include "settings.h"
-#include "vmath.h"
+#include "include/PerfTimer.h"
+#include "include/helpers.h"
+#include "include/settings.h"
+#include "include/vmath.h"
 #include <omp.h> // OpenMP multithreading
 #include <stdio.h>
 

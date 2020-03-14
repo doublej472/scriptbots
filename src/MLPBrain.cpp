@@ -1,4 +1,4 @@
-#include "MLPBrain.h"
+#include "include/MLPBrain.h"
 using namespace std;
 
 MLPBox::MLPBox() {
