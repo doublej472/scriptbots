@@ -6,7 +6,6 @@
 
 #include "boost.h"
 #include <string>
-#include <vector>
 
 class Agent {
   // Serialization ------------------------------------------
@@ -48,7 +47,6 @@ class Agent {
     ar &MUTRATE2;
     ar &temperature_preference;
     ar &brain;
-    ar &mutations;
   }
   // ---------------------------------------------------------
 public:
@@ -113,9 +111,6 @@ public:
 
   MLPBrain brain;
 
-  // will store the mutations that this agent has from its parent
-  // can be used to tune the mutation rate
-  std::vector<std::string> mutations;
 };
 
 #endif // AGENT_H
