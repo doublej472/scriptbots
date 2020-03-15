@@ -41,7 +41,7 @@ MLPBrain &MLPBrain::operator=(const MLPBrain &other) {
   return *this;
 }
 
-void MLPBrain::tick(vector<float> &in, vector<float> &out) {
+void MLPBrain::tick(const float *in, float *out) {
   // do a single tick of the brain
 
   // take first few boxes and set their out to in[].

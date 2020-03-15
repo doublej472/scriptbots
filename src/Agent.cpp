@@ -44,9 +44,6 @@ Agent::Agent() {
   MUTRATE2 = 0.05;
 
   spiked = false;
-
-  in.resize(INPUTSIZE, 0);
-  out.resize(OUTPUTSIZE, 0);
 }
 
 void Agent::printSelf() {

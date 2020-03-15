@@ -56,7 +56,7 @@ public:
   MLPBrain(const MLPBrain &other);
   virtual MLPBrain &operator=(const MLPBrain &other);
 
-  void tick(std::vector<float> &in, std::vector<float> &out);
+  void tick(const float *in, float *out);
   void mutate(float MR, float MR2);
   MLPBrain crossover(const MLPBrain &other);
 

@@ -82,9 +82,9 @@ public:
 
   bool spiked;
 
-  std::vector<float> in; // input: 2 eyes, sensors for R,G,B,proximity each,
+  float in[INPUTSIZE]; // input: 2 eyes, sensors for R,G,B,proximity each,
                          // then Sound, Smell, Health
-  std::vector<float> out; // output: Left, Right, R, G, B, SPIKE
+  float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
   int gencount;           // generation counter
