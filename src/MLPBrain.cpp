@@ -2,8 +2,9 @@
 using namespace std;
 
 MLPBox::MLPBox() {
+  // Dumb way to initialize all variables
+  memset(this, '\0', sizeof(MLPBox));
 
-  // constructor
   for (int i = 0; i < CONNS; i++) {
     w[i] = randf(-3, 3);
     if (randf(0, 1) < 0.5)

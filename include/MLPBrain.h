@@ -5,8 +5,6 @@
 #include "helpers.h"
 #include "settings.h"
 
-#include <vector>
-
 class MLPBox {
   // Serialization ------------------------------------------
   friend class boost::serialization::access;

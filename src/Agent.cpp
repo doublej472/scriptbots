@@ -44,6 +44,8 @@ Agent::Agent() {
   MUTRATE2 = 0.05;
 
   spiked = false;
+  memset(in, '\0', sizeof(float) * INPUTSIZE);
+  memset(out, '\0', sizeof(float) * OUTPUTSIZE);
 }
 
 void Agent::printSelf() {
