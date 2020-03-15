@@ -51,6 +51,7 @@ public:
   std::vector<MLPBox> boxes;
 
   MLPBrain();
+  virtual ~MLPBrain();
   MLPBrain(const MLPBrain &other);
   virtual MLPBrain &operator=(const MLPBrain &other);
 

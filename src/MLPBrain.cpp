@@ -54,6 +54,8 @@ MLPBrain::MLPBrain() {
   init();
 }
 
+MLPBrain::~MLPBrain() {}
+
 MLPBrain::MLPBrain(const MLPBrain &other) { boxes = other.boxes; }
 
 MLPBrain &MLPBrain::operator=(const MLPBrain &other) {

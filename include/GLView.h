@@ -20,7 +20,7 @@ class GLView : public View {
 
 public:
   GLView(); // World* w);
-  virtual ~GLView();
+  ~GLView();
 
   virtual void drawAgent(const Agent &a);
   virtual void drawFood(int x, int y, float quantity);
