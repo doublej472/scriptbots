@@ -23,9 +23,10 @@ class MLPBox {
   // ---------------------------------------------------------
 public:
   MLPBox();
+  ~MLPBox();
 
-  std::vector<float> w; // weight of each connecting box
-  std::vector<int> id;  // id in boxes[] of the connecting box
+  float w[CONNS]; // weight of each connecting box
+  int id[CONNS];  // id in boxes[] of the connecting box
   float kp;             // damper
   float gw;             // global w
   float bias;
@@ -48,7 +49,7 @@ class MLPBrain {
   }
   // ---------------------------------------------------------
 public:
-  std::vector<MLPBox> boxes;
+  MLPBox boxes[BRAINSIZE];
 
   MLPBrain();
   virtual ~MLPBrain();

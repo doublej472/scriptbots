@@ -3,23 +3,20 @@ using namespace std;
 
 MLPBox::MLPBox() {
 
-  w.resize(CONNS, 0);
-  id.resize(CONNS, 0);
-
   // constructor
   for (int i = 0; i < CONNS; i++) {
-
     w[i] = randf(-3, 3);
     if (randf(0, 1) < 0.5)
       w[i] = 0; // make brains sparse
 
     id[i] = randi(0, BRAINSIZE);
-    if (randf(0, 1) < 0.2)
-      id[i] = randi(
-          0, INPUTSIZE); // 20% of the brain AT LEAST should connect to input.
+      // 40% of the brain AT LEAST should connect to input.
+    if (randf(0, 1) < 0.40) {
+      id[i] = randi(0, INPUTSIZE);
+    }
   }
 
-  // kp= randf(0.1,1);
+  //kp= randf(0.1,1);
   kp = 1; // how fast neuron/box moves towards its target. 1 is instant.
   gw = randf(0, 5);
   bias = randf(-1, 1);
@@ -28,43 +25,21 @@ MLPBox::MLPBox() {
   target = 0;
 }
 
-MLPBrain::MLPBrain() {
+MLPBox::~MLPBox() {}
 
-  // constructor
-  for (int i = 0; i < BRAINSIZE; i++) {
-    MLPBox a; // make a random box and copy it over
-    boxes.push_back(a);
-
-    boxes[i].out = a.out;
-    boxes[i].target = a.target;
-    boxes[i].kp = a.kp;
-    boxes[i].gw = a.gw;
-    boxes[i].bias = a.bias;
-
-    for (int j = 0; j < CONNS; j++) {
-      boxes[i].w[j] = a.w[j];
-      boxes[i].id[j] = a.id[j];
-      if (i < BRAINSIZE / 2) {
-        boxes[i].id[j] = randi(0, INPUTSIZE);
-      }
-    }
-  }
-
-  // do other initializations
-  init();
-}
+MLPBrain::MLPBrain() {}
 
 MLPBrain::~MLPBrain() {}
 
-MLPBrain::MLPBrain(const MLPBrain &other) { boxes = other.boxes; }
+MLPBrain::MLPBrain(const MLPBrain &other) {
+  memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
+}
 
 MLPBrain &MLPBrain::operator=(const MLPBrain &other) {
   if (this != &other)
-    boxes = other.boxes;
+    memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
   return *this;
 }
-
-void MLPBrain::init() {}
 
 void MLPBrain::tick(vector<float> &in, vector<float> &out) {
   // do a single tick of the brain
@@ -164,12 +139,12 @@ MLPBrain MLPBrain::crossover(const MLPBrain &other) {
   // instead of returning by value
   MLPBrain newbrain(*this);
 
-  for (size_t i = 0; i < newbrain.boxes.size(); i++) {
+  for (size_t i = 0; i < BRAINSIZE; i++) {
     if (randf(0, 1) < 0.5) {
       newbrain.boxes[i].bias = this->boxes[i].bias;
       newbrain.boxes[i].gw = this->boxes[i].gw;
       newbrain.boxes[i].kp = this->boxes[i].kp;
-      for (size_t j = 0; j < newbrain.boxes[i].id.size(); j++) {
+      for (size_t j = 0; j < CONNS; j++) {
         newbrain.boxes[i].id[j] = this->boxes[i].id[j];
         newbrain.boxes[i].w[j] = this->boxes[i].w[j];
       }
@@ -178,7 +153,7 @@ MLPBrain MLPBrain::crossover(const MLPBrain &other) {
       newbrain.boxes[i].bias = other.boxes[i].bias;
       newbrain.boxes[i].gw = other.boxes[i].gw;
       newbrain.boxes[i].kp = other.boxes[i].kp;
-      for (size_t j = 0; j < newbrain.boxes[i].id.size(); j++) {
+      for (size_t j = 0; j < CONNS; j++) {
         newbrain.boxes[i].id[j] = other.boxes[i].id[j];
         newbrain.boxes[i].w[j] = other.boxes[i].w[j];
       }
