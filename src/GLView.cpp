@@ -42,8 +42,8 @@ void drawCircle(float x, float y, float r) {
 GLView::GLView()
     : // World *s) :
       //        world(world),
-      paused(false), draw(true), skipdraw(1), drawfood(true), modcounter(0),
-      frames(0), lastUpdate(0) {
+      paused(false), draw(true), skipdraw(1), drawfood(true),
+      modcounter(0), lastUpdate(0), frames(0) {
 
   xtranslate = -conf::WIDTH / 2;
   ytranslate = -conf::HEIGHT / 2;

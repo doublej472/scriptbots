@@ -162,12 +162,12 @@ MLPBrain MLPBrain::crossover(const MLPBrain &other) {
   // instead of returning by value
   MLPBrain newbrain(*this);
 
-  for (int i = 0; i < newbrain.boxes.size(); i++) {
+  for (size_t i = 0; i < newbrain.boxes.size(); i++) {
     if (randf(0, 1) < 0.5) {
       newbrain.boxes[i].bias = this->boxes[i].bias;
       newbrain.boxes[i].gw = this->boxes[i].gw;
       newbrain.boxes[i].kp = this->boxes[i].kp;
-      for (int j = 0; j < newbrain.boxes[i].id.size(); j++) {
+      for (size_t j = 0; j < newbrain.boxes[i].id.size(); j++) {
         newbrain.boxes[i].id[j] = this->boxes[i].id[j];
         newbrain.boxes[i].w[j] = this->boxes[i].w[j];
       }
@@ -176,7 +176,7 @@ MLPBrain MLPBrain::crossover(const MLPBrain &other) {
       newbrain.boxes[i].bias = other.boxes[i].bias;
       newbrain.boxes[i].gw = other.boxes[i].gw;
       newbrain.boxes[i].kp = other.boxes[i].kp;
-      for (int j = 0; j < newbrain.boxes[i].id.size(); j++) {
+      for (size_t j = 0; j < newbrain.boxes[i].id.size(); j++) {
         newbrain.boxes[i].id[j] = other.boxes[i].id[j];
         newbrain.boxes[i].w[j] = other.boxes[i].w[j];
       }

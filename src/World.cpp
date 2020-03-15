@@ -12,7 +12,7 @@
 using namespace std;
 
 World::World()
-    : modcounter(0), current_epoch(0), stopSim(false), idcounter(0),
+    : stopSim(false), modcounter(0), current_epoch(0), idcounter(0),
       numAgentsAdded(0), FW(conf::WIDTH / conf::CZ),
       FH(conf::HEIGHT / conf::CZ) {
   startTime = TIMER.getSimpleTime();
@@ -175,7 +175,7 @@ void World::update() {
 
   float healthloss;     // amount of health lost
   float dd, discomfort; // temperature preference vars
-  int numaround, j;     // used for dead agents
+  int numaround;     // used for dead agents
   float d, agemult;     // used for dead agents
 
   // check if first agent in vector (the oldest) is too old
@@ -230,7 +230,7 @@ void World::update() {
       // distribute its food. It will be erased soon
       // first figure out how many are around, to distribute this evenly
       numaround = 0;
-      for (j = 0; j < agents.size(); j++) {
+      for (size_t j = 0; j < agents.size(); j++) {
         // only carnivores get food. not same agent as dying
         if (agents[j].herbivore < .1 && agents[j].health > 0) {
 
@@ -250,7 +250,7 @@ void World::update() {
 
       if (numaround > 0) {
         // distribute its food evenly
-        for (j = 0; j < agents.size(); j++) {
+        for (size_t j = 0; j < agents.size(); j++) {
           // only carnivores get food. not same agent as dying
           if (agents[j].herbivore < .1 && agents[j].health > 0) {
 
@@ -408,7 +408,7 @@ void World::setInputsRunBrain() {
     float health_gain = 0;
 
     // SMELL SOUND EYES
-    for (int j = 0; j < agents.size(); j++) {
+    for (size_t j = 0; j < agents.size(); j++) {
       if (i == j)
         continue; // do not process self
 
@@ -693,7 +693,7 @@ void World::processOutputs() {
 #pragma omp parallel for
   for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].give > 0.5) {
-      for (int j = 0; j < agents.size(); j++) {
+      for (size_t j = 0; j < agents.size(); j++) {
         float d = (agents[i].pos - agents[j].pos).length();
         if (d < conf::FOOD_SHARING_DISTANCE) {
           // initiate transfer
@@ -719,7 +719,7 @@ void World::processOutputs() {
           agents[i].w1 < 0.5 || agents[i].w2 < 0.5)
         continue;
 
-      for (int j = 0; j < agents.size(); j++) {
+      for (size_t j = 0; j < agents.size(); j++) {
 
         if (i == j)
           continue;
@@ -733,9 +733,6 @@ void World::processOutputs() {
           float diff = v.angle_between(agents[j].pos - agents[i].pos);
           if (fabs(diff) < M_PI / 8) {
             // bot i is also properly aligned!!! that's a hit
-            float mult = 1;
-            if (agents[i].boost)
-              mult = conf::BOOSTSIZEMULT;
             float DMG = conf::SPIKEMULT * agents[i].spikeLength *
                         max(fabs(agents[i].w1), fabs(agents[i].w2)) *
                         conf::BOOSTSIZEMULT;
@@ -797,8 +794,8 @@ void World::addCarnivore() {
 
 void World::addNewByCrossover() {
   // find two success cases
-  int i1 = randi(0, agents.size());
-  int i2 = randi(0, agents.size());
+  size_t i1 = randi(0, agents.size());
+  size_t i2 = randi(0, agents.size());
   for (size_t i = 0; i < agents.size(); i++) {
     if (agents[i].age > agents[i1].age && randf(0, 1) < 0.1) {
       i1 = i;
@@ -883,7 +880,6 @@ void World::writeReport() {
     double box_weights[agents.size()];
     double box_mean;
     double box_square_sum = 0;
-    double final_std_dev;
 
     for (size_t a = 0; a < agents.size();
          a++) // loop through every agent to get the weight
@@ -908,10 +904,6 @@ void World::writeReport() {
     for (size_t c = 0; c < agents.size(); c++) {
       box_square_sum += pow(box_weights[c] - box_mean, 2);
     }
-
-    final_std_dev = sqrt(box_square_sum / agents.size());
-    // cout << "BOX Sqr root = " << final_std_dev << endl << endl;
-    // total_std_dev += final_std_dev;
   }
 
   total_mean_std_dev =
