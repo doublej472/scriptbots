@@ -37,10 +37,10 @@ const bool CLOSED = false; // world is closed and no new agents are added
 
 // REPORTING --------------------------------------------------
 const int REPORTS_PER_EPOCH =
-    5; // number of times to record data and output status info, per epoch
+    50; // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-const int NUMBOTS = 200;    // initially
+const int NUMBOTS = 1000;    // initially
 const int NUMBOTS_MIN = 20; // for open world, the threshold to start adding
                             // bots
 const float BOTRADIUS = 10;    // for drawing
