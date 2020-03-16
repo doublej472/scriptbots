@@ -136,31 +136,6 @@ void World::update() {
     }
   }
 
-  if (VERBOSE)
-    TIMER.start("general settings");
-
-// general settings loop
-#pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
-
-    // keep a pointer
-    Agent *a = &agents[i];
-
-    // says that agent was not hit this turn
-    a->spiked = false;
-
-    // process indicator used in drawing
-    if (a->indicator > 0)
-      a->indicator--;
-
-    // Update agents age
-    if (!modcounter % 100)
-      a->age++;
-  }
-
-  if (VERBOSE)
-    TIMER.end("general settings");
-
   // give input to every agent. Sets in[] array. Runs brain
   setInputsRunBrain();
 
@@ -378,25 +353,36 @@ void World::setInputsRunBrain() {
 
     Agent *a = &agents[i];
 
+    // General settings
+    // says that agent was not hit this turn
+    a->spiked = false;
+
+    // process indicator used in drawing
+    if (a->indicator > 0)
+      a->indicator--;
+
+    // Update agents age
+    if (!modcounter % 100)
+      a->age++;
+
     // FOOD
     int cx = (int)a->pos.x / conf::CZ;
     int cy = (int)a->pos.y / conf::CZ;
     a->in[4] = food[cx][cy] / conf::FOODMAX;
 
     // SOUND SMELL EYES
-    float p1, r1, g1, b1, p2, r2, g2, b2, p3, r3, g3, b3;
-    p1 = 0;
-    r1 = 0;
-    g1 = 0;
-    b1 = 0;
-    p2 = 0;
-    r2 = 0;
-    g2 = 0;
-    b2 = 0;
-    p3 = 0;
-    r3 = 0;
-    g3 = 0;
-    b3 = 0;
+    float p1 = 0;
+    float r1 = 0;
+    float g1 = 0;
+    float b1 = 0;
+    float p2 = 0;
+    float r2 = 0;
+    float g2 = 0;
+    float b2 = 0;
+    float p3 = 0;
+    float r3 = 0;
+    float g3 = 0;
+    float b3 = 0;
     float soaccum = 0;
     float smaccum = 0;
     float hearaccum = 0;
@@ -613,12 +599,8 @@ void World::processOutputs() {
       a->spikeLength += conf::SPIKESPEED;
     else if (a->spikeLength > g)
       a->spikeLength = g; // its easy to retract spike, just hard to put it up.
-  }
 
-  // move bots
-#pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
-    Agent *a = &agents[i];
+    // Move bots
 
     Vector2f v(conf::BOTRADIUS / 2, 0);
     v.rotate(a->angle + M_PI / 2);
@@ -663,11 +645,8 @@ void World::processOutputs() {
       a->pos.y = 0;
     if (a->pos.y >= conf::HEIGHT)
       a->pos.y = conf::HEIGHT - 1;
-  }
 
-  // process food intake for herbivors
-#pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
+    // process food intake
 
     int cx = (int)agents[i].pos.x / conf::CZ;
     int cy = (int)agents[i].pos.y / conf::CZ;
@@ -683,15 +662,10 @@ void World::processOutputs() {
       agents[i].repcounter -= 3 * itk;
       food[cx][cy] -= min(f, conf::FOODWASTE);
     }
-  }
 
-  // process giving and receiving of food
-#pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
+    // process giving and receiving of food
     agents[i].dfood = 0;
-  }
-#pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
+
     if (agents[i].give > 0.5) {
       for (size_t j = 0; j < agents.size(); j++) {
         float d = (agents[i].pos - agents[j].pos).length();
@@ -705,61 +679,54 @@ void World::processOutputs() {
         }
       }
     }
-  }
 
-  // process spike dynamics for carnivors
-  if (modcounter % 2 == 0) { // we dont need to do this TOO often. can save
-                             // efficiency here since this is n^2 op in #agents
-    for (size_t i = 0; i < agents.size(); i++) {
+    // NOTE: herbivore cant attack. TODO: hmmmmm
+    // fot now ok: I want herbivores to run away from carnivores, not kill
+    // them back
+    if (agents[i].herbivore > 0.8 || agents[i].spikeLength < 0.2 ||
+        agents[i].w1 < 0.5 || agents[i].w2 < 0.5)
+      continue;
 
-      // NOTE: herbivore cant attack. TODO: hmmmmm
-      // fot now ok: I want herbivores to run away from carnivores, not kill
-      // them back
-      if (agents[i].herbivore > 0.8 || agents[i].spikeLength < 0.2 ||
-          agents[i].w1 < 0.5 || agents[i].w2 < 0.5)
+    for (size_t j = 0; j < agents.size(); j++) {
+
+      if (i == j)
         continue;
+      float d = (agents[i].pos - agents[j].pos).length();
 
-      for (size_t j = 0; j < agents.size(); j++) {
+      if (d < 2 * conf::BOTRADIUS) {
+        // these two are in collision and agent i has extended spike and is
+        // going decent fast!
+        Vector2f v(1, 0);
+        v.rotate(agents[i].angle);
+        float diff = v.angle_between(agents[j].pos - agents[i].pos);
+        if (fabs(diff) < M_PI / 8) {
+          // bot i is also properly aligned!!! that's a hit
+          float DMG = conf::SPIKEMULT * agents[i].spikeLength *
+                      max(fabs(agents[i].w1), fabs(agents[i].w2)) *
+                      conf::BOOSTSIZEMULT;
 
-        if (i == j)
-          continue;
-        float d = (agents[i].pos - agents[j].pos).length();
+          agents[j].health -= DMG;
 
-        if (d < 2 * conf::BOTRADIUS) {
-          // these two are in collision and agent i has extended spike and is
-          // going decent fast!
-          Vector2f v(1, 0);
-          v.rotate(agents[i].angle);
-          float diff = v.angle_between(agents[j].pos - agents[i].pos);
-          if (fabs(diff) < M_PI / 8) {
-            // bot i is also properly aligned!!! that's a hit
-            float DMG = conf::SPIKEMULT * agents[i].spikeLength *
-                        max(fabs(agents[i].w1), fabs(agents[i].w2)) *
-                        conf::BOOSTSIZEMULT;
+          if (agents[i].health > 2)
+            agents[i].health = 2;    // cap health at 2
+          agents[i].spikeLength = 0; // retract spike back down
 
-            agents[j].health -= DMG;
+          agents[i].initEvent(
+              40 * DMG, 1, 1,
+              0); // yellow event means bot has spiked other bot. nice!
 
-            if (agents[i].health > 2)
-              agents[i].health = 2;    // cap health at 2
-            agents[i].spikeLength = 0; // retract spike back down
-
-            agents[i].initEvent(
-                40 * DMG, 1, 1,
-                0); // yellow event means bot has spiked other bot. nice!
-
-            Vector2f v2(1, 0);
-            v2.rotate(agents[j].angle);
-            float adiff = v.angle_between(v2);
-            if (fabs(adiff) < M_PI / 2) {
-              // this was attack from the back. Retract spike of the other agent
-              // (startle!) this is done so that the other agent cant right away
-              // "by accident" attack this agent
-              agents[j].spikeLength = 0;
-            }
-
-            agents[j].spiked =
-                true; // set a flag saying that this agent was hit this turn
+          Vector2f v2(1, 0);
+          v2.rotate(agents[j].angle);
+          float adiff = v.angle_between(v2);
+          if (fabs(adiff) < M_PI / 2) {
+            // this was attack from the back. Retract spike of the other agent
+            // (startle!) this is done so that the other agent cant right away
+            // "by accident" attack this agent
+            agents[j].spikeLength = 0;
           }
+
+          agents[j].spiked =
+              true; // set a flag saying that this agent was hit this turn
         }
       }
     }
@@ -772,13 +739,11 @@ void World::processOutputs() {
 void World::addRandomBots(int num) {
   numAgentsAdded += num; // record in report
 
-  //#pragma omp parallel for default(shared)
   for (int i = 0; i < num; i++) {
     Agent a;
     a.id = idcounter;
     idcounter++;
 
-    //#pragma omp critical
     agents.push_back(a);
   }
 }
@@ -872,18 +837,16 @@ void World::writeReport() {
   double total_std_dev = 0;
   double total_mean_std_dev;
 
-#pragma omp parallel for default(shared) reduction(+ : total_std_dev)
-  for (int i = 0; i < BRAINSIZE;
-       i++) // loop through every box in brain (there are BRAINSIZE of these)
+  // loop through every box in brain (there are BRAINSIZE of these)
+  for (int i = 0; i < BRAINSIZE; i++)
   {
     double box_sum = 0;
     double box_weights[agents.size()];
     double box_mean;
     double box_square_sum = 0;
 
-    for (size_t a = 0; a < agents.size();
-         a++) // loop through every agent to get the weight
-    {
+    // loop through every agent to get the weight
+    for (size_t a = 0; a < agents.size(); a++) {
       double box_weight_sum = 0;
 
       for (int b = 0; b < CONNS; b++) {
