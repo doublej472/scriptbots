@@ -2,32 +2,32 @@
 #include "include/MLPBrain.h"
 using namespace std;
 
-MLPBox::MLPBox() {
-  // Dumb way to initialize all variables
-  memset(this, '\0', sizeof(MLPBox));
+void mlpbox_init(MLPBox& box) {
+  memset(&box, '\0', sizeof(MLPBox));
 
   for (int i = 0; i < CONNS; i++) {
-    w[i] = randf(-3, 3);
+    box.w[i] = randf(-3, 3);
     // Make 30% of brain connect to input
     if (randf(0, 1) < 0.3) {
-      id[i] = randi(0, INPUTSIZE);
+      box.id[i] = randi(0, INPUTSIZE);
     } else {
-      id[i] = randi(INPUTSIZE, BRAINSIZE);
+      box.id[i] = randi(INPUTSIZE, BRAINSIZE);
     }
   }
 
   // how fast neuron/box moves towards its target. 1 is instant.
-  kp= randf(0.1,1);
-  gw = randf(0, 5);
-  bias = randf(-1.5, 1.5);
-
-  out = 0;
-  target = 0;
+  box.kp = randf(0.1,1);
+  box.gw = randf(0, 5);
+  box.bias = randf(-1.5, 1.5);
+  box.out = 0;
+  box.target = 0;
 }
 
-MLPBox::~MLPBox() {}
-
-MLPBrain::MLPBrain() {}
+MLPBrain::MLPBrain() {
+  for (int i = 0; i < BRAINSIZE; i++) {
+    mlpbox_init(this->boxes[i]);
+  }
+}
 
 MLPBrain::~MLPBrain() {}
 

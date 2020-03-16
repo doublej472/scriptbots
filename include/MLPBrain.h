@@ -4,11 +4,7 @@
 #include "helpers.h"
 #include "settings.h"
 
-class MLPBox {
-public:
-  MLPBox();
-  ~MLPBox();
-
+struct MLPBox {
   float w[CONNS]; // weight of each connecting box
   int id[CONNS];  // id in boxes[] of the connecting box
   float kp;             // damper
@@ -19,6 +15,8 @@ public:
   float target; // target value this node is going toward
   float out;    // current output
 };
+
+void mlpbox_init(MLPBox& box);
 
 /**
  * Damped Weighted Recurrent AND/OR Network
