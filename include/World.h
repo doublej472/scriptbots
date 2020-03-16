@@ -4,32 +4,12 @@
 #include "Agent.h"
 #include "PerfTimer.h"
 #include "View.h"
-#include "boost.h"
 #include "settings.h"
+#include "vec.h"
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <vector>
 
 class World {
-  // Serialization ------------------------------------------
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    // Add all class variables here:
-    ar &modcounter;
-    ar &current_epoch;
-    ar &idcounter;
-    ar &numAgentsAdded;
-    ar &FW;
-    ar &FH;
-    ar &fx;
-    ar &fy;
-    ar &food;
-    ar &CLOSED;
-    ar &touch;
-    ar &agents;
-  }
-  // ---------------------------------------------------------
 public:
   World();
   ~World(){};
@@ -79,7 +59,7 @@ private:
   int numAgentsAdded; // counts how many agents have been artifically added per
                       // reporting iteration
 
-  std::vector<Agent> agents;
+  AVec agents;
 
   // food
   int FW;

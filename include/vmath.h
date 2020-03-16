@@ -64,7 +64,6 @@
 #ifndef __vmath_Header_File__
 #define __vmath_Header_File__
 
-#include "boost.h"
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -88,18 +87,6 @@ const double epsilon = 4.37114e-05;
  * Class for two dimensional vector.
  */
 template <class T> class Vector2 {
-  // Serialization ------------------------------------------
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    // Add all class variables here:
-    ar &x;
-    ar &s;
-    ar &y;
-    ar &t;
-  }
-  // ---------------------------------------------------------
-
 public:
   union {
     /**

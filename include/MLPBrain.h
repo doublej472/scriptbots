@@ -1,24 +1,10 @@
 #ifndef MLPBRAIN_H
 #define MLPBRAIN_H
 
-#include "boost.h"
 #include "helpers.h"
 #include "settings.h"
 
 class MLPBox {
-  // Serialization ------------------------------------------
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    // Add all class variables here:
-    ar &w;
-    ar &id;
-    ar &kp;
-    ar &bias;
-    ar &target;
-    ar &out;
-  }
-  // ---------------------------------------------------------
 public:
   MLPBox();
   ~MLPBox();
@@ -38,14 +24,6 @@ public:
  * Damped Weighted Recurrent AND/OR Network
  */
 class MLPBrain {
-  // Serialization ------------------------------------------
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    // Add all class variables here:
-    ar &boxes;
-  }
-  // ---------------------------------------------------------
 public:
   MLPBox boxes[BRAINSIZE];
 

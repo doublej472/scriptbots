@@ -1,3 +1,4 @@
+#include <cstring>
 #include "include/MLPBrain.h"
 using namespace std;
 

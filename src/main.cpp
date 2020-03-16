@@ -1,4 +1,5 @@
 #include <ctime>
+#include <bits/stdc++.h> 
 #include <getopt.h>
 #include <stdio.h>
 
@@ -8,9 +9,6 @@
 #include "include/World.h"
 #include <omp.h>
 #include "include/settings.h"
-
-// Include Boost serialization:
-#include "include/boost.h"
 
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL

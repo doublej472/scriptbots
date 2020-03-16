@@ -1,8 +1,8 @@
 // see README.markdown -> BRAIN MAPPING for explanation of input and output size
 #define INPUTSIZE 42
 #define OUTPUTSIZE 18
-#define BRAINSIZE 200
-#define CONNS 4
+#define BRAINSIZE 250
+#define CONNS 5
 
 #ifndef SETTINGS_H
 #define SETTINGS_H
@@ -40,7 +40,7 @@ const int REPORTS_PER_EPOCH =
     50; // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-const int NUMBOTS = 1000;    // initially
+const int NUMBOTS = 5000;    // initially
 const int NUMBOTS_MIN = 20; // for open world, the threshold to start adding
                             // bots
 const float BOTRADIUS = 10;    // for drawing

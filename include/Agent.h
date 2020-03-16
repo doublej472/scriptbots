@@ -4,51 +4,9 @@
 #include "MLPBrain.h"
 #include "vmath.h"
 
-#include "boost.h"
 #include <string>
 
 class Agent {
-  // Serialization ------------------------------------------
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    // Add all class variables here:
-    ar &pos;
-    ar &health;
-    ar &angle;
-    ar &touch;
-    ar &red;
-    ar &gre;
-    ar &blu;
-    ar &w1;
-    ar &w2;
-    ar &boost;
-    ar &spikeLength;
-    ar &age;
-    ar &spiked;
-    ar &in;
-    ar &out;
-    ar &repcounter;
-    ar &gencount;
-    ar &hybrid;
-    ar &clockf1;
-    ar &clockf2;
-    ar &soundmul;
-    ar &indicator;
-    ar &ir;
-    ar &ig;
-    ar &ib;
-    ar &selectflag;
-    ar &dfood;
-    ar &give;
-    ar &id;
-    ar &herbivore;
-    ar &MUTRATE1;
-    ar &MUTRATE2;
-    ar &temperature_preference;
-    ar &brain;
-  }
-  // ---------------------------------------------------------
 public:
   Agent();
 

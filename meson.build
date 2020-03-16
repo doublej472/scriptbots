@@ -16,14 +16,13 @@ cpp = meson.get_compiler('cpp')
 cppargs = []
 
 incdir = include_directories('include')
-boost_dep = dependency('boost', modules : ['serialization'])
 
 deps = [
-  boost_dep
 ]
 
 srcfiles = [
   'src/Agent.cpp',
+  'src/vec.cpp',
   'src/Base.cpp',
   'src/MLPBrain.cpp',
   'src/PerfTimer.cpp',

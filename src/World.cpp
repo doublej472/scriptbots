@@ -3,6 +3,7 @@
 
 #include "include/PerfTimer.h"
 #include "include/World.h"
+#include "include/vec.h"
 #include "include/helpers.h"
 #include "include/settings.h"
 #include "include/vmath.h"
@@ -16,6 +17,8 @@ World::World()
       numAgentsAdded(0), FW(conf::WIDTH / conf::CZ),
       FH(conf::HEIGHT / conf::CZ) {
   startTime = TIMER.getSimpleTime();
+
+  avec_init(&agents, conf::NUMBOTS);
 
   if (VERBOSE)
     TIMER.start("Bot creation");
@@ -58,7 +61,7 @@ void World::printState() {
   cout << "World State Info -----------" << endl;
   cout << "Epoch:\t\t" << current_epoch << endl;
   cout << "Tick:\t\t" << modcounter << endl;
-  cout << "Num Agents:\t" << agents.size() << endl;
+  cout << "Num Agents:\t" << agents.size << endl;
   cout << "Agents Added:\t" << numAgentsAdded << endl;
   cout << "----------------------------" << endl;
 }
@@ -86,7 +89,7 @@ void World::update() {
 
     printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
            "%i - Time: %.2f sec     \r",
-           current_epoch, modcounter / 100, int(agents.size()),
+           current_epoch, modcounter / 100, int(agents.size),
            int(conf::reportInterval / (endTime - startTime)),
            (endTime - totalStartTime));
 
@@ -153,44 +156,39 @@ void World::update() {
   int numaround;     // used for dead agents
   float d, agemult;     // used for dead agents
 
-  // check if first agent in vector (the oldest) is too old
-  if (agents[0].age > conf::OLD_AGE_THRESHOLD) {
-    agents[0].health = 0;
-  }
-
   if (VERBOSE)
     TIMER.start("Processing agent health");
 
   // process bots health
-  for (size_t i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size; i++) {
     healthloss = conf::LOSS_BASE; // base amount of health lost every turn for
                                   // being alive
 
     // remove health based on wheel speed
-    if (agents[i].boost) { // is using boost
+    if (agents.agents[i].boost) { // is using boost
       healthloss += conf::LOSS_SPEED * conf::BOTSPEED *
-                    (abs(agents[i].w1) + abs(agents[i].w2)) *
-                    conf::BOOSTSIZEMULT * agents[i].boost;
+                    (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) *
+                    conf::BOOSTSIZEMULT * agents.agents[i].boost;
     } else { // no boost
       healthloss += conf::LOSS_SPEED * conf::BOTSPEED *
-                    (abs(agents[i].w1) + abs(agents[i].w2));
+                    (abs(agents.agents[i].w1) + abs(agents.agents[i].w2));
     }
 
     // shouting costs energy.
-    healthloss += conf::LOSS_SHOUTING * agents[i].soundmul;
+    healthloss += conf::LOSS_SHOUTING * agents.agents[i].soundmul;
 
     // process temperature preferences
     // calculate temperature at the agents spot. (based on distance from
     // equator)
-    dd = 2.0 * abs(agents[i].pos.x / conf::WIDTH - 0.5);
-    discomfort = abs(dd - agents[i].temperature_preference);
+    dd = 2.0 * abs(agents.agents[i].pos.x / conf::WIDTH - 0.5);
+    discomfort = abs(dd - agents.agents[i].temperature_preference);
     discomfort = discomfort * discomfort;
     if (discomfort < 0.08)
       discomfort = 0;
     healthloss += conf::LOSS_TEMP * discomfort;
 
     // apply the health changes
-    agents[i].health -= healthloss;
+    agents.agents[i].health -= healthloss;
 
     //------------------------------------------------------------------------------------------
 
@@ -200,16 +198,16 @@ void World::update() {
     // it so that natural deaths can't be capitalized on. I feel I must do this
     // or otherwise agents will sit on spot and wait for things to die around
     // them. They must do work!
-    if (agents[i].health <= 0 && agents[i].spiked) {
+    if (agents.agents[i].health <= 0 && agents.agents[i].spiked) {
 
       // distribute its food. It will be erased soon
       // first figure out how many are around, to distribute this evenly
       numaround = 0;
-      for (size_t j = 0; j < agents.size(); j++) {
+      for (size_t j = 0; j < agents.size; j++) {
         // only carnivores get food. not same agent as dying
-        if (agents[j].herbivore < .1 && agents[j].health > 0) {
+        if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
-          d = (agents[i].pos - agents[j].pos).length();
+          d = (agents.agents[i].pos - agents.agents[j].pos).length();
           if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
             numaround++;
           }
@@ -220,16 +218,16 @@ void World::update() {
       // at age 5, they mature and give full. This can also help prevent
       // agents eating their young right away
       agemult = 1.0;
-      if (agents[i].age < 5)
-        agemult = agents[i].age * 0.2;
+      if (agents.agents[i].age < 5)
+        agemult = agents.agents[i].age * 0.2;
 
       if (numaround > 0) {
         // distribute its food evenly
-        for (size_t j = 0; j < agents.size(); j++) {
+        for (size_t j = 0; j < agents.size; j++) {
           // only carnivores get food. not same agent as dying
-          if (agents[j].herbivore < .1 && agents[j].health > 0) {
+          if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
-            d = (agents[i].pos - agents[j].pos).length();
+            d = (agents.agents[i].pos - agents.agents[j].pos).length();
             if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
@@ -240,25 +238,25 @@ void World::update() {
                       -----------------------------------
                       numaround ^ 1.25
               */
-              agents[j].health += 5 * (1 - agents[j].herbivore) *
-                                  (1 - agents[j].herbivore) /
+              agents.agents[j].health += 5 * (1 - agents.agents[j].herbivore) *
+                                  (1 - agents.agents[j].herbivore) /
                                   pow(numaround, 1.25) * agemult;
 
               // make this bot reproduce sooner
-              agents[j].repcounter -= 6 * (1 - agents[j].herbivore) *
-                                      (1 - agents[j].herbivore) /
+              agents.agents[j].repcounter -= 6 * (1 - agents.agents[j].herbivore) *
+                                      (1 - agents.agents[j].herbivore) /
                                       pow(numaround, 1.25) * agemult;
 
-              if (agents[j].health > 2)
-                agents[j].health = 2; // cap it!
+              if (agents.agents[j].health > 2)
+                agents.agents[j].health = 2; // cap it!
 
-              agents[j].initEvent(30, 1, 1, 1); // white means they ate! nice
+              agents.agents[j].initEvent(30, 1, 1, 1); // white means they ate! nice
             }
           }
         }
       } else {
         // if no agents are around to eat it, it becomes regular food
-        food[(int)agents[i].pos.x / conf::CZ][(int)agents[i].pos.y / conf::CZ] =
+        food[(int)agents.agents[i].pos.x / conf::CZ][(int)agents.agents[i].pos.y / conf::CZ] =
             conf::FOOD_DEAD *
             conf::FOODMAX; // since it was dying it is not much food
       }
@@ -271,10 +269,9 @@ void World::update() {
   if (VERBOSE)
     TIMER.start("Deleting dead agents");
 
-  for (size_t i = 0; i < agents.size(); i++) {
-    if (agents[i].health <= 0) {
-      agents[i--] = agents.back();
-      agents.pop_back();
+  for (size_t i = 0; i < agents.size; i++) {
+    if (agents.agents[i].health <= 0) {
+      avec_delete(&agents, i);
     }
   }
 
@@ -285,22 +282,22 @@ void World::update() {
     TIMER.start("Reproduction");
 
   // Handle reproduction
-  for (size_t i = 0; i < agents.size(); i++) {
-    if (agents[i].repcounter < 0 && agents[i].health > conf::REP_MIN_HEALTH &&
+  for (size_t i = 0; i < agents.size; i++) {
+    if (agents.agents[i].repcounter < 0 && agents.agents[i].health > conf::REP_MIN_HEALTH &&
         modcounter % 15 == 0 && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
       // the parent splits it health evenly with all of its babies
-      agents[i].health -= agents[i].health / (conf::BABIES + 1);
+      agents.agents[i].health -= agents.agents[i].health / (conf::BABIES + 1);
 
       // add conf::BABIES new agents to agents[]
-      reproduce(i, agents[i].MUTRATE1, agents[i].MUTRATE2);
+      reproduce(i, agents.agents[i].MUTRATE1, agents.agents[i].MUTRATE2);
 
-      agents[i].repcounter =
-          agents[i].herbivore *
+      agents.agents[i].repcounter =
+          agents.agents[i].herbivore *
               randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
-          (1 - agents[i].herbivore) *
+          (1 - agents.agents[i].herbivore) *
               randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
     }
   }
@@ -314,7 +311,7 @@ void World::update() {
   // add new agents, if environment isn't closed
   if (!CLOSED) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
-    if (agents.size() < conf::NUMBOTS_MIN) {
+    if (agents.size < conf::NUMBOTS_MIN) {
       addRandomBots(10); // add new agent
     }
     /*
@@ -345,9 +342,9 @@ void World::setInputsRunBrain() {
     TIMER.start("setInputsRunBrain");
 
 #pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
+  for (size_t i = 0; i < agents.size; i++) {
 
-    Agent *a = &agents[i];
+    Agent *a = &agents.agents[i];
 
     // General settings
     // says that agent was not hit this turn
@@ -390,11 +387,11 @@ void World::setInputsRunBrain() {
     float health_gain = 0;
 
     // SMELL SOUND EYES
-    for (size_t j = 0; j < agents.size(); j++) {
+    for (size_t j = 0; j < agents.size; j++) {
       if (i == j)
         continue; // do not process self
 
-      Agent *a2 = &agents[j];
+      Agent *a2 = &agents.agents[j];
 
       // Do manhattan-distance estimation
       if (a->pos.x < a2->pos.x - conf::DIST ||
@@ -501,7 +498,7 @@ void World::setInputsRunBrain() {
                        ((conf::DIST - d) / conf::DIST);
           // if we can see an agent close with both eyes in front of us
           blood +=
-              mul4 * (1 - agents[j].health / 2); // remember: health is in [0 2]
+              mul4 * (1 - a2->health / 2); // remember: health is in [0 2]
           // agents with high life dont bleed. low life makes them bleed more
         }
       }
@@ -577,8 +574,8 @@ void World::processOutputs() {
     TIMER.start("processOutputs");
 
 #pragma omp parallel for
-  for (size_t i = 0; i < agents.size(); i++) {
-    Agent *a = &agents[i];
+  for (size_t i = 0; i < agents.size; i++) {
+    Agent *a = &agents.agents[i];
 
     a->red = a->out[2];
     a->gre = a->out[3];
@@ -644,34 +641,34 @@ void World::processOutputs() {
 
     // process food intake
 
-    int cx = (int)agents[i].pos.x / conf::CZ;
-    int cy = (int)agents[i].pos.y / conf::CZ;
+    int cx = (int)agents.agents[i].pos.x / conf::CZ;
+    int cy = (int)agents.agents[i].pos.y / conf::CZ;
     float f = food[cx][cy];
-    if (f > 0 && agents[i].health < 2) {
+    if (f > 0 && agents.agents[i].health < 2) {
       // agent eats the food
       float itk = min(f, conf::FOODINTAKE);
       float speedmul =
-          (1 - (abs(agents[i].w1) + abs(agents[i].w2)) / 2) * 0.6 + 0.4;
-      itk = itk * agents[i].herbivore *
+          (1 - (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) / 2) * 0.6 + 0.4;
+      itk = itk * agents.agents[i].herbivore *
             speedmul; // herbivores gain more from ground food
-      agents[i].health += itk;
-      agents[i].repcounter -= 3 * itk;
+      agents.agents[i].health += itk;
+      agents.agents[i].repcounter -= 3 * itk;
       food[cx][cy] -= min(f, conf::FOODWASTE);
     }
 
     // process giving and receiving of food
-    agents[i].dfood = 0;
+    agents.agents[i].dfood = 0;
 
-    if (agents[i].give > 0.5) {
-      for (size_t j = 0; j < agents.size(); j++) {
-        float d = (agents[i].pos - agents[j].pos).length();
+    if (agents.agents[i].give > 0.5) {
+      for (size_t j = 0; j < agents.size; j++) {
+        float d = (agents.agents[i].pos - agents.agents[j].pos).length();
         if (d < conf::FOOD_SHARING_DISTANCE) {
           // initiate transfer
-          if (agents[j].health < 2)
-            agents[j].health += conf::FOODTRANSFER;
-          agents[i].health -= conf::FOODTRANSFER;
-          agents[j].dfood += conf::FOODTRANSFER; // only for drawing
-          agents[i].dfood -= conf::FOODTRANSFER;
+          if (agents.agents[j].health < 2)
+            agents.agents[j].health += conf::FOODTRANSFER;
+          agents.agents[i].health -= conf::FOODTRANSFER;
+          agents.agents[j].dfood += conf::FOODTRANSFER; // only for drawing
+          agents.agents[i].dfood -= conf::FOODTRANSFER;
         }
       }
     }
@@ -679,49 +676,49 @@ void World::processOutputs() {
     // NOTE: herbivore cant attack. TODO: hmmmmm
     // fot now ok: I want herbivores to run away from carnivores, not kill
     // them back
-    if (agents[i].herbivore > 0.8 || agents[i].spikeLength < 0.2 ||
-        agents[i].w1 < 0.5 || agents[i].w2 < 0.5)
+    if (agents.agents[i].herbivore > 0.8 || agents.agents[i].spikeLength < 0.2 ||
+        agents.agents[i].w1 < 0.5 || agents.agents[i].w2 < 0.5)
       continue;
 
-    for (size_t j = 0; j < agents.size(); j++) {
+    for (size_t j = 0; j < agents.size; j++) {
 
       if (i == j)
         continue;
-      float d = (agents[i].pos - agents[j].pos).length();
+      float d = (agents.agents[i].pos - agents.agents[j].pos).length();
 
       if (d < 2 * conf::BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         Vector2f v(1, 0);
-        v.rotate(agents[i].angle);
-        float diff = v.angle_between(agents[j].pos - agents[i].pos);
+        v.rotate(agents.agents[i].angle);
+        float diff = v.angle_between(agents.agents[j].pos - agents.agents[i].pos);
         if (fabs(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
-          float DMG = conf::SPIKEMULT * agents[i].spikeLength *
-                      max(fabs(agents[i].w1), fabs(agents[i].w2)) *
+          float DMG = conf::SPIKEMULT * agents.agents[i].spikeLength *
+                      max(fabs(agents.agents[i].w1), fabs(agents.agents[i].w2)) *
                       conf::BOOSTSIZEMULT;
 
-          agents[j].health -= DMG;
+          agents.agents[j].health -= DMG;
 
-          if (agents[i].health > 2)
-            agents[i].health = 2;    // cap health at 2
-          agents[i].spikeLength = 0; // retract spike back down
+          if (agents.agents[i].health > 2)
+            agents.agents[i].health = 2;    // cap health at 2
+          agents.agents[i].spikeLength = 0; // retract spike back down
 
-          agents[i].initEvent(
+          agents.agents[i].initEvent(
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
           Vector2f v2(1, 0);
-          v2.rotate(agents[j].angle);
+          v2.rotate(agents.agents[j].angle);
           float adiff = v.angle_between(v2);
           if (fabs(adiff) < M_PI / 2) {
             // this was attack from the back. Retract spike of the other agent
             // (startle!) this is done so that the other agent cant right away
             // "by accident" attack this agent
-            agents[j].spikeLength = 0;
+            agents.agents[j].spikeLength = 0;
           }
 
-          agents[j].spiked =
+          agents.agents[j].spiked =
               true; // set a flag saying that this agent was hit this turn
         }
       }
@@ -740,7 +737,7 @@ void World::addRandomBots(int num) {
     a.id = idcounter;
     idcounter++;
 
-    agents.push_back(a);
+    avec_push_back(&agents, a);
   }
 }
 void World::addCarnivore() {
@@ -748,26 +745,26 @@ void World::addCarnivore() {
   a.id = idcounter;
   idcounter++;
   a.herbivore = randf(0, 0.1);
-  agents.push_back(a);
+  avec_push_back(&agents, a);
 
   ++numAgentsAdded; // record in report
 }
 
 void World::addNewByCrossover() {
   // find two success cases
-  size_t i1 = randi(0, agents.size());
-  size_t i2 = randi(0, agents.size());
-  for (size_t i = 0; i < agents.size(); i++) {
-    if (agents[i].age > agents[i1].age && randf(0, 1) < 0.1) {
+  size_t i1 = randi(0, agents.size);
+  size_t i2 = randi(0, agents.size);
+  for (size_t i = 0; i < agents.size; i++) {
+    if (agents.agents[i].age > agents.agents[i1].age && randf(0, 1) < 0.1) {
       i1 = i;
     }
-    if (agents[i].age > agents[i2].age && randf(0, 1) < 0.1 && i != i1) {
+    if (agents.agents[i].age > agents.agents[i2].age && randf(0, 1) < 0.1 && i != i1) {
       i2 = i;
     }
   }
 
-  Agent *a1 = &agents[i1];
-  Agent *a2 = &agents[i2];
+  Agent *a1 = &agents.agents[i1];
+  Agent *a2 = &agents.agents[i2];
 
   // cross brains
   Agent anew = a1->crossover(*a2);
@@ -775,7 +772,7 @@ void World::addNewByCrossover() {
   // maybe do mutation here? I dont know. So far its only crossover
   anew.id = idcounter;
   idcounter++;
-  agents.push_back(anew);
+  avec_push_back(&agents, anew);
 
   ++numAgentsAdded; // record in report
 }
@@ -786,13 +783,13 @@ void World::reproduce(int ai, float MR, float MR2) {
   if (randf(0, 1) < 0.04)
     MR2 = MR2 * randf(1, 10);
 
-  agents[ai].initEvent(30, 0, 0.8, 0); // green event means agent reproduced.
+  agents.agents[ai].initEvent(30, 0, 0.8, 0); // green event means agent reproduced.
   for (int i = 0; i < conf::BABIES; i++) {
 
-    Agent a2 = agents[ai].reproduce(MR, MR2);
+    Agent a2 = agents.agents[ai].reproduce(MR, MR2);
     a2.id = idcounter;
     idcounter++;
-    agents.push_back(a2);
+    avec_push_back(&agents, a2);
 
     // TODO fix recording
     // record this
@@ -813,21 +810,21 @@ void World::writeReport() {
   double epoch_decimal = modcounter / 10000.0 + current_epoch;
 
   // Count number of herb, carn and top of each
-  for (size_t i = 0; i < agents.size(); i++) {
-    if (agents[i].herbivore > 0.5)
+  for (size_t i = 0; i < agents.size; i++) {
+    if (agents.agents[i].herbivore > 0.5)
       numherb++;
     else
       numcarn++;
 
-    if (agents[i].herbivore > 0.5 && agents[i].gencount > topherb)
-      topherb = agents[i].gencount;
-    if (agents[i].herbivore < 0.5 && agents[i].gencount > topcarn)
-      topcarn = agents[i].gencount;
+    if (agents.agents[i].herbivore > 0.5 && agents.agents[i].gencount > topherb)
+      topherb = agents.agents[i].gencount;
+    if (agents.agents[i].herbivore < 0.5 && agents.agents[i].gencount > topcarn)
+      topcarn = agents.agents[i].gencount;
 
     // Average Age:
-    total_age += agents[i].age;
+    total_age += agents.agents[i].age;
   }
-  avg_age = total_age / agents.size();
+  avg_age = total_age / agents.size;
 
   // Compute Standard Devitation of every weight in every agents brain
   double total_std_dev = 0;
@@ -837,16 +834,16 @@ void World::writeReport() {
   for (int i = 0; i < BRAINSIZE; i++)
   {
     double box_sum = 0;
-    double box_weights[agents.size()];
+    double box_weights[agents.size];
     double box_mean;
     double box_square_sum = 0;
 
     // loop through every agent to get the weight
-    for (size_t a = 0; a < agents.size(); a++) {
+    for (size_t a = 0; a < agents.size; a++) {
       double box_weight_sum = 0;
 
       for (int b = 0; b < CONNS; b++) {
-        box_weight_sum += agents[a].brain.boxes[i].w[b];
+        box_weight_sum += agents.agents[a].brain.boxes[i].w[b];
       }
       // Add this sum to total stats:
       box_sum += box_weight_sum;
@@ -860,7 +857,7 @@ void World::writeReport() {
     // Now calculate the population standard deviation for this box:
     // Compute diff of each weight sum from mean and square the result, then add
     // it:
-    for (size_t c = 0; c < agents.size(); c++) {
+    for (size_t c = 0; c < agents.size; c++) {
       box_square_sum += pow(box_weights[c] - box_mean, 2);
     }
   }
@@ -880,7 +877,8 @@ void World::writeReport() {
 }
 
 void World::reset() {
-  agents.clear();
+  avec_free(&agents);
+  avec_init(&agents, conf::NUMBOTS + 10);
   addRandomBots(conf::NUMBOTS);
 }
 
@@ -894,19 +892,19 @@ void World::processMouse(int button, int state, int x, int y) {
     size_t mini = -1;
     float d;
 
-    for (size_t i = 0; i < agents.size(); i++) {
-      d = pow(x - agents[i].pos.x, 2) + pow(y - agents[i].pos.y, 2);
+    for (size_t i = 0; i < agents.size; i++) {
+      d = pow(x - agents.agents[i].pos.x, 2) + pow(y - agents.agents[i].pos.y, 2);
       if (d < mind) {
         mind = d;
         mini = i;
       }
     }
     // toggle selection of this agent
-    for (size_t i = 0; i < agents.size(); i++) {
+    for (size_t i = 0; i < agents.size; i++) {
       if (i != mini) {
-        agents[i].selectflag = false;
+        agents.agents[i].selectflag = false;
       } else {
-        agents[i].selectflag = !agents[mini].selectflag;
+        agents.agents[i].selectflag = !agents.agents[mini].selectflag;
       }
     }
 
@@ -923,17 +921,16 @@ void World::draw(View *view, bool drawfood) {
       }
     }
   }
-  vector<Agent>::const_iterator it;
-  for (it = agents.begin(); it != agents.end(); ++it) {
-    view->drawAgent(*it);
+  for (size_t i = 0; i < agents.size; i++) {
+    view->drawAgent(agents.agents[i]);
   }
 }
 
 pair<int, int> World::numHerbCarnivores() const {
   int numherb = 0;
   int numcarn = 0;
-  for (size_t i = 0; i < agents.size(); i++) {
-    if (agents[i].herbivore > 0.5)
+  for (size_t i = 0; i < agents.size; i++) {
+    if (agents.agents[i].herbivore > 0.5)
       numherb++;
     else
       numcarn++;
@@ -943,11 +940,11 @@ pair<int, int> World::numHerbCarnivores() const {
 }
 
 int World::numAgents() const {
-  if (agents.size() == 0) {
+  if (agents.size == 0) {
     cout << "Population is extinct at epoch " << current_epoch << endl;
     exit(1);
   }
-  return agents.size();
+  return agents.size;
 }
 
 int World::epoch() const { return current_epoch; }
