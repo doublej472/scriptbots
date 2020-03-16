@@ -271,14 +271,10 @@ void World::update() {
   if (VERBOSE)
     TIMER.start("Deleting dead agents");
 
-  // Delete dead agents
-  vector<Agent>::iterator iter = agents.begin();
-
-  while (iter != agents.end()) {
-    if (iter->health <= 0) {
-      iter = agents.erase(iter);
-    } else {
-      ++iter;
+  for (size_t i = 0; i < agents.size(); i++) {
+    if (agents[i].health <= 0) {
+      agents[i--] = agents.back();
+      agents.pop_back();
     }
   }
 
