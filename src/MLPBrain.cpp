@@ -23,26 +23,24 @@ void mlpbox_init(MLPBox& box) {
   box.target = 0;
 }
 
-MLPBrain::MLPBrain() {
+void mlpbrain_init(MLPBrain& brain) {
   for (int i = 0; i < BRAINSIZE; i++) {
-    mlpbox_init(this->boxes[i]);
+    mlpbox_init(brain.boxes[i]);
   }
 }
 
-MLPBrain::~MLPBrain() {}
-
-MLPBrain::MLPBrain(const MLPBrain &other) {
-  memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
+void mlpbrain_init(MLPBrain& brain, const MLPBrain &other) {
+  memcpy(brain.boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
 }
 
-MLPBrain &MLPBrain::operator=(const MLPBrain &other) {
-  if (this != &other)
-    memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
-  return *this;
+void mlpbrain_set(MLPBrain& target, const MLPBrain& source) {
+  if (&target != &source)
+    memcpy(target.boxes, source.boxes, sizeof(MLPBox) * BRAINSIZE);
 }
 
-void MLPBrain::tick(const float *in, float *out) {
+void mlpbrain_tick(MLPBrain& brain, const float *in, float *out) {
   // do a single tick of the brain
+  MLPBox* boxes = brain.boxes;
 
   // take first few boxes and set their out to in[].
   for (int i = 0; i < INPUTSIZE; i++) {
@@ -51,7 +49,7 @@ void MLPBrain::tick(const float *in, float *out) {
 
   // then do a dynamics tick and set all targets
   for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
-    MLPBox *abox = &boxes[i];
+    MLPBox* abox = &boxes[i];
 
     float acc = 0;
     for (int j = 0; j < CONNS; j++) {
@@ -85,19 +83,21 @@ void MLPBrain::tick(const float *in, float *out) {
   MR - how often do mutation occur?
   MR2 - how significant are the mutations?
 */
-void MLPBrain::mutate(float MR, float MR2) {
+void mlpbrain_mutate(MLPBrain& brain, float mutaterate, float mutaterate2) {
+  MLPBox* boxes = brain.boxes;
+
   for (int j = 0; j < BRAINSIZE; j++) {
 
     // Modify bias
-    if (randf(0, 1) < MR * 3) { // why 3?
+    if (randf(0, 1) < mutaterate * 3) { // why 3?
       boxes[j].bias += randn(
-          0, MR2); // TODO: maybe make 0 be -MR2 and add bottom limit?
+          0, mutaterate2); // TODO: maybe make 0 be -mutaterate2 and add bottom limit?
                    //             a2.mutations.push_back("bias jiggled\n");
     }
 
     // Modify kp
-    if (randf(0, 1) < MR * 3) {
-      boxes[j].kp += randn(0, MR2); // TODO: maybe make the 0 be -MR2 ?
+    if (randf(0, 1) < mutaterate * 3) {
+      boxes[j].kp += randn(0, mutaterate2); // TODO: maybe make the 0 be -mutaterate2 ?
 
       // Limit the change:
       if (boxes[j].kp < 0.01)
@@ -109,8 +109,8 @@ void MLPBrain::mutate(float MR, float MR2) {
     }
 
     // Modify gw
-    if (randf(0, 1) < MR * 3) {
-      boxes[j].gw += randn(0, MR2);
+    if (randf(0, 1) < mutaterate * 3) {
+      boxes[j].gw += randn(0, mutaterate2);
       if (boxes[j].gw < 0)
         boxes[j].gw = 0;
 
@@ -118,14 +118,14 @@ void MLPBrain::mutate(float MR, float MR2) {
     }
 
     // Modify weight
-    if (randf(0, 1) < MR * 3) {
+    if (randf(0, 1) < mutaterate * 3) {
       int rc = randi(0, CONNS);
-      boxes[j].w[rc] += randn(0, MR2);
+      boxes[j].w[rc] += randn(0, mutaterate2);
       //          a2.mutations.push_back("weight jiggled\n");
     }
 
     // Modify connectivity of brain
-    if (randf(0, 1) < MR * 3) {
+    if (randf(0, 1) < mutaterate * 3) {
       int rc = randi(0, CONNS);
       int ri = randi(0, BRAINSIZE);
       boxes[j].id[rc] = ri;
@@ -134,30 +134,29 @@ void MLPBrain::mutate(float MR, float MR2) {
   }
 }
 
-MLPBrain MLPBrain::crossover(const MLPBrain &other) {
-  // this could be made faster by returning a pointer
-  // instead of returning by value
-  MLPBrain newbrain(*this);
+void mlpbrain_crossover(
+  MLPBrain& target,
+  const MLPBrain& source1,
+  const MLPBrain& source2) {
 
   for (size_t i = 0; i < BRAINSIZE; i++) {
     if (randf(0, 1) < 0.5) {
-      newbrain.boxes[i].bias = this->boxes[i].bias;
-      newbrain.boxes[i].gw = this->boxes[i].gw;
-      newbrain.boxes[i].kp = this->boxes[i].kp;
+      target.boxes[i].bias = source1.boxes[i].bias;
+      target.boxes[i].gw = source1.boxes[i].gw;
+      target.boxes[i].kp = source1.boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
-        newbrain.boxes[i].id[j] = this->boxes[i].id[j];
-        newbrain.boxes[i].w[j] = this->boxes[i].w[j];
+        target.boxes[i].id[j] = source1.boxes[i].id[j];
+        target.boxes[i].w[j] = source1.boxes[i].w[j];
       }
 
     } else {
-      newbrain.boxes[i].bias = other.boxes[i].bias;
-      newbrain.boxes[i].gw = other.boxes[i].gw;
-      newbrain.boxes[i].kp = other.boxes[i].kp;
+      target.boxes[i].bias = source2.boxes[i].bias;
+      target.boxes[i].gw = source2.boxes[i].gw;
+      target.boxes[i].kp = source2.boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
-        newbrain.boxes[i].id[j] = other.boxes[i].id[j];
-        newbrain.boxes[i].w[j] = other.boxes[i].w[j];
+        target.boxes[i].id[j] = source2.boxes[i].id[j];
+        target.boxes[i].w[j] = source2.boxes[i].w[j];
       }
     }
   }
-  return newbrain;
 }

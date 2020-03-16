@@ -46,6 +46,7 @@ Agent::Agent() {
   spiked = false;
   memset(in, '\0', sizeof(float) * INPUTSIZE);
   memset(out, '\0', sizeof(float) * OUTPUTSIZE);
+  mlpbrain_init(brain);
 }
 
 void Agent::printSelf() {
@@ -62,7 +63,7 @@ void Agent::initEvent(float size, float r, float g, float b) {
   ib = b;
 }
 
-void Agent::tick() { brain.tick(in, out); }
+void Agent::tick() { mlpbrain_tick(brain, in, out); }
 Agent Agent::reproduce(float MR, float MR2) {
   Agent a2;
 
@@ -114,7 +115,7 @@ Agent Agent::reproduce(float MR, float MR2) {
 
   // mutate brain here
   a2.brain = this->brain;
-  a2.brain.mutate(MR, MR2);
+  mlpbrain_mutate(a2.brain, MR, MR2);
 
   return a2;
 }
@@ -138,7 +139,7 @@ Agent Agent::crossover(const Agent &other) {
                                     ? this->temperature_preference
                                     : other.temperature_preference;
 
-  anew.brain = this->brain.crossover(other.brain);
+  mlpbrain_crossover(anew.brain, this->brain, other.brain);
 
   return anew;
 }
