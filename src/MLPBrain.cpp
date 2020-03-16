@@ -7,20 +7,18 @@ MLPBox::MLPBox() {
 
   for (int i = 0; i < CONNS; i++) {
     w[i] = randf(-3, 3);
-    if (randf(0, 1) < 0.5)
-      w[i] = 0; // make brains sparse
-
-    id[i] = randi(0, BRAINSIZE);
-      // 40% of the brain AT LEAST should connect to input.
-    if (randf(0, 1) < 0.40) {
+    // Make 30% of brain connect to input
+    if (randf(0, 1) < 0.3) {
       id[i] = randi(0, INPUTSIZE);
+    } else {
+      id[i] = randi(INPUTSIZE, BRAINSIZE);
     }
   }
 
-  //kp= randf(0.1,1);
-  kp = 1; // how fast neuron/box moves towards its target. 1 is instant.
+  // how fast neuron/box moves towards its target. 1 is instant.
+  kp= randf(0.1,1);
   gw = randf(0, 5);
-  bias = randf(-1, 1);
+  bias = randf(-1.5, 1.5);
 
   out = 0;
   target = 0;
