@@ -61,6 +61,17 @@ void World::printState() {
   cout << "----------------------------" << endl;
 }
 
+static void timespec_diff(struct timespec* result, struct timespec *start,
+                          struct timespec *stop) {
+    if ((stop->tv_nsec - start->tv_nsec) < 0) {
+        result->tv_sec = stop->tv_sec - start->tv_sec - 1;
+        result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
+    } else {
+        result->tv_sec = stop->tv_sec - start->tv_sec;
+        result->tv_nsec = stop->tv_nsec - start->tv_nsec;
+    }
+}
+
 void World::update() {
   // Increment Tick
   modcounter++;
@@ -78,10 +89,14 @@ void World::update() {
     // Update GUI
     struct timespec endTime;
     clock_gettime(CLOCK_MONOTONIC_RAW, &endTime);
-    float deltat = (endTime.tv_sec - startTime.tv_sec) +
-      ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
-    float totaldeltat = (endTime.tv_sec - totalStartTime.tv_sec) +
-      ((endTime.tv_nsec - totalStartTime.tv_nsec) / 1000000.0);
+    struct timespec ts_delta;
+    struct timespec ts_totaldelta;
+
+    timespec_diff(&ts_delta, &startTime, &endTime);
+    timespec_diff(&ts_totaldelta, &totalStartTime, &endTime);
+
+    float deltat = (float) ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
+    float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
 
     printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
            "%i - Time: %.2f sec     \r",
