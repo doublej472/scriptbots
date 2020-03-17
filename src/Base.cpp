@@ -1,18 +1,13 @@
 #include "include/Base.h"
 
-// For getting file size:
-#include <sys/stat.h>
-#include <sys/types.h> // remove
-#include <unistd.h>    //remove
+void base_init(Base& base) {
+  base.world = new World();
+}
 
-using namespace std;
-
-Base::Base() { world = new World(); }
-
-void Base::saveWorld() {
+void base_saveworld(Base& base) {
   printf("Fake world save!\n");
 }
 
-void Base::loadWorld() {
+void base_loadworld(Base& base) {
   printf("Fake world load!\n");
 }

@@ -2,13 +2,12 @@
 #define BASE_H
 #include "World.h"
 
-class Base {
-public:
+struct Base {
   World *world;
-
-  Base();
-  void saveWorld();
-  void loadWorld();
 };
+
+void base_init(Base& base);
+void base_saveworld(Base& base);
+void base_loadworld(Base& base);
 
 #endif // BASE_H

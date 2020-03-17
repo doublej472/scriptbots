@@ -107,6 +107,7 @@ int main(int argc, char **argv) {
   #endif
 
   Base base;
+  base_init(base);
 
   cout << "--------------------------------------------------------------------"
           "-----------"
@@ -165,7 +166,7 @@ int main(int argc, char **argv) {
 
   // Load file if needed
   if (loadWorldFromFile) {
-    base.loadWorld();
+    base_loadworld(base);
 
     // check if epoch is greater than passed parameter
     if (base.world->epoch() > MAX_EPOCHS)
@@ -259,5 +260,5 @@ void runHeadless(Base &base) {
     TIMER.printTimes();
   }
 
-  base.saveWorld();
+  base_saveworld(base);
 }

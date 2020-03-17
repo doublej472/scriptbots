@@ -124,7 +124,7 @@ void GLView::processNormalKeys(unsigned char key, int x, int y) {
   switch (key) {
     case 27:
       printf("\n\nESC key pressed, shutting down\n");
-      base->saveWorld();
+      base_saveworld(*base);
       exit(0);
       break;
     case 'r':
