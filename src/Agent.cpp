@@ -7,139 +7,131 @@
 #include <stdio.h>
 #include <string>
 
-using namespace std;
-Agent::Agent() {
-  pos = Vector2f(randf(0, conf::WIDTH), randf(0, conf::HEIGHT));
-  angle = randf(-M_PI, M_PI);
-  health = 1.0 + randf(0, 0.1);
-  touch = 0;
-  age = 0;
-  spikeLength = 0;
-  red = 0;
-  gre = 0;
-  blu = 0;
-  w1 = 0;
-  w2 = 0;
-  soundmul = 1;
-  give = 0;
-  clockf1 = randf(5, 100);
-  clockf2 = randf(5, 100);
-  boost = false;
-  indicator = 0;
-  gencount = 0;
-  selectflag = 0;
-  ir = 0;
-  ig = 0;
-  ib = 0;
-  temperature_preference = randf(0, 1);
-  hybrid = false;
-  herbivore = randf(0, 1);
-  repcounter =
-      herbivore * randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
-      (1 - herbivore) * randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
+void agent_init(Agent& agent) {
+  agent.pos = Vector2f(randf(0, conf::WIDTH), randf(0, conf::HEIGHT));
+  agent.angle = randf(-M_PI, M_PI);
+  agent.health = 1.0 + randf(0, 0.1);
+  agent.touch = 0;
+  agent.age = 0;
+  agent.spikeLength = 0;
+  agent.red = 0;
+  agent.gre = 0;
+  agent.blu = 0;
+  agent.w1 = 0;
+  agent.w2 = 0;
+  agent.soundmul = 1;
+  agent.give = 0;
+  agent.clockf1 = randf(5, 100);
+  agent.clockf2 = randf(5, 100);
+  agent.boost = false;
+  agent.indicator = 0;
+  agent.gencount = 0;
+  agent.selectflag = 0;
+  agent.ir = 0;
+  agent.ig = 0;
+  agent.ib = 0;
+  agent.temperature_preference = randf(0, 1);
+  agent.hybrid = false;
+  agent.herbivore = randf(0, 1);
+  agent.repcounter =
+      agent.herbivore * randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
+      (1 - agent.herbivore) * randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
 
-  id = 0;
+  agent.id = 0;
 
-  MUTRATE1 = 0.003;
-  MUTRATE2 = 0.05;
+  agent.MUTRATE1 = 0.003;
+  agent.MUTRATE2 = 0.05;
 
-  spiked = false;
-  memset(in, '\0', sizeof(float) * INPUTSIZE);
-  memset(out, '\0', sizeof(float) * OUTPUTSIZE);
-  mlpbrain_init(brain);
+  agent.spiked = false;
+  memset(&agent.in, '\0', sizeof(float) * INPUTSIZE);
+  memset(&agent.out, '\0', sizeof(float) * OUTPUTSIZE);
+  mlpbrain_init(agent.brain);
 }
 
-void Agent::printSelf() {
-  printf("Agent age=%i\n", age);
-  printf("\ttemp pref=%f\n", temperature_preference);
-
-  cout << endl;
+void agent_print(Agent& agent) {
+  printf("Agent age=%i\n", agent.age);
+  printf("\ttemp pref=%f\n\n", agent.temperature_preference);
 }
 
-void Agent::initEvent(float size, float r, float g, float b) {
-  indicator = size;
-  ir = r;
-  ig = g;
-  ib = b;
+void agent_initevent(Agent& agent, float size, float r, float g, float b) {
+  agent.indicator = size;
+  agent.ir = r;
+  agent.ig = g;
+  agent.ib = b;
 }
 
-void Agent::tick() { mlpbrain_tick(brain, in, out); }
-Agent Agent::reproduce(float MR, float MR2) {
-  Agent a2;
+void agent_tick(Agent& agent) {
+  mlpbrain_tick(agent.brain, agent.in, agent.out);
+}
+
+void agent_reproduce(Agent& child, Agent& parent, float MR, float MR2) {
 
   // spawn the baby somewhere closeby behind agent
   // we want to spawn behind so that agents dont accidentally eat their young
   // right away
   Vector2f fb(conf::BOTRADIUS, 0);
-  fb.rotate(-a2.angle);
-  a2.pos = this->pos + fb +
+  fb.rotate(-child.angle);
+  child.pos = parent.pos + fb +
            Vector2f(randf(-conf::BOTRADIUS * 2, conf::BOTRADIUS * 2),
                     randf(-conf::BOTRADIUS * 2, conf::BOTRADIUS * 2));
-  if (a2.pos.x < 0)
-    a2.pos.x = conf::WIDTH + a2.pos.x;
-  if (a2.pos.x >= conf::WIDTH)
-    a2.pos.x = a2.pos.x - conf::WIDTH;
-  if (a2.pos.y < 0)
-    a2.pos.y = conf::HEIGHT + a2.pos.y;
-  if (a2.pos.y >= conf::HEIGHT)
-    a2.pos.y = a2.pos.y - conf::HEIGHT;
+  if (child.pos.x < 0)
+    child.pos.x = conf::WIDTH + child.pos.x;
+  if (child.pos.x >= conf::WIDTH)
+    child.pos.x = child.pos.x - conf::WIDTH;
+  if (child.pos.y < 0)
+    child.pos.y = conf::HEIGHT + child.pos.y;
+  if (child.pos.y >= conf::HEIGHT)
+    child.pos.y = child.pos.y - conf::HEIGHT;
 
-  a2.gencount = this->gencount + 1;
-  a2.repcounter =
-      a2.herbivore * randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
-      (1 - a2.herbivore) * randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
+  child.gencount = parent.gencount + 1;
+  child.repcounter =
+      child.herbivore * randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
+      (1 - child.herbivore) * randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
 
   // noisy attribute passing
-  a2.MUTRATE1 = this->MUTRATE1;
-  a2.MUTRATE2 = this->MUTRATE2;
+  child.MUTRATE1 = parent.MUTRATE1;
+  child.MUTRATE2 = parent.MUTRATE2;
   if (randf(0, 1) < 0.2)
-    a2.MUTRATE1 = randn(this->MUTRATE1, conf::METAMUTRATE1);
+    child.MUTRATE1 = randn(parent.MUTRATE1, conf::METAMUTRATE1);
   if (randf(0, 1) < 0.2)
-    a2.MUTRATE2 = randn(this->MUTRATE2, conf::METAMUTRATE2);
-  if (this->MUTRATE1 < 0.001)
-    this->MUTRATE1 = 0.001;
-  if (this->MUTRATE2 < 0.02)
-    this->MUTRATE2 = 0.02;
-  a2.herbivore = cap(randn(this->herbivore, 0.03));
+    child.MUTRATE2 = randn(parent.MUTRATE2, conf::METAMUTRATE2);
+  if (parent.MUTRATE1 < 0.001)
+    parent.MUTRATE1 = 0.001;
+  if (parent.MUTRATE2 < 0.02)
+    parent.MUTRATE2 = 0.02;
+  child.herbivore = cap(randn(parent.herbivore, 0.03));
   if (randf(0, 1) < MR * 5)
-    a2.clockf1 = randn(a2.clockf1, MR2);
-  if (a2.clockf1 < 2)
-    a2.clockf1 = 2;
+    child.clockf1 = randn(child.clockf1, MR2);
+  if (child.clockf1 < 2)
+    child.clockf1 = 2;
   if (randf(0, 1) < MR * 5)
-    a2.clockf2 = randn(a2.clockf2, MR2);
-  if (a2.clockf2 < 2)
-    a2.clockf2 = 2;
+    child.clockf2 = randn(child.clockf2, MR2);
+  if (child.clockf2 < 2)
+    child.clockf2 = 2;
 
-  a2.temperature_preference = cap(randn(this->temperature_preference, 0.005));
-  //    a2.temperature_preference= this->temperature_preference;
+  child.temperature_preference = cap(randn(parent.temperature_preference, 0.005));
+  //    child.temperature_preference= parent.temperature_preference;
 
   // mutate brain here
-  a2.brain = this->brain;
-  mlpbrain_mutate(a2.brain, MR, MR2);
-
-  return a2;
+  child.brain = parent.brain;
+  mlpbrain_mutate(child.brain, MR, MR2);
 }
 
-Agent Agent::crossover(const Agent &other) {
-  // this could be made faster by returning a pointer
-  // instead of returning by value
-  Agent anew;
-  anew.hybrid = true; // set this non-default flag
-  anew.gencount = this->gencount;
-  if (other.gencount < anew.gencount)
-    anew.gencount = other.gencount;
+void agent_crossover(Agent& target, const Agent& agent1, const Agent& agent2) {
+  target.hybrid = true; // set this non-default flag
+  target.gencount = agent1.gencount;
+  if (agent2.gencount < target.gencount)
+    target.gencount = agent2.gencount;
 
   // agent heredity attributes
-  anew.clockf1 = randf(0, 1) < 0.5 ? this->clockf1 : other.clockf1;
-  anew.clockf2 = randf(0, 1) < 0.5 ? this->clockf2 : other.clockf2;
-  anew.herbivore = randf(0, 1) < 0.5 ? this->herbivore : other.herbivore;
-  anew.MUTRATE1 = randf(0, 1) < 0.5 ? this->MUTRATE1 : other.MUTRATE1;
-  anew.MUTRATE2 = randf(0, 1) < 0.5 ? this->MUTRATE2 : other.MUTRATE2;
-  anew.temperature_preference = randf(0, 1) < 0.5
-                                    ? this->temperature_preference
-                                    : other.temperature_preference;
+  target.clockf1 = randf(0, 1) < 0.5 ? agent1.clockf1 : agent2.clockf1;
+  target.clockf2 = randf(0, 1) < 0.5 ? agent1.clockf2 : agent2.clockf2;
+  target.herbivore = randf(0, 1) < 0.5 ? agent1.herbivore : agent2.herbivore;
+  target.MUTRATE1 = randf(0, 1) < 0.5 ? agent1.MUTRATE1 : agent2.MUTRATE1;
+  target.MUTRATE2 = randf(0, 1) < 0.5 ? agent1.MUTRATE2 : agent2.MUTRATE2;
+  target.temperature_preference = randf(0, 1) < 0.5
+                                    ? agent1.temperature_preference
+                                    : agent2.temperature_preference;
 
-  mlpbrain_crossover(anew.brain, this->brain, other.brain);
-
-  return anew;
+  mlpbrain_crossover(target.brain, agent1.brain, agent2.brain);
 }

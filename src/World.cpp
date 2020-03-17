@@ -250,7 +250,7 @@ void World::update() {
               if (agents.agents[j].health > 2)
                 agents.agents[j].health = 2; // cap it!
 
-              agents.agents[j].initEvent(30, 1, 1, 1); // white means they ate! nice
+              agent_initevent(agents.agents[j], 30, 1, 1, 1); // white means they ate! nice
             }
           }
         }
@@ -418,7 +418,7 @@ void World::setInputsRunBrain() {
           // when they are ontop each other
           float ratio = (1 - (conf::DIST_GROUPING - d) / conf::DIST_GROUPING);
           health_gain += conf::GAIN_GROUPING * ratio;
-          a->initEvent(5 * ratio, .5, .5, .5); // visualize it
+          agent_initevent(*a, 5 * ratio, .5, .5, .5); // visualize it
 
           // sound (number of agents nearby)
           soaccum += 0.4 * (conf::DIST - d) / conf::DIST *
@@ -560,7 +560,7 @@ void World::setInputsRunBrain() {
     }
 
     // Now process brain
-    a->tick();
+    agent_tick(*a);
   }
 
   if (VERBOSE)
@@ -704,7 +704,7 @@ void World::processOutputs() {
             agents.agents[i].health = 2;    // cap health at 2
           agents.agents[i].spikeLength = 0; // retract spike back down
 
-          agents.agents[i].initEvent(
+          agent_initevent(agents.agents[i],
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
@@ -734,6 +734,7 @@ void World::addRandomBots(int num) {
 
   for (int i = 0; i < num; i++) {
     Agent a;
+    agent_init(a);
     a.id = idcounter;
     idcounter++;
 
@@ -742,6 +743,7 @@ void World::addRandomBots(int num) {
 }
 void World::addCarnivore() {
   Agent a;
+  agent_init(a);
   a.id = idcounter;
   idcounter++;
   a.herbivore = randf(0, 0.1);
@@ -767,7 +769,9 @@ void World::addNewByCrossover() {
   Agent *a2 = &agents.agents[i2];
 
   // cross brains
-  Agent anew = a1->crossover(*a2);
+  Agent anew;
+  agent_init(anew);
+  agent_crossover(anew, *a1, *a2);
 
   // maybe do mutation here? I dont know. So far its only crossover
   anew.id = idcounter;
@@ -783,10 +787,12 @@ void World::reproduce(int ai, float MR, float MR2) {
   if (randf(0, 1) < 0.04)
     MR2 = MR2 * randf(1, 10);
 
-  agents.agents[ai].initEvent(30, 0, 0.8, 0); // green event means agent reproduced.
+  agent_initevent(agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
   for (int i = 0; i < conf::BABIES; i++) {
 
-    Agent a2 = agents.agents[ai].reproduce(MR, MR2);
+    Agent a2;
+    agent_init(a2);
+    agent_reproduce(a2, agents.agents[ai], MR, MR2);
     a2.id = idcounter;
     idcounter++;
     avec_push_back(&agents, a2);

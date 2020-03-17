@@ -6,18 +6,7 @@
 
 #include <string>
 
-class Agent {
-public:
-  Agent();
-
-  void printSelf();
-  // for drawing purposes
-  void initEvent(float size, float r, float g, float b);
-
-  void tick();
-  Agent reproduce(float MR, float MR2);
-  Agent crossover(const Agent &other);
-
+struct Agent {
   Vector2f pos;
 
   float health; // in [0,2]. I cant remember why.
@@ -70,5 +59,12 @@ public:
   MLPBrain brain;
 
 };
+
+void agent_init(Agent& agent);
+void agent_print(Agent& agent);
+void agent_initevent(Agent& agent, float size, float r, float g, float b);
+void agent_tick(Agent& agent);
+void agent_reproduce(Agent& child, Agent& parent, float MR, float MR2);
+void agent_crossover(Agent& target, const Agent& agent1, const Agent& agent2);
 
 #endif // AGENT_H

@@ -40,7 +40,7 @@ const int REPORTS_PER_EPOCH =
     50; // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-const int NUMBOTS = 5000;    // initially
+const int NUMBOTS = 1000;    // initially
 const int NUMBOTS_MIN = 20; // for open world, the threshold to start adding
                             // bots
 const float BOTRADIUS = 10;    // for drawing
