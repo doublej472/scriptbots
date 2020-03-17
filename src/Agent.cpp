@@ -3,12 +3,13 @@
 #include "include/MLPBrain.h"
 #include "include/helpers.h"
 #include "include/settings.h"
+#include <cstring>
 #include <iostream>
 #include <stdio.h>
 #include <string>
 
 void agent_init(Agent& agent) {
-  agent.pos = Vector2f(randf(0, conf::WIDTH), randf(0, conf::HEIGHT));
+  vector2f_init(agent.pos, randf(0, conf::WIDTH), randf(0, conf::HEIGHT));
   agent.angle = randf(-M_PI, M_PI);
   agent.health = 1.0 + randf(0, 0.1);
   agent.touch = 0;
@@ -69,11 +70,12 @@ void agent_reproduce(Agent& child, Agent& parent, float MR, float MR2) {
   // spawn the baby somewhere closeby behind agent
   // we want to spawn behind so that agents dont accidentally eat their young
   // right away
-  Vector2f fb(conf::BOTRADIUS, 0);
-  fb.rotate(-child.angle);
-  child.pos = parent.pos + fb +
-           Vector2f(randf(-conf::BOTRADIUS * 2, conf::BOTRADIUS * 2),
-                    randf(-conf::BOTRADIUS * 2, conf::BOTRADIUS * 2));
+  Vector2f fb;
+  vector2f_init(fb, randf(conf::BOTRADIUS, conf::BOTRADIUS*3), 0);
+
+  vector2f_rotate(fb, -child.angle);
+  vector2f_add(child.pos, parent.pos, fb);
+
   if (child.pos.x < 0)
     child.pos.x = conf::WIDTH + child.pos.x;
   if (child.pos.x >= conf::WIDTH)

@@ -29,7 +29,7 @@ srcfiles = [
   'src/View.cpp',
   'src/World.cpp',
   'src/main.cpp',
-  'src/vmath.cpp'
+  'src/vec2f.cpp'
 ]
 
 if get_option('opengl')
@@ -44,3 +44,8 @@ endif
 
 executable('scriptbots', srcfiles, include_directories : configuration_inc,
 cpp_args: cppargs, dependencies : deps)
+
+test_vec2f = executable('test_vec2f', ['tests/vec2f.cpp', 'src/vec2f.cpp'],
+include_directories : configuration_inc)
+
+test('vec2f tests', test_vec2f)

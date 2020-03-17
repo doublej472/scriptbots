@@ -1,6 +1,7 @@
 #include "config.h"
 #include "include/GLView.h"
 #include <ctime>
+#include <cstring>
 #ifdef MAC_GLUT
 #include <GLUT/glut.h>
 #else

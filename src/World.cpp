@@ -6,9 +6,10 @@
 #include "include/vec.h"
 #include "include/helpers.h"
 #include "include/settings.h"
-#include "include/vmath.h"
+#include "include/vec2f.h"
 #include <omp.h> // OpenMP multithreading
 #include <stdio.h>
+#include <iostream>
 
 using namespace std;
 
@@ -207,7 +208,7 @@ void World::update() {
         // only carnivores get food. not same agent as dying
         if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
-          d = (agents.agents[i].pos - agents.agents[j].pos).length();
+          d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
           if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
             numaround++;
           }
@@ -227,7 +228,7 @@ void World::update() {
           // only carnivores get food. not same agent as dying
           if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
-            d = (agents.agents[i].pos - agents.agents[j].pos).length();
+            d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
             if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
@@ -401,7 +402,7 @@ void World::setInputsRunBrain() {
         continue;
 
       // standard distance formula (more fine grain)
-      float d = (a->pos - a2->pos).length();
+      float d = vector2f_dist(a->pos, a2->pos);
 
       if (d < conf::DIST) { // two bots are within DIST of each other
 
@@ -425,8 +426,8 @@ void World::setInputsRunBrain() {
                      (max(fabs(a2->w1), fabs(a2->w2)));
         }
 
-        float ang = (a2->pos - a->pos).get_angle(); // current angle between
-                                                    // bots
+        // current angle between bots
+        float ang = vector2f_angle_between(a->pos, a2->pos);
 
         // left and right eyes
         float leyeangle = a->angle - conf::PI8;
@@ -595,11 +596,14 @@ void World::processOutputs() {
 
     // Move bots
 
-    Vector2f v(conf::BOTRADIUS / 2, 0);
-    v.rotate(a->angle + M_PI / 2);
+    Vector2f v;
+    vector2f_init(v, conf::BOTRADIUS / 2, 0);
+    vector2f_rotate(v, a->angle + M_PI / 2);
 
-    Vector2f w1p = a->pos + v; // wheel positions
-    Vector2f w2p = a->pos - v;
+    Vector2f w1p;
+    Vector2f w2p;
+    vector2f_add(w1p, a->pos, v); // wheel positions
+    vector2f_sub(w2p, a->pos, v); // wheel positions
 
     float BW1 = conf::BOTSPEED * a->w1; // bot speed * wheel speed
     float BW2 = conf::BOTSPEED * a->w2;
@@ -610,15 +614,17 @@ void World::processOutputs() {
     }
 
     // move bots
-    Vector2f vv = w2p - a->pos;
-    vv.rotate(-BW1);
-    a->pos = w2p - vv;
+    Vector2f vv;
+    vector2f_sub(vv, w2p, a->pos);
+    vector2f_rotate(vv, -BW1);
+
+    vector2f_sub(a->pos, w2p, vv);
     a->angle -= BW1;
     if (a->angle < -M_PI)
       a->angle = M_PI - (-M_PI - a->angle);
-    vv = a->pos - w1p;
-    vv.rotate(BW2);
-    a->pos = w1p + vv;
+    vector2f_sub(vv, a->pos, w1p);
+    vector2f_rotate(vv, BW2);
+    vector2f_add(a->pos, w1p, vv);
     a->angle += BW2;
     if (a->angle > M_PI)
       a->angle = -M_PI + (a->angle - M_PI);
@@ -661,7 +667,7 @@ void World::processOutputs() {
 
     if (agents.agents[i].give > 0.5) {
       for (size_t j = 0; j < agents.size; j++) {
-        float d = (agents.agents[i].pos - agents.agents[j].pos).length();
+        float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
         if (d < conf::FOOD_SHARING_DISTANCE) {
           // initiate transfer
           if (agents.agents[j].health < 2)
@@ -684,14 +690,17 @@ void World::processOutputs() {
 
       if (i == j)
         continue;
-      float d = (agents.agents[i].pos - agents.agents[j].pos).length();
+      float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
 
       if (d < 2 * conf::BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
-        Vector2f v(1, 0);
-        v.rotate(agents.agents[i].angle);
-        float diff = v.angle_between(agents.agents[j].pos - agents.agents[i].pos);
+        Vector2f v;
+        vector2f_init(v, 1, 0);
+        vector2f_rotate(v, agents.agents[i].angle);
+        Vector2f tmp;
+        vector2f_sub(tmp, agents.agents[j].pos, agents.agents[i].pos);
+        float diff = vector2f_angle_between(v, tmp);
         if (fabs(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
           float DMG = conf::SPIKEMULT * agents.agents[i].spikeLength *
@@ -708,9 +717,10 @@ void World::processOutputs() {
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
-          Vector2f v2(1, 0);
-          v2.rotate(agents.agents[j].angle);
-          float adiff = v.angle_between(v2);
+          Vector2f v2;
+          vector2f_init(v2, 1, 0);
+          vector2f_rotate(v2, agents.agents[j].angle);
+          float adiff = vector2f_angle_between(v, v2);
           if (fabs(adiff) < M_PI / 2) {
             // this was attack from the back. Retract spike of the other agent
             // (startle!) this is done so that the other agent cant right away

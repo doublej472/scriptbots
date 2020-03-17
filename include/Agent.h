@@ -2,7 +2,7 @@
 #define AGENT_H
 
 #include "MLPBrain.h"
-#include "vmath.h"
+#include "vec2f.h"
 
 #include <string>
 
