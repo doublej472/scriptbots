@@ -2,7 +2,6 @@
 #define WORLD_H
 
 #include "Agent.h"
-#include "PerfTimer.h"
 #include "View.h"
 #include "settings.h"
 #include "vec.h"
@@ -72,8 +71,8 @@ private:
 
   bool touch;
 
-  double startTime;      // used for tracking fps
-  double totalStartTime; // used for deciding when to quit the simulation
+  struct timespec startTime;      // used for tracking fps
+  struct timespec totalStartTime; // used for deciding when to quit the simulation
 };
 
 #endif // WORLD_H

@@ -5,7 +5,6 @@
 
 #include "config.h"
 
-#include "include/PerfTimer.h"
 #include "include/World.h"
 #include <omp.h>
 #include "include/settings.h"
@@ -45,7 +44,6 @@ int MAX_SECONDS = INT_MAX;
 bool VERBOSE;
 bool HEADLESS;
 int NUM_THREADS;
-PerfTimer TIMER; // used throughout program to do benchmark timing
 
 // ---------------------------------------------------------------------------
 // Prototypes:
@@ -55,7 +53,6 @@ void runWithGraphics(int &argc, char **argv, Base &base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
-  TIMER = PerfTimer();
   VERBOSE = false; // Run in verbose mode
 #ifdef OPENGL
   HEADLESS = false;
@@ -247,17 +244,9 @@ void runWithGraphics(int &argc, char **argv, Base &base) {
 // ---------------------------------------------------------------------------
 void runHeadless(Base &base) {
 
-  if (VERBOSE)
-    TIMER.start("total");
-
   printf("Simulation Starting...\r");
   while (!kbhit() && !base.world->stopSim) {
     base.world->update();
-  }
-
-  if (VERBOSE) {
-    TIMER.end("total");
-    TIMER.printTimes();
   }
 
   base_saveworld(base);

@@ -1,7 +1,6 @@
 #include <ctime>
 #include <stdio.h>
 
-#include "include/PerfTimer.h"
 #include "include/World.h"
 #include "include/vec.h"
 #include "include/helpers.h"
@@ -9,6 +8,7 @@
 #include "include/vec2f.h"
 #include <omp.h> // OpenMP multithreading
 #include <stdio.h>
+#include <ctime>
 #include <iostream>
 
 using namespace std;
@@ -17,23 +17,17 @@ World::World()
     : stopSim(false), modcounter(0), current_epoch(0), idcounter(0),
       numAgentsAdded(0), FW(conf::WIDTH / conf::CZ),
       FH(conf::HEIGHT / conf::CZ) {
-  startTime = TIMER.getSimpleTime();
+  clock_gettime(CLOCK_MONOTONIC_RAW, &startTime);
 
   avec_init(&agents, conf::NUMBOTS);
 
-  if (VERBOSE)
-    TIMER.start("Bot creation");
-
   // Track total running time:
-  totalStartTime = TIMER.getSimpleTime();
+  clock_gettime(CLOCK_MONOTONIC_RAW, &totalStartTime);
 
   // create the bots but with 20% more carnivores, to give them head start
   addRandomBots(int(conf::NUMBOTS * .8));
   for (int i = 0; i < int(conf::NUMBOTS * .2); ++i)
     addCarnivore();
-
-  if (VERBOSE)
-    TIMER.end("Bot creation");
 
   // inititalize food layer
   srand(time(0));
@@ -79,27 +73,28 @@ void World::update() {
 
   // Update GUI every REPORTS_PER_EPOCH amount:
   if (conf::REPORTS_PER_EPOCH > 0 && (modcounter % conf::reportInterval == 0)) {
-    if (VERBOSE)
-      TIMER.start("write report");
     writeReport();
-    if (VERBOSE)
-      TIMER.end("write report");
 
     // Update GUI
-    double endTime = TIMER.getSimpleTime();
+    struct timespec endTime;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &endTime);
+    float deltat = (endTime.tv_sec - startTime.tv_sec) +
+      ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
+    float totaldeltat = (endTime.tv_sec - totalStartTime.tv_sec) +
+      ((endTime.tv_nsec - totalStartTime.tv_nsec) / 1000000.0);
 
     printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
            "%i - Time: %.2f sec     \r",
            current_epoch, modcounter / 100, int(agents.size),
-           int(conf::reportInterval / (endTime - startTime)),
-           (endTime - totalStartTime));
+           int(conf::reportInterval / deltat),
+           totaldeltat);
 
     startTime = endTime;
 
     // Check if simulation needs to end
 
     if (current_epoch >= MAX_EPOCHS ||
-        (endTime - totalStartTime) >= MAX_SECONDS)
+        (endTime.tv_sec - totalStartTime.tv_sec) >= MAX_SECONDS)
       stopSim = true;
   }
 
@@ -143,12 +138,6 @@ void World::update() {
   // give input to every agent. Sets in[] array. Runs brain
   setInputsRunBrain();
 
-  if (VERBOSE) // placeholderr
-  {
-    TIMER.start("brainsTick");
-    TIMER.end("brainsTick");
-  }
-
   // read output and process consequences of bots on environment. requires out[]
   processOutputs();
 
@@ -156,9 +145,6 @@ void World::update() {
   float dd, discomfort; // temperature preference vars
   int numaround;     // used for dead agents
   float d, agemult;     // used for dead agents
-
-  if (VERBOSE)
-    TIMER.start("Processing agent health");
 
   // process bots health
   for (size_t i = 0; i < agents.size; i++) {
@@ -264,23 +250,12 @@ void World::update() {
     }
   }
 
-  if (VERBOSE)
-    TIMER.end("Processing agent health");
-
-  if (VERBOSE)
-    TIMER.start("Deleting dead agents");
-
+  // Delete dead agents
   for (size_t i = 0; i < agents.size; i++) {
     if (agents.agents[i].health <= 0) {
       avec_delete(&agents, i);
     }
   }
-
-  if (VERBOSE)
-    TIMER.end("Deleting dead agents");
-
-  if (VERBOSE)
-    TIMER.start("Reproduction");
 
   // Handle reproduction
   for (size_t i = 0; i < agents.size; i++) {
@@ -303,12 +278,6 @@ void World::update() {
     }
   }
 
-  if (VERBOSE)
-    TIMER.end("Reproduction");
-
-  if (VERBOSE)
-    TIMER.start("Adding new agents");
-
   // add new agents, if environment isn't closed
   if (!CLOSED) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
@@ -325,9 +294,6 @@ void World::update() {
       }
     */
   }
-
-  if (VERBOSE)
-    TIMER.end("Adding new agents");
 }
 // Grow food around square
 void World::growFood(int x, int y) {
@@ -338,9 +304,6 @@ void World::growFood(int x, int y) {
 
 void World::setInputsRunBrain() {
   // See README.markdown for documentation of input ids
-
-  if (VERBOSE)
-    TIMER.start("setInputsRunBrain");
 
 #pragma omp parallel for
   for (size_t i = 0; i < agents.size; i++) {
@@ -564,15 +527,10 @@ void World::setInputsRunBrain() {
     agent_tick(*a);
   }
 
-  if (VERBOSE)
-    TIMER.end("setInputsRunBrain");
 }
 
 void World::processOutputs() {
   // See README.markdown for documentation of output ids
-
-  if (VERBOSE)
-    TIMER.start("processOutputs");
 
 #pragma omp parallel for
   for (size_t i = 0; i < agents.size; i++) {
@@ -734,9 +692,6 @@ void World::processOutputs() {
       }
     }
   }
-
-  if (VERBOSE)
-    TIMER.end("processOutputs");
 }
 
 void World::addRandomBots(int num) {

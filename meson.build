@@ -25,7 +25,6 @@ srcfiles = [
   'src/vec.cpp',
   'src/Base.cpp',
   'src/MLPBrain.cpp',
-  'src/PerfTimer.cpp',
   'src/View.cpp',
   'src/World.cpp',
   'src/main.cpp',

@@ -8,7 +8,6 @@
 #define SETTINGS_H
 
 // Includes
-#include "PerfTimer.h"
 #include <cmath> // for the math consts below
 
 // Global variables
@@ -17,7 +16,6 @@ extern bool HEADLESS;
 extern int NUM_THREADS;
 extern int MAX_EPOCHS;
 extern int MAX_SECONDS;
-extern PerfTimer TIMER; // used throughout program to do benchmark timing
 
 // Program configuration settings
 namespace conf {
