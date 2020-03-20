@@ -15,6 +15,10 @@ configuration_inc = [
 cpp = meson.get_compiler('cpp')
 cppargs = []
 
+if cpp.get_id() == 'clang'
+  add_global_link_arguments(['-lomp'], language: 'cpp')
+endif
+
 incdir = include_directories('include')
 
 deps = [
