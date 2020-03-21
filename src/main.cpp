@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   #ifdef OPENMP
   NUM_THREADS = get_nprocs();
   #endif
-  bool loadWorldFromFile = false;
+  int loadWorldFromFile = 0;
 
   // Retrieve command line arguments
   // -h: Run program headless
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
       VERBOSE = 1;
       break;
     case 'w':
-      loadWorldFromFile = true;
+      loadWorldFromFile = 1;
       break;
     case 'n':
       NUM_THREADS = atoi(optarg);

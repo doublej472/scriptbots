@@ -897,7 +897,7 @@ void World::processMouse(int button, int state, int x, int y) {
   }
 }
 
-void World::draw(View *view, bool drawfood) {
+void World::draw(View *view, int drawfood) {
   if (drawfood) {
     for (int i = 0; i < FW; i++) {
       for (int j = 0; j < FH; j++) {

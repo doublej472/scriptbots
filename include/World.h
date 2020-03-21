@@ -16,7 +16,7 @@ public:
   void update();
   void reset();
 
-  void draw(View *view, bool drawfood);
+  void draw(View *view, int drawfood);
 
   int isClosed();
   void setClosed(int close);

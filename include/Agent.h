@@ -7,12 +7,15 @@
 #include <string>
 
 struct Agent {
+  int touch : 1; // is bot close to wall?
+  int boost : 1; // is this agent boosting
+  int spiked : 1;
+  int hybrid : 1; // is this agent result of crossover?
+
   Vector2f pos;
 
   float health; // in [0,2]. I cant remember why.
   float angle;  // of the bot
-
-  bool touch; // is bot close to wall?
 
   float red;
   float gre;
@@ -20,12 +23,10 @@ struct Agent {
 
   float w1; // wheel speeds
   float w2;
-  bool boost; // is this agent boosting
 
   float spikeLength;
   int age;
 
-  bool spiked;
 
   float in[INPUTSIZE]; // input: 2 eyes, sensors for R,G,B,proximity each,
                          // then Sound, Smell, Health
@@ -33,7 +34,6 @@ struct Agent {
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
   int gencount;           // generation counter
-  bool hybrid;            // is this agent result of crossover?
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
   float soundmul; // sound multiplier of this bot. It can scream, or be very
                   // sneaky. This is actually always set to output 8
