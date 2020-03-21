@@ -18,8 +18,8 @@ public:
 
   void draw(View *view, bool drawfood);
 
-  bool isClosed() const;
-  void setClosed(bool close);
+  int isClosed();
+  void setClosed(int close);
 
   /**
    * Returns the number of herbivores and
@@ -65,8 +65,8 @@ private:
   int FH;
   int fx;
   int fy;
-  float food[conf::WIDTH / conf::CZ][conf::HEIGHT / conf::CZ];
-  bool CLOSED; // if environment is closed, then no random bots are added per
+  float food[WIDTH / CZ][HEIGHT / CZ];
+  int WORLD_CLOSED; // if environment is closed, then no random bots are added per
                // time interval
 
   bool touch;

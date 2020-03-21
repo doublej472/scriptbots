@@ -6,6 +6,7 @@
 #include "config.h"
 
 #include "include/World.h"
+#include "include/helpers.h"
 #include <omp.h>
 #include "include/settings.h"
 
@@ -41,8 +42,8 @@ GLView *GLVIEW = new GLView(); // only use when graphic support is enabled
 
 int MAX_EPOCHS = INT_MAX; // inifinity
 int MAX_SECONDS = INT_MAX;
-bool VERBOSE;
-bool HEADLESS;
+int VERBOSE;
+int HEADLESS;
 int NUM_THREADS;
 
 // ---------------------------------------------------------------------------
@@ -53,16 +54,14 @@ void runWithGraphics(int &argc, char **argv, Base &base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
-  VERBOSE = false; // Run in verbose mode
+  VERBOSE = 0; // Run in verbose mode
 #ifdef OPENGL
-  HEADLESS = false;
+  HEADLESS = 0;
 #else
-  HEADLESS = true;
+  HEADLESS = 1;
 #endif
   #ifdef OPENMP
-  NUM_THREADS =
-      omp_get_num_procs(); // Specifies the number of threads to use
-                           // Defaults to the number of available processors
+  NUM_THREADS = get_nprocs();
   #endif
   bool loadWorldFromFile = false;
 
@@ -76,10 +75,10 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "vhwn:e:s:")) != -1) {
     switch (c) {
     case 'h':
-      HEADLESS = true;
+      HEADLESS = 1;
       break;
     case 'v':
-      VERBOSE = true;
+      VERBOSE = 1;
       break;
     case 'w':
       loadWorldFromFile = true;
@@ -123,7 +122,7 @@ int main(int argc, char **argv) {
 #endif
 #ifdef OPENMP
   cout << "   OpenMP found!" << endl;
-  cout << "      " << omp_get_num_procs() << " processors available" << endl;
+  cout << "      " << get_nprocs() << " processors available" << endl;
   cout << "      Using " << NUM_THREADS << " threads" << endl;
   cout << "   Termination:" << endl;
   if (MAX_EPOCHS < INT_MAX)
@@ -133,10 +132,10 @@ int main(int argc, char **argv) {
 #else
   cout << "   OpenMP NOT found!" << endl;
 #endif
-  if (conf::WIDTH % conf::CZ != 0 || conf::HEIGHT % conf::CZ != 0) {
-    printf("   WARNING: The cell size variable conf::CZ should divide evenly "
-           "into conf::WIDTH");
-    printf(" and conf::HEIGHT\n");
+  if (WIDTH % CZ != 0 || HEIGHT % CZ != 0) {
+    printf("   WARNING: The cell size variable CZ should divide evenly "
+           "into WIDTH");
+    printf(" and HEIGHT\n");
   }
   if (HEADLESS) {
     cout << "   Headless Mode - No graphics\n";
@@ -224,7 +223,7 @@ void runWithGraphics(int &argc, char **argv, Base &base) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
   glutInitWindowPosition(30, 30);
-  glutInitWindowSize(conf::WWIDTH, conf::WHEIGHT);
+  glutInitWindowSize(WWIDTH, WHEIGHT);
   glutCreateWindow("Scriptbots");
   glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
   glutDisplayFunc(gl_renderScene);

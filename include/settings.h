@@ -8,17 +8,14 @@
 #define SETTINGS_H
 
 // Includes
-#include <cmath> // for the math consts below
+#include <math.h> // for the math consts below
 
 // Global variables
-extern bool VERBOSE;
-extern bool HEADLESS;
+extern int VERBOSE;
+extern int HEADLESS;
 extern int NUM_THREADS;
 extern int MAX_EPOCHS;
 extern int MAX_SECONDS;
-
-// Program configuration settings
-namespace conf {
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 // const int WIDTH = 2000;  //width and height of simulation world
@@ -31,7 +28,7 @@ const int WHEIGHT = 1000;
 const int CZ = 50; // cell size in pixels, for food squares. Should divide well
                    // into Width Height
 
-const bool CLOSED = false; // world is closed and no new agents are added
+const int CLOSED = 0; // world is closed and no new agents are added
 
 // REPORTING --------------------------------------------------
 const int REPORTS_PER_EPOCH =
@@ -67,10 +64,8 @@ const float REP_MIN_HEALTH =
     .75; // health level required of agent before it can reproduce
 
 // HEALTH DEDUCTIONS
-// const float LOSS_BASE     = 0.0001; // loss of health for simply being alive
-// (like breathing)
-const float LOSS_BASE =
-    0.00010; // loss of health for simply being alive (like breathing)
+// loss of health for simply being alive (like breathing)
+const float LOSS_BASE = 0.00010;
 const float LOSS_SHOUTING = 0.00005; // loss of health from shouting
 const float LOSS_SPEED = 0.00005;    // loss of health for movement speed
 const float LOSS_TEMP =
@@ -110,7 +105,5 @@ const float FOOD_DISTRIBUTION_RADIUS =
 const float PI8 = M_PI / 8 / 2; // pi/8/2
 const float PI38 = 3 * PI8;     // 3pi/8/2
 const int reportInterval = 10000 / REPORTS_PER_EPOCH;
-
-} // namespace conf
 
 #endif

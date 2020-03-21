@@ -3,7 +3,6 @@
 
 #include "Base.h"
 #include "View.h"
-#include "World.h"
 
 class GLView;
 

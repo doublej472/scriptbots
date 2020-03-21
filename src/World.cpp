@@ -15,18 +15,18 @@ using namespace std;
 
 World::World()
     : stopSim(false), modcounter(0), current_epoch(0), idcounter(0),
-      numAgentsAdded(0), FW(conf::WIDTH / conf::CZ),
-      FH(conf::HEIGHT / conf::CZ) {
+      numAgentsAdded(0), FW(WIDTH / CZ),
+      FH(HEIGHT / CZ) {
   clock_gettime(CLOCK_MONOTONIC_RAW, &startTime);
 
-  avec_init(&agents, conf::NUMBOTS);
+  avec_init(&agents, NUMBOTS);
 
   // Track total running time:
   clock_gettime(CLOCK_MONOTONIC_RAW, &totalStartTime);
 
   // create the bots but with 20% more carnivores, to give them head start
-  addRandomBots(int(conf::NUMBOTS * .8));
-  for (int i = 0; i < int(conf::NUMBOTS * .2); ++i)
+  addRandomBots(int(NUMBOTS * .8));
+  for (int i = 0; i < int(NUMBOTS * .2); ++i)
     addCarnivore();
 
   // inititalize food layer
@@ -38,7 +38,7 @@ World::World()
 
       rand1 = randf(0, 1);
       if (rand1 > .5) {
-        food[x][y] = rand1 * conf::FOODMAX;
+        food[x][y] = rand1 * FOODMAX;
       } else {
         food[x][y] = 0;
       }
@@ -46,7 +46,7 @@ World::World()
   }
 
   // Decide if world if closed based on settings.h
-  CLOSED = conf::CLOSED;
+  WORLD_CLOSED = CLOSED;
 
   // Delete the old report to start fresh
   remove("report.csv");
@@ -83,7 +83,7 @@ void World::update() {
   }
 
   // Update GUI every REPORTS_PER_EPOCH amount:
-  if (conf::REPORTS_PER_EPOCH > 0 && (modcounter % conf::reportInterval == 0)) {
+  if (REPORTS_PER_EPOCH > 0 && (modcounter % reportInterval == 0)) {
     writeReport();
 
     // Update GUI
@@ -101,7 +101,7 @@ void World::update() {
     printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
            "%i - Time: %.2f sec     \r",
            current_epoch, modcounter / 100, int(agents.size),
-           int(conf::reportInterval / deltat),
+           int(reportInterval / deltat),
            totaldeltat);
 
     startTime = endTime;
@@ -114,9 +114,9 @@ void World::update() {
   }
 
   // What kind of food method are we using?
-  if (conf::FOOD_MODEL == conf::FOOD_MODEL_GROW) {
+  if (FOOD_MODEL == FOOD_MODEL_GROW) {
     // GROW food enviroment model
-    if (modcounter % conf::FOODADDFREQ == 0) {
+    if (modcounter % FOODADDFREQ == 0) {
       for (int x = 0; x < FW; ++x) {
         for (int y = 0; y < FH; ++y) {
           // only grow if not dead
@@ -143,10 +143,10 @@ void World::update() {
     }
   } else {
     // Add Random food model - default
-    if (modcounter % conf::FOODADDFREQ == 0) {
+    if (modcounter % FOODADDFREQ == 0) {
       fx = randi(0, FW);
       fy = randi(0, FH);
-      food[fx][fy] = conf::FOODMAX;
+      food[fx][fy] = FOODMAX;
     }
   }
 
@@ -158,36 +158,35 @@ void World::update() {
 
   float healthloss;     // amount of health lost
   float dd, discomfort; // temperature preference vars
-  int numaround;     // used for dead agents
   float d, agemult;     // used for dead agents
 
   // process bots health
   for (size_t i = 0; i < agents.size; i++) {
-    healthloss = conf::LOSS_BASE; // base amount of health lost every turn for
+    healthloss = LOSS_BASE; // base amount of health lost every turn for
                                   // being alive
 
     // remove health based on wheel speed
     if (agents.agents[i].boost) { // is using boost
-      healthloss += conf::LOSS_SPEED * conf::BOTSPEED *
+      healthloss += LOSS_SPEED * BOTSPEED *
                     (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) *
-                    conf::BOOSTSIZEMULT * agents.agents[i].boost;
+                    BOOSTSIZEMULT * agents.agents[i].boost;
     } else { // no boost
-      healthloss += conf::LOSS_SPEED * conf::BOTSPEED *
+      healthloss += LOSS_SPEED * BOTSPEED *
                     (abs(agents.agents[i].w1) + abs(agents.agents[i].w2));
     }
 
     // shouting costs energy.
-    healthloss += conf::LOSS_SHOUTING * agents.agents[i].soundmul;
+    healthloss += LOSS_SHOUTING * agents.agents[i].soundmul;
 
     // process temperature preferences
     // calculate temperature at the agents spot. (based on distance from
     // equator)
-    dd = 2.0 * abs(agents.agents[i].pos.x / conf::WIDTH - 0.5);
+    dd = 2.0 * abs(agents.agents[i].pos.x / WIDTH - 0.5);
     discomfort = abs(dd - agents.agents[i].temperature_preference);
     discomfort = discomfort * discomfort;
     if (discomfort < 0.08)
       discomfort = 0;
-    healthloss += conf::LOSS_TEMP * discomfort;
+    healthloss += LOSS_TEMP * discomfort;
 
     // apply the health changes
     agents.agents[i].health -= healthloss;
@@ -204,13 +203,13 @@ void World::update() {
 
       // distribute its food. It will be erased soon
       // first figure out how many are around, to distribute this evenly
-      numaround = 0;
+      int numaround = 0;
       for (size_t j = 0; j < agents.size; j++) {
         // only carnivores get food. not same agent as dying
         if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
           d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
-          if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
+          if (d < FOOD_DISTRIBUTION_RADIUS) {
             numaround++;
           }
         }
@@ -230,7 +229,7 @@ void World::update() {
           if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
 
             d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
-            if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
+            if (d < FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
                       coefficient = 5
@@ -258,9 +257,9 @@ void World::update() {
         }
       } else {
         // if no agents are around to eat it, it becomes regular food
-        food[(int)agents.agents[i].pos.x / conf::CZ][(int)agents.agents[i].pos.y / conf::CZ] =
-            conf::FOOD_DEAD *
-            conf::FOODMAX; // since it was dying it is not much food
+        food[(int)agents.agents[i].pos.x / CZ][(int)agents.agents[i].pos.y / CZ] =
+            FOOD_DEAD *
+            FOODMAX; // since it was dying it is not much food
       }
     }
   }
@@ -274,29 +273,29 @@ void World::update() {
 
   // Handle reproduction
   for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].repcounter < 0 && agents.agents[i].health > conf::REP_MIN_HEALTH &&
+    if (agents.agents[i].repcounter < 0 && agents.agents[i].health > REP_MIN_HEALTH &&
         modcounter % 15 == 0 && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
       // the parent splits it health evenly with all of its babies
-      agents.agents[i].health -= agents.agents[i].health / (conf::BABIES + 1);
+      agents.agents[i].health -= agents.agents[i].health / (BABIES + 1);
 
-      // add conf::BABIES new agents to agents[]
+      // add BABIES new agents to agents[]
       reproduce(i, agents.agents[i].MUTRATE1, agents.agents[i].MUTRATE2);
 
       agents.agents[i].repcounter =
           agents.agents[i].herbivore *
-              randf(conf::REPRATEH - 0.1, conf::REPRATEH + 0.1) +
+              randf(REPRATEH - 0.1, REPRATEH + 0.1) +
           (1 - agents.agents[i].herbivore) *
-              randf(conf::REPRATEC - 0.1, conf::REPRATEC + 0.1);
+              randf(REPRATEC - 0.1, REPRATEC + 0.1);
     }
   }
 
   // add new agents, if environment isn't closed
-  if (!CLOSED) {
+  if (!WORLD_CLOSED) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
-    if (agents.size < conf::NUMBOTS_MIN) {
+    if (agents.size < NUMBOTS_MIN) {
       addRandomBots(10); // add new agent
     }
     /*
@@ -313,8 +312,8 @@ void World::update() {
 // Grow food around square
 void World::growFood(int x, int y) {
   // check if food square is inside the world
-  if (food[x][y] < conf::FOODMAX && x >= 0 && x < FW && y >= 0 && y < FH)
-    food[x][y] += conf::FOODGROWTH;
+  if (food[x][y] < FOODMAX && x >= 0 && x < FW && y >= 0 && y < FH)
+    food[x][y] += FOODGROWTH;
 }
 
 void World::setInputsRunBrain() {
@@ -338,9 +337,9 @@ void World::setInputsRunBrain() {
       a->age++;
 
     // FOOD
-    int cx = (int)a->pos.x / conf::CZ;
-    int cy = (int)a->pos.y / conf::CZ;
-    a->in[4] = food[cx][cy] / conf::FOODMAX;
+    int cx = (int)a->pos.x / CZ;
+    int cy = (int)a->pos.y / CZ;
+    a->in[4] = food[cx][cy] / FOODMAX;
 
     // SOUND SMELL EYES
     float p1 = 0;
@@ -373,34 +372,34 @@ void World::setInputsRunBrain() {
       Agent *a2 = &agents.agents[j];
 
       // Do manhattan-distance estimation
-      if (a->pos.x < a2->pos.x - conf::DIST ||
-          a->pos.x > a2->pos.x + conf::DIST ||
-          a->pos.y > a2->pos.y + conf::DIST ||
-          a->pos.y < a2->pos.y - conf::DIST)
+      if (a->pos.x < a2->pos.x - DIST ||
+          a->pos.x > a2->pos.x + DIST ||
+          a->pos.y > a2->pos.y + DIST ||
+          a->pos.y < a2->pos.y - DIST)
         continue;
 
       // standard distance formula (more fine grain)
       float d = vector2f_dist(a->pos, a2->pos);
 
-      if (d < conf::DIST) { // two bots are within DIST of each other
+      if (d < DIST) { // two bots are within DIST of each other
 
         // smell
-        smaccum += 0.3 * (conf::DIST - d) / conf::DIST;
+        smaccum += 0.3 * (DIST - d) / DIST;
 
         // hearing. (listening to other agents shouting)
-        hearaccum += a2->soundmul * (conf::DIST - d) / conf::DIST;
+        hearaccum += a2->soundmul * (DIST - d) / DIST;
 
         // more fine-tuned closeness
-        if (d < conf::DIST_GROUPING) {
+        if (d < DIST_GROUPING) {
           // grouping health bonus for each agent near by
           // health gain is most when two bots are just at threshold, is less
           // when they are ontop each other
-          float ratio = (1 - (conf::DIST_GROUPING - d) / conf::DIST_GROUPING);
-          health_gain += conf::GAIN_GROUPING * ratio;
+          float ratio = (1 - (DIST_GROUPING - d) / DIST_GROUPING);
+          health_gain += GAIN_GROUPING * ratio;
           agent_initevent(*a, 5 * ratio, .5, .5, .5); // visualize it
 
           // sound (number of agents nearby)
-          soaccum += 0.4 * (conf::DIST - d) / conf::DIST *
+          soaccum += 0.4 * (DIST - d) / DIST *
                      (max(fabs(a2->w1), fabs(a2->w2)));
         }
 
@@ -408,8 +407,8 @@ void World::setInputsRunBrain() {
         float ang = vector2f_angle_between(a->pos, a2->pos);
 
         // left and right eyes
-        float leyeangle = a->angle - conf::PI8;
-        float reyeangle = a->angle + conf::PI8;
+        float leyeangle = a->angle - PI8;
+        float reyeangle = a->angle + PI8;
         float backangle = a->angle + M_PI;
         float forwangle = a->angle;
         if (leyeangle < -M_PI)
@@ -435,46 +434,46 @@ void World::setInputsRunBrain() {
           diff4 = 2 * M_PI - fabs(forwangle);
         diff4 = fabs(diff4);
 
-        if (diff1 < conf::PI38) {
+        if (diff1 < PI38) {
           // we see this agent with left eye. Accumulate info
-          float mul1 = conf::EYE_SENSITIVITY *
-                       ((conf::PI38 - diff1) / conf::PI38) *
-                       ((conf::DIST - d) / conf::DIST);
-          // float mul1= 100*((conf::DIST-d)/conf::DIST);
-          p1 += mul1 * (d / conf::DIST);
+          float mul1 = EYE_SENSITIVITY *
+                       ((PI38 - diff1) / PI38) *
+                       ((DIST - d) / DIST);
+          // float mul1= 100*((DIST-d)/DIST);
+          p1 += mul1 * (d / DIST);
           r1 += mul1 * a2->red;
           g1 += mul1 * a2->gre;
           b1 += mul1 * a2->blu;
         }
 
-        if (diff2 < conf::PI38) {
+        if (diff2 < PI38) {
           // we see this agent with left eye. Accumulate info
-          float mul2 = conf::EYE_SENSITIVITY *
-                       ((conf::PI38 - diff2) / conf::PI38) *
-                       ((conf::DIST - d) / conf::DIST);
-          // float mul2= 100*((conf::DIST-d)/conf::DIST);
-          p2 += mul2 * (d / conf::DIST);
+          float mul2 = EYE_SENSITIVITY *
+                       ((PI38 - diff2) / PI38) *
+                       ((DIST - d) / DIST);
+          // float mul2= 100*((DIST-d)/DIST);
+          p2 += mul2 * (d / DIST);
           r2 += mul2 * a2->red;
           g2 += mul2 * a2->gre;
           b2 += mul2 * a2->blu;
         }
 
-        if (diff3 < conf::PI38) {
+        if (diff3 < PI38) {
           // we see this agent with back eye. Accumulate info
-          float mul3 = conf::EYE_SENSITIVITY *
-                       ((conf::PI38 - diff3) / conf::PI38) *
-                       ((conf::DIST - d) / conf::DIST);
-          // float mul2= 100*((conf::DIST-d)/conf::DIST);
-          p3 += mul3 * (d / conf::DIST);
+          float mul3 = EYE_SENSITIVITY *
+                       ((PI38 - diff3) / PI38) *
+                       ((DIST - d) / DIST);
+          // float mul2= 100*((DIST-d)/DIST);
+          p3 += mul3 * (d / DIST);
           r3 += mul3 * a2->red;
           g3 += mul3 * a2->gre;
           b3 += mul3 * a2->blu;
         }
 
-        if (diff4 < conf::PI38) {
-          float mul4 = conf::BLOOD_SENSITIVITY *
-                       ((conf::PI38 - diff4) / conf::PI38) *
-                       ((conf::DIST - d) / conf::DIST);
+        if (diff4 < PI38) {
+          float mul4 = BLOOD_SENSITIVITY *
+                       ((PI38 - diff4) / PI38) *
+                       ((DIST - d) / DIST);
           // if we can see an agent close with both eyes in front of us
           blood +=
               mul4 * (1 - a2->health / 2); // remember: health is in [0 2]
@@ -484,8 +483,8 @@ void World::setInputsRunBrain() {
     }
 
     // APPLY HEALTH GAIN
-    if (health_gain > conf::GAIN_GROUPING) // cap at conf value
-      a->health += conf::GAIN_GROUPING;
+    if (health_gain > GAIN_GROUPING) // cap at conf value
+      a->health += GAIN_GROUPING;
     else
       a->health += health_gain;
 
@@ -493,8 +492,8 @@ void World::setInputsRunBrain() {
       a->health = 2;
 
     // TOUCH (wall)
-    if (a->pos.x < 2 || a->pos.x > conf::WIDTH - 3 || a->pos.y < 2 ||
-        a->pos.y > conf::HEIGHT - 3)
+    if (a->pos.x < 2 || a->pos.x > WIDTH - 3 || a->pos.y < 2 ||
+        a->pos.y > HEIGHT - 3)
       // they are very close to the wall (1 or 2 pixels)
       touch = 1;
     else
@@ -503,7 +502,7 @@ void World::setInputsRunBrain() {
     // temperature varies from 0 to 1 across screen.
     // it is 0 at equator (in middle), and 1 on edges. Agents can sense
     // discomfort
-    float dd = 2.0 * abs(a->pos.x / conf::WIDTH - 0.5);
+    float dd = 2.0 * abs(a->pos.x / WIDTH - 0.5);
     float discomfort = abs(dd - a->temperature_preference);
 
     a->in[0] = cap(p1);
@@ -563,14 +562,14 @@ void World::processOutputs() {
     // spike length should slowly tend towards out[5]
     float g = a->out[5];
     if (a->spikeLength < g)
-      a->spikeLength += conf::SPIKESPEED;
+      a->spikeLength += SPIKESPEED;
     else if (a->spikeLength > g)
       a->spikeLength = g; // its easy to retract spike, just hard to put it up.
 
     // Move bots
 
     Vector2f v;
-    vector2f_init(v, conf::BOTRADIUS / 2, 0);
+    vector2f_init(v, BOTRADIUS / 2, 0);
     vector2f_rotate(v, a->angle + M_PI / 2);
 
     Vector2f w1p;
@@ -578,12 +577,12 @@ void World::processOutputs() {
     vector2f_add(w1p, a->pos, v); // wheel positions
     vector2f_sub(w2p, a->pos, v); // wheel positions
 
-    float BW1 = conf::BOTSPEED * a->w1; // bot speed * wheel speed
-    float BW2 = conf::BOTSPEED * a->w2;
+    float BW1 = BOTSPEED * a->w1; // bot speed * wheel speed
+    float BW2 = BOTSPEED * a->w2;
 
     if (a->boost) {
-      BW1 = BW1 * conf::BOOSTSIZEMULT;
-      BW2 = BW2 * conf::BOOSTSIZEMULT;
+      BW1 = BW1 * BOOSTSIZEMULT;
+      BW2 = BW2 * BOOSTSIZEMULT;
     }
 
     // move bots
@@ -603,36 +602,36 @@ void World::processOutputs() {
       a->angle = -M_PI + (a->angle - M_PI);
 
     // wrap around the map
-    /*if (a->pos.x<0) a->pos.x= conf::WIDTH+a->pos.x;
-              if (a->pos.x>=conf::WIDTH) a->pos.x= a->pos.x-conf::WIDTH;
-              if (a->pos.y<0) a->pos.y= conf::HEIGHT+a->pos.y;
-              if (a->pos.y>=conf::HEIGHT) a->pos.y= a->pos.y-conf::HEIGHT;*/
+    /*if (a->pos.x<0) a->pos.x= WIDTH+a->pos.x;
+              if (a->pos.x>=WIDTH) a->pos.x= a->pos.x-WIDTH;
+              if (a->pos.y<0) a->pos.y= HEIGHT+a->pos.y;
+              if (a->pos.y>=HEIGHT) a->pos.y= a->pos.y-HEIGHT;*/
 
     // have peetree dish borders
     if (a->pos.x < 0)
       a->pos.x = 0;
-    if (a->pos.x >= conf::WIDTH)
-      a->pos.x = conf::WIDTH - 1;
+    if (a->pos.x >= WIDTH)
+      a->pos.x = WIDTH - 1;
     if (a->pos.y < 0)
       a->pos.y = 0;
-    if (a->pos.y >= conf::HEIGHT)
-      a->pos.y = conf::HEIGHT - 1;
+    if (a->pos.y >= HEIGHT)
+      a->pos.y = HEIGHT - 1;
 
     // process food intake
 
-    int cx = (int)agents.agents[i].pos.x / conf::CZ;
-    int cy = (int)agents.agents[i].pos.y / conf::CZ;
+    int cx = (int)agents.agents[i].pos.x / CZ;
+    int cy = (int)agents.agents[i].pos.y / CZ;
     float f = food[cx][cy];
     if (f > 0 && agents.agents[i].health < 2) {
       // agent eats the food
-      float itk = min(f, conf::FOODINTAKE);
+      float itk = min(f, FOODINTAKE);
       float speedmul =
           (1 - (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) / 2) * 0.6 + 0.4;
       itk = itk * agents.agents[i].herbivore *
             speedmul; // herbivores gain more from ground food
       agents.agents[i].health += itk;
       agents.agents[i].repcounter -= 3 * itk;
-      food[cx][cy] -= min(f, conf::FOODWASTE);
+      food[cx][cy] -= min(f, FOODWASTE);
     }
 
     // process giving and receiving of food
@@ -641,13 +640,13 @@ void World::processOutputs() {
     if (agents.agents[i].give > 0.5) {
       for (size_t j = 0; j < agents.size; j++) {
         float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
-        if (d < conf::FOOD_SHARING_DISTANCE) {
+        if (d < FOOD_SHARING_DISTANCE) {
           // initiate transfer
           if (agents.agents[j].health < 2)
-            agents.agents[j].health += conf::FOODTRANSFER;
-          agents.agents[i].health -= conf::FOODTRANSFER;
-          agents.agents[j].dfood += conf::FOODTRANSFER; // only for drawing
-          agents.agents[i].dfood -= conf::FOODTRANSFER;
+            agents.agents[j].health += FOODTRANSFER;
+          agents.agents[i].health -= FOODTRANSFER;
+          agents.agents[j].dfood += FOODTRANSFER; // only for drawing
+          agents.agents[i].dfood -= FOODTRANSFER;
         }
       }
     }
@@ -665,7 +664,7 @@ void World::processOutputs() {
         continue;
       float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
 
-      if (d < 2 * conf::BOTRADIUS) {
+      if (d < 2 * BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         Vector2f v;
@@ -676,9 +675,9 @@ void World::processOutputs() {
         float diff = vector2f_angle_between(v, tmp);
         if (fabs(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
-          float DMG = conf::SPIKEMULT * agents.agents[i].spikeLength *
+          float DMG = SPIKEMULT * agents.agents[i].spikeLength *
                       max(fabs(agents.agents[i].w1), fabs(agents.agents[i].w2)) *
-                      conf::BOOSTSIZEMULT;
+                      BOOSTSIZEMULT;
 
           agents.agents[j].health -= DMG;
 
@@ -768,7 +767,7 @@ void World::reproduce(int ai, float MR, float MR2) {
     MR2 = MR2 * randf(1, 10);
 
   agent_initevent(agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
-  for (int i = 0; i < conf::BABIES; i++) {
+  for (int i = 0; i < BABIES; i++) {
 
     Agent a2;
     agent_init(a2);
@@ -864,13 +863,13 @@ void World::writeReport() {
 
 void World::reset() {
   avec_free(&agents);
-  avec_init(&agents, conf::NUMBOTS + 10);
-  addRandomBots(conf::NUMBOTS);
+  avec_init(&agents, NUMBOTS + 10);
+  addRandomBots(NUMBOTS);
 }
 
-void World::setClosed(bool close) { CLOSED = close; }
+void World::setClosed(int close) { WORLD_CLOSED = close; }
 
-bool World::isClosed() const { return CLOSED; }
+int World::isClosed() { return WORLD_CLOSED; }
 
 void World::processMouse(int button, int state, int x, int y) {
   if (state == 0) {
@@ -902,7 +901,7 @@ void World::draw(View *view, bool drawfood) {
   if (drawfood) {
     for (int i = 0; i < FW; i++) {
       for (int j = 0; j < FH; j++) {
-        float f = 0.5 * food[i][j] / conf::FOODMAX;
+        float f = 0.5 * food[i][j] / FOODMAX;
         view->drawFood(i, j, f);
       }
     }

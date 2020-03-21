@@ -46,16 +46,16 @@ GLView::GLView()
       paused(false), draw(true), skipdraw(1), drawfood(true),
       modcounter(0), lastUpdate(0), frames(0) {
 
-  xtranslate = -conf::WIDTH / 2;
-  ytranslate = -conf::HEIGHT / 2;
+  xtranslate = -WIDTH / 2;
+  ytranslate = -HEIGHT / 2;
   scalemult = 0.4; // 1.0;
   downb[0] = 0;
   downb[1] = 0;
   downb[2] = 0;
   mousex = 0;
   mousey = 0;
-  wwidth = conf::WWIDTH;
-  wheight = conf::WHEIGHT;
+  wwidth = WWIDTH;
+  wheight = WHEIGHT;
 }
 
 GLView::~GLView() {}
@@ -216,15 +216,15 @@ void GLView::renderScene() {
 
 void GLView::drawAgent(const Agent &agent) {
   float n;
-  float r = conf::BOTRADIUS;
-  float rp = conf::BOTRADIUS + 2;
+  float r = BOTRADIUS;
+  float rp = BOTRADIUS + 2;
   // handle selected agent
   if (agent.selectflag > 0) {
 
     // draw selection
     glBegin(GL_POLYGON);
     glColor3f(1, 1, 0);
-    drawCircle(agent.pos.x, agent.pos.y, conf::BOTRADIUS + 5);
+    drawCircle(agent.pos.x, agent.pos.y, BOTRADIUS + 5);
     glEnd();
 
     glPushMatrix();
@@ -277,7 +277,7 @@ void GLView::drawAgent(const Agent &agent) {
   // draw giving/receiving
   if (agent.dfood != 0) {
     glBegin(GL_POLYGON);
-    float mag = cap(abs(agent.dfood) / conf::FOODTRANSFER / 3);
+    float mag = cap(abs(agent.dfood) / FOODTRANSFER / 3);
     if (agent.dfood > 0)
       glColor3f(0, mag, 0); // draw boost as green outline
     else
@@ -296,7 +296,7 @@ void GLView::drawAgent(const Agent &agent) {
     glBegin(GL_POLYGON);
     glColor3f(agent.ir, agent.ig, agent.ib);
     drawCircle(agent.pos.x, agent.pos.y,
-               conf::BOTRADIUS + ((int)agent.indicator));
+               BOTRADIUS + ((int)agent.indicator));
     glEnd();
   }
 
@@ -309,28 +309,28 @@ void GLView::drawAgent(const Agent &agent) {
       continue;
     glVertex3f(agent.pos.x, agent.pos.y, 0);
     glVertex3f(
-        agent.pos.x + (conf::BOTRADIUS * 4) * cos(agent.angle + j * M_PI / 8),
-        agent.pos.y + (conf::BOTRADIUS * 4) * sin(agent.angle + j * M_PI / 8),
+        agent.pos.x + (BOTRADIUS * 4) * cos(agent.angle + j * M_PI / 8),
+        agent.pos.y + (BOTRADIUS * 4) * sin(agent.angle + j * M_PI / 8),
         0);
   }
   // and eye to the back
   glVertex3f(agent.pos.x, agent.pos.y, 0);
-  glVertex3f(agent.pos.x + (conf::BOTRADIUS * 1.5) *
+  glVertex3f(agent.pos.x + (BOTRADIUS * 1.5) *
                                cos(agent.angle + M_PI + 3 * M_PI / 16),
-             agent.pos.y + (conf::BOTRADIUS * 1.5) *
+             agent.pos.y + (BOTRADIUS * 1.5) *
                                sin(agent.angle + M_PI + 3 * M_PI / 16),
              0);
   glVertex3f(agent.pos.x, agent.pos.y, 0);
-  glVertex3f(agent.pos.x + (conf::BOTRADIUS * 1.5) *
+  glVertex3f(agent.pos.x + (BOTRADIUS * 1.5) *
                                cos(agent.angle + M_PI - 3 * M_PI / 16),
-             agent.pos.y + (conf::BOTRADIUS * 1.5) *
+             agent.pos.y + (BOTRADIUS * 1.5) *
                                sin(agent.angle + M_PI - 3 * M_PI / 16),
              0);
   glEnd();
 
   glBegin(GL_POLYGON); // body
   glColor3f(agent.red, agent.gre, agent.blu);
-  drawCircle(agent.pos.x, agent.pos.y, conf::BOTRADIUS);
+  drawCircle(agent.pos.x, agent.pos.y, BOTRADIUS);
   glEnd();
 
   glBegin(GL_LINES);
@@ -397,7 +397,7 @@ void GLView::drawAgent(const Agent &agent) {
   // draw giving/receiving
   if (agent.dfood != 0) {
 
-    float mag = cap(abs(agent.dfood) / conf::FOODTRANSFER / 3);
+    float mag = cap(abs(agent.dfood) / FOODTRANSFER / 3);
     if (agent.dfood > 0)
       glColor3f(0, mag, 0); // draw boost as green outline
     else
@@ -414,25 +414,25 @@ void GLView::drawAgent(const Agent &agent) {
   if (scalemult > .7) {
     // generation count
     sprintf(buf2, "%i", agent.gencount);
-    RenderString(agent.pos.x - conf::BOTRADIUS * 1.5,
-                 agent.pos.y + conf::BOTRADIUS * 1.8,
+    RenderString(agent.pos.x - BOTRADIUS * 1.5,
+                 agent.pos.y + BOTRADIUS * 1.8,
                  GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
     // age
     sprintf(buf2, "%i", agent.age);
-    RenderString(agent.pos.x - conf::BOTRADIUS * 1.5,
-                 agent.pos.y + conf::BOTRADIUS * 1.8 + 12,
+    RenderString(agent.pos.x - BOTRADIUS * 1.5,
+                 agent.pos.y + BOTRADIUS * 1.8 + 12,
                  GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
 
     // health
     sprintf(buf2, "%.2f", agent.health);
-    RenderString(agent.pos.x - conf::BOTRADIUS * 1.5,
-                 agent.pos.y + conf::BOTRADIUS * 1.8 + 24,
+    RenderString(agent.pos.x - BOTRADIUS * 1.5,
+                 agent.pos.y + BOTRADIUS * 1.8 + 24,
                  GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
 
     // repcounter
     sprintf(buf2, "%.2f", agent.repcounter);
-    RenderString(agent.pos.x - conf::BOTRADIUS * 1.5,
-                 agent.pos.y + conf::BOTRADIUS * 1.8 + 36,
+    RenderString(agent.pos.x - BOTRADIUS * 1.5,
+                 agent.pos.y + BOTRADIUS * 1.8 + 36,
                  GLUT_BITMAP_TIMES_ROMAN_24, buf2, 0.0f, 0.0f, 0.0f);
   }
 }
@@ -442,10 +442,10 @@ void GLView::drawFood(int x, int y, float quantity) {
   if (drawfood) {
     glBegin(GL_QUADS);
     glColor3f(0.9 - quantity, 0.9 - quantity, 1.0 - quantity);
-    glVertex3f(x * conf::CZ, y * conf::CZ, 0);
-    glVertex3f(x * conf::CZ + conf::CZ, y * conf::CZ, 0);
-    glVertex3f(x * conf::CZ + conf::CZ, y * conf::CZ + conf::CZ, 0);
-    glVertex3f(x * conf::CZ, y * conf::CZ + conf::CZ, 0);
+    glVertex3f(x * CZ, y * CZ, 0);
+    glVertex3f(x * CZ + CZ, y * CZ, 0);
+    glVertex3f(x * CZ + CZ, y * CZ + CZ, 0);
+    glVertex3f(x * CZ, y * CZ + CZ, 0);
     glEnd();
   }
 }

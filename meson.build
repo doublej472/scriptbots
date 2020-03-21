@@ -27,6 +27,7 @@ deps = [
 srcfiles = [
   'src/Agent.cpp',
   'src/vec.cpp',
+  'src/helpers.cpp',
   'src/Base.cpp',
   'src/MLPBrain.cpp',
   'src/View.cpp',
