@@ -229,13 +229,12 @@ void GLView::drawAgent(const Agent &agent) {
     glPushMatrix();
     glTranslatef(agent.pos.x - 80, agent.pos.y + 20, 0);
     // draw inputs, outputs
-    float col;
     float yy = 15;
     float xx = 15;
     float ss = 16;
     glBegin(GL_QUADS);
     for (int j = 0; j < INPUTSIZE; j++) {
-      col = agent.in[j];
+      float col = agent.in[j];
       glColor3f(col, col, col);
       glVertex3f(0 + ss * j, 0, 0.0f);
       glVertex3f(xx + ss * j, 0, 0.0f);
@@ -244,7 +243,7 @@ void GLView::drawAgent(const Agent &agent) {
     }
     yy += 5;
     for (int j = 0; j < OUTPUTSIZE; j++) {
-      col = agent.out[j];
+      float col = agent.out[j];
       glColor3f(col, col, col);
       glVertex3f(0 + ss * j, yy, 0.0f);
       glVertex3f(xx + ss * j, yy, 0.0f);
@@ -257,15 +256,15 @@ void GLView::drawAgent(const Agent &agent) {
     float offx = 0;
     ss = 8;
     for (int j = 0; j < BRAINSIZE; j++) {
-      col = agent.brain.boxes[j].out;
+      float col = agent.brain.boxes[j].out;
       glColor3f(col, col, col);
       glVertex3f(offx + 0 + ss * j, yy, 0.0f);
       glVertex3f(offx + xx + ss * j, yy, 0.0f);
       glVertex3f(offx + xx + ss * j, yy + ss, 0.0f);
       glVertex3f(offx + ss * j, yy + ss, 0.0f);
-      if ((j + 1) % 40 == 0) {
+      if ((j + 1) % (int) floor(sqrt(BRAINSIZE)) == 0) {
         yy += ss;
-        offx -= ss * 40;
+        offx -= ss * (int) floor(sqrt(BRAINSIZE));
       }
     }
 
