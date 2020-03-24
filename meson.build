@@ -17,10 +17,6 @@ cargs = []
 
 add_global_link_arguments(['-lm'], language: 'c')
 
-if c.get_id() == 'clang'
-  add_global_link_arguments(['-lomp'], language: 'c')
-endif
-
 incdir = include_directories('include')
 
 deps = [
@@ -45,6 +41,9 @@ endif
 if get_option('openmp')
   deps += c.find_library('gomp')
   cargs += '-fopenmp'
+  if c.get_id() == 'clang'
+    add_global_link_arguments(['-lomp'], language: 'c')
+  endif
 endif
 
 executable('scriptbots', srcfiles, include_directories : configuration_inc,

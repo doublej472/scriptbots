@@ -135,3 +135,35 @@ void agent_crossover(struct Agent *target, const struct Agent *agent1, const str
 
   mlpbrain_crossover(&target->brain, &agent1->brain, &agent2->brain);
 }
+
+void agent_process_health(struct Agent *agent) {
+    // process bots health
+    float healthloss = LOSS_BASE; // base amount of health lost every turn for
+                                  // being alive
+
+    // remove health based on wheel speed
+    if (agent->boost) { // is using boost
+      healthloss += LOSS_SPEED * BOTSPEED *
+                    (fabsf(agent->w1) + fabsf(agent->w2)) *
+                    BOOSTSIZEMULT * agent->boost;
+    } else { // no boost
+      healthloss += LOSS_SPEED * BOTSPEED *
+                    (fabsf(agent->w1) + fabsf(agent->w2));
+    }
+
+    // shouting costs energy.
+    healthloss += LOSS_SHOUTING * agent->soundmul;
+
+    // process temperature preferences
+    // calculate temperature at the agents spot. (based on distance from
+    // equator)
+    float dd = 2.0 * fabs(agent->pos.x / WIDTH - 0.5);
+    float discomfort = fabsf(dd - agent->temperature_preference);
+    discomfort = discomfort * discomfort;
+    if (discomfort < 0.08)
+      discomfort = 0;
+    healthloss += LOSS_TEMP * discomfort;
+
+    // apply the health changes
+    agent->health -= healthloss;
+}

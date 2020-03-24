@@ -37,10 +37,12 @@ extern int MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 1000
+#define NUMBOTS 2000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
+#define NUMBOTS_CLOSE 12
+// maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10
 // for drawing
 #define BOTSPEED 0.1

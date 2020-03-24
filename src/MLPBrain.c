@@ -63,7 +63,7 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
     acc += abox->bias;
 
     // put through sigmoid
-    acc = 1.0 / (1.0 + exp(-acc)); // logistic function, ranges from 0 to 1
+    acc = 1.0 / (1.0 + fast_exp(-acc)); // logistic function, ranges from 0 to 1
 
     abox->target = acc;
   }

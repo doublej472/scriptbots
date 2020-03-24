@@ -41,6 +41,15 @@ float cap(float a) {
   return a;
 }
 
+// Fast exp(), not accurate
+float fast_exp(float x) {
+  x = 1.0f + x / 1024;
+  x *= x; x *= x; x *= x; x *= x;
+  x *= x; x *= x; x *= x; x *= x;
+  x *= x; x *= x;
+  return x;
+}
+
 // Get number of processors in the system
 long get_nprocs() {
   return sysconf(_SC_NPROCESSORS_ONLN);

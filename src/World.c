@@ -76,46 +76,7 @@ void world_printState(struct World *world) {
   printf("----------------------------\n");
 }
 
-void world_update(struct World *world) {
-  // Increment Tick
-  world->modcounter++;
-
-  // Increment Epoch
-  if (world->modcounter >= 10000) {
-    world->modcounter = 0;
-    world->current_epoch++;
-  }
-
-  // Update GUI every REPORTS_PER_EPOCH amount:
-  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % reportInterval == 0)) {
-    world_writeReport(world);
-
-    // Update GUI
-    struct timespec endTime;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &endTime);
-    struct timespec ts_delta;
-    struct timespec ts_totaldelta;
-
-    timespec_diff(&ts_delta, &world->startTime, &endTime);
-    timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
-
-    float deltat = (float) ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
-    float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
-
-    printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
-           "%f - Time: %.2f sec     \r",
-           world->current_epoch, world->modcounter / 100, (int) world->agents.size,
-           (int) reportInterval / deltat,
-           totaldeltat);
-
-    world->startTime = endTime;
-
-    // Check if simulation needs to end
-
-    if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec -
-world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
-  }
-
+static void world_update_food(struct World *world) {
   // What kind of food method are we using?
   if (FOOD_MODEL == FOOD_MODEL_GROW) {
     // GROW food enviroment model
@@ -152,68 +113,110 @@ world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
       world->food[world->fx][world->fy] = FOODMAX;
     }
   }
+}
 
-  // give input to every agent. Sets in[] array. Runs brain
-  world_setInputsRunBrain(world);
+static void world_update_gui(struct World *world) {
+  world_writeReport(world);
 
-  // read output and process consequences of bots on environment. requires out[]
-  world_processOutputs(world);
+  // Update GUI
+  struct timespec endTime;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &endTime);
+  struct timespec ts_delta;
+  struct timespec ts_totaldelta;
 
-  float healthloss;     // amount of health lost
-  float dd, discomfort; // temperature preference vars
-  float d, agemult;     // used for dead agents
+  timespec_diff(&ts_delta, &world->startTime, &endTime);
+  timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
 
-  // process bots health
-  for (size_t i = 0; i < world->agents.size; i++) {
-    healthloss = LOSS_BASE; // base amount of health lost every turn for
-                                  // being alive
+  float deltat = (float) ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
+  float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
 
-    // remove health based on wheel speed
-    if (world->agents.agents[i].boost) { // is using boost
-      healthloss += LOSS_SPEED * BOTSPEED *
-                    (fabsf(world->agents.agents[i].w1) + fabsf(world->agents.agents[i].w2)) *
-                    BOOSTSIZEMULT * world->agents.agents[i].boost;
-    } else { // no boost
-      healthloss += LOSS_SPEED * BOTSPEED *
-                    (fabsf(world->agents.agents[i].w1) + fabsf(world->agents.agents[i].w2));
+  printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
+         "%f - Time: %.2f sec     \r",
+         world->current_epoch, world->modcounter / 100, (int) world->agents.size,
+         (int) reportInterval / deltat,
+         totaldeltat);
+
+  world->startTime = endTime;
+
+  // Check if simulation needs to end
+
+  if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
+    world->stopSim = 1;
+  }
+}
+
+struct Agent_d {
+  struct Agent* agent;
+  float dist2;
+};
+
+int world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d *close_agents) {
+    int num_close_agents = 0;
+
+    for (size_t j = 0; j < world->agents.size; j++) {
+
+      struct Agent *a2 = &world->agents.agents[j];
+      if (a == a2) {
+        continue;
+      }
+
+      float d = vector2f_dist2(&a->pos, &a2->pos);
+
+      // If we are too far away, don't even consider this agent
+      if (d > DIST*DIST
+        && d > DIST_GROUPING*DIST_GROUPING
+        && d > FOOD_SHARING_DISTANCE*FOOD_SHARING_DISTANCE
+        && d > FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS
+      ) {
+        continue;
+      }
+
+      close_agents[num_close_agents].agent = a2;
+      close_agents[num_close_agents].dist2 = d;
+      num_close_agents++;
+
+      if (num_close_agents == NUMBOTS_CLOSE) {
+        break;
+      }
     }
 
-    // shouting costs energy.
-    healthloss += LOSS_SHOUTING * world->agents.agents[i].soundmul;
+    // Insertion sort, since this is a small array
+    // Sorted from closest to furthest agent
+    for (int j = 1; j < num_close_agents; j++) {
+      struct Agent_d key = close_agents[j];
+      int k = j - 1;
 
-    // process temperature preferences
-    // calculate temperature at the agents spot. (based on distance from
-    // equator)
-    dd = 2.0 * fabs(world->agents.agents[i].pos.x / WIDTH - 0.5);
-    discomfort = fabsf(dd - world->agents.agents[i].temperature_preference);
-    discomfort = discomfort * discomfort;
-    if (discomfort < 0.08)
-      discomfort = 0;
-    healthloss += LOSS_TEMP * discomfort;
+      while (k >= 0 && close_agents[k].dist2 > key.dist2) {
+          close_agents[k + 1] = close_agents[k];
+          k = k - 1;
+      }
+      close_agents[k+1] = key;
+    }
 
-    // apply the health changes
-    world->agents.agents[i].health -= healthloss;
+    return num_close_agents;
+}
 
-    //------------------------------------------------------------------------------------------
-
-    // remove dead agents and distribute food
-
+void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
+*close_agents, int num_close_agents) {
     // if this agent was spiked this round as well (i.e. killed). This will make
     // it so that natural deaths can't be capitalized on. I feel I must do this
     // or otherwise agents will sit on spot and wait for things to die around
     // them. They must do work!
-    if (world->agents.agents[i].health <= 0 && world->agents.agents[i].spiked) {
+    if (a->health <= 0 && a->spiked) {
 
       // distribute its food. It will be erased soon
-      // first figure out how many are around, to distribute this evenly
-      int numaround = 0;
-      for (size_t j = 0; j < world->agents.size; j++) {
-        // only carnivores get food. not same agent as dying
-        if (world->agents.agents[j].herbivore < .1 && world->agents.agents[j].health > 0) {
+      // since the close_agents array is sorted, just get the index where we
+      // should stop distributing the body, the the number of carnivores around
+      int num_to_dist_body = 0;
+      for (size_t j = 0; j < num_close_agents; j++) {
+        struct Agent_d cagent = close_agents[j];
 
-          d = vector2f_dist(&world->agents.agents[i].pos, &world->agents.agents[j].pos);
-          if (d < FOOD_DISTRIBUTION_RADIUS) {
-            numaround++;
+        // only carnivores get food. not same agent as dying
+        if (cagent.agent->herbivore < .1 && cagent.agent->health > 0) {
+
+          float d = vector2f_dist2(&a->pos, &cagent.agent->pos);
+          if (d < FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
+            num_to_dist_body++;
           }
         }
       }
@@ -221,77 +224,122 @@ world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
       // young killed agents should give very little resources
       // at age 5, they mature and give full. This can also help prevent
       // agents eating their young right away
-      agemult = 1.0;
-      if (world->agents.agents[i].age < 5)
-        agemult = world->agents.agents[i].age * 0.2;
+      float agemult = 1.0;
+      if (a->age < 5) {
+        agemult = a->age * 0.2;
+      }
 
-      if (numaround > 0) {
+      if (num_to_dist_body > 0) {
         // distribute its food evenly
-        for (size_t j = 0; j < world->agents.size; j++) {
-          // only carnivores get food. not same agent as dying
-          if (world->agents.agents[j].herbivore < .1 && world->agents.agents[j].health > 0) {
+        for (size_t j = 0; j < num_close_agents; j++) {
+          struct Agent *a2 = close_agents[j].agent;
 
-            d = vector2f_dist(&world->agents.agents[i].pos, &world->agents.agents[j].pos);
-            if (d < FOOD_DISTRIBUTION_RADIUS) {
+          // only carnivores get food. not same agent as dying
+          if (a2->herbivore < .1 && a2->health > 0) {
+
+            float d = vector2f_dist2(&a->pos, &a->pos);
+            if (d < FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
                       coefficient = 5
-                      numaround = # of other agents within vicinity
+                      num_to_dist_body = # of other agents within vicinity
                       agemult = 1 if agent is older than 4
                       health += percent_carnivore ^ 2 * agemult * 5
                       -----------------------------------
-                      numaround ^ 1.25
+                      num_to_dist_body ^ 1.25
               */
-              world->agents.agents[j].health += 5 * (1 - world->agents.agents[j].herbivore) *
-                                  (1 - world->agents.agents[j].herbivore) /
-                                  pow(numaround, 1.25) * agemult;
+              a2->health += 5 * (1 - a2->herbivore) *
+                                  (1 - a2->herbivore) /
+                                  pow(num_to_dist_body, 1.25) * agemult;
 
               // make this bot reproduce sooner
-              world->agents.agents[j].repcounter -= 6 * (1 - world->agents.agents[j].herbivore) *
-                                      (1 - world->agents.agents[j].herbivore) /
-                                      pow(numaround, 1.25) * agemult;
+              a2->repcounter -= 6 * (1 - a2->herbivore) *
+                                      (1 - a2->herbivore) /
+                                      pow(num_to_dist_body, 1.25) * agemult;
 
-              if (world->agents.agents[j].health > 2)
-                world->agents.agents[j].health = 2; // cap it!
+              if (a2->health > 2)
+                a2->health = 2; // cap it!
 
-              agent_initevent(&world->agents.agents[j], 30, 1, 1, 1); // white means they ate! nice
+              agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
             }
           }
         }
       } else {
         // if no agents are around to eat it, it becomes regular food
-        world->food[(int)world->agents.agents[i].pos.x / CZ][(int)world->agents.agents[i].pos.y / CZ] =
+        world->food[(int)a->pos.x / CZ][(int)a->pos.y / CZ] =
             FOOD_DEAD *
             FOODMAX; // since it was dying it is not much food
       }
     }
+}
+
+void world_update(struct World *world) {
+  // Increment Tick
+  world->modcounter++;
+
+  // Increment Epoch
+  if (world->modcounter >= 10000) {
+    world->modcounter = 0;
+    world->current_epoch++;
   }
 
-  // Delete dead agents
-  for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].health <= 0) {
-      avec_delete(&world->agents, i);
-    }
+  // Update GUI every REPORTS_PER_EPOCH amount:
+  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % reportInterval == 0)) {
+    world_update_gui(world);
   }
 
-  // Handle reproduction
+  world_update_food(world);
+
+  // give input to every agent. Sets in[] array. Runs brain
+  world_setInputsRunBrain(world);
+
+  // read output and process consequences of bots on environment. requires out[]
+  world_processOutputs(world);
+
+  #pragma omp parallel for
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].repcounter < 0 && world->agents.agents[i].health > REP_MIN_HEALTH &&
-        world->modcounter % 15 == 0 && randf(0, 1) < 0.1) {
+    struct Agent *a = &world->agents.agents[i];
+
+    struct Agent_d close_agents[NUMBOTS_CLOSE];
+    int num_close_agents = world_get_close_agents(world, a, close_agents);
+
+    // Distribute dead agents to nearby carnivores
+    world_dist_dead_agent(world, a, close_agents, num_close_agents);
+
+    // Handle reproduction
+    if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH
+        && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
       // the parent splits it health evenly with all of its babies
-      world->agents.agents[i].health -= world->agents.agents[i].health / (BABIES + 1);
+      a->health -= a->health / (BABIES + 1);
 
       // add BABIES new agents to agents[]
-      world_reproduce(world, i, world->agents.agents[i].MUTRATE1, world->agents.agents[i].MUTRATE2);
+      world_reproduce(world, i, a->MUTRATE1, a->MUTRATE2);
 
-      world->agents.agents[i].repcounter =
-          world->agents.agents[i].herbivore *
+      a->repcounter =
+          a->herbivore *
               randf(REPRATEH - 0.1, REPRATEH + 0.1) +
-          (1 - world->agents.agents[i].herbivore) *
+          (1 - a->herbivore) *
               randf(REPRATEC - 0.1, REPRATEC + 0.1);
+    }
+
+    // Process agent health
+    agent_process_health(a);
+
+    // Finally run agent input
+
+  }
+
+  // Check for and delete dead agents
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
+
+    // Cull any dead agents
+    if (a->health <= 0) {
+      avec_delete(&world->agents, i--);
+      continue;
     }
   }
 
@@ -388,9 +436,10 @@ void world_setInputsRunBrain(struct World *world) {
         continue;
 
       // standard distance formula (more fine grain)
-      float d = vector2f_dist(&a->pos, &a2->pos);
+      float d = vector2f_dist2(&a->pos, &a2->pos);
 
-      if (d < DIST) { // two bots are within DIST of each other
+      if (d < DIST*DIST) { // two bots are within DIST of each other
+        d = sqrt(d);
 
         // smell
         smaccum += 0.3 * (DIST - d) / DIST;
@@ -648,8 +697,8 @@ void world_processOutputs(struct World *world) {
 
     if (a->give > 0.5) {
       for (size_t j = 0; j < world->agents.size; j++) {
-        float d = vector2f_dist(&a->pos, &world->agents.agents[j].pos);
-        if (d < FOOD_SHARING_DISTANCE) {
+        float d = vector2f_dist2(&a->pos, &world->agents.agents[j].pos);
+        if (d < FOOD_SHARING_DISTANCE * FOOD_SHARING_DISTANCE) {
           // initiate transfer
           if (world->agents.agents[j].health < 2) {
             world->agents.agents[j].health += FOODTRANSFER;
@@ -672,9 +721,9 @@ void world_processOutputs(struct World *world) {
 
       if (i == j)
         continue;
-      float d = vector2f_dist(&a->pos, &world->agents.agents[j].pos);
+      float d = vector2f_dist2(&a->pos, &world->agents.agents[j].pos);
 
-      if (d < 2 * BOTRADIUS) {
+      if (d < 2 * BOTRADIUS*BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         struct Vector2f v;
