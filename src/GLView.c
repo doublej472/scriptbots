@@ -264,7 +264,7 @@ void drawAgent(const struct Agent *agent) {
   // draw giving/receiving
   if (agent->dfood != 0) {
     glBegin(GL_POLYGON);
-    float mag = cap(abs(agent->dfood) / FOODTRANSFER / 3);
+    float mag = cap(fabsf(agent->dfood) / FOODTRANSFER / 3);
     if (agent->dfood > 0)
       glColor3f(0, mag, 0); // draw boost as green outline
     else
@@ -384,7 +384,7 @@ void drawAgent(const struct Agent *agent) {
   // draw giving/receiving
   if (agent->dfood != 0) {
 
-    float mag = cap(abs(agent->dfood) / FOODTRANSFER / 3);
+    float mag = cap(fabsf(agent->dfood) / FOODTRANSFER / 3);
     if (agent->dfood > 0)
       glColor3f(0, mag, 0); // draw boost as green outline
     else

@@ -171,11 +171,11 @@ world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
     // remove health based on wheel speed
     if (world->agents.agents[i].boost) { // is using boost
       healthloss += LOSS_SPEED * BOTSPEED *
-                    (abs(world->agents.agents[i].w1) + abs(world->agents.agents[i].w2)) *
+                    (fabsf(world->agents.agents[i].w1) + fabsf(world->agents.agents[i].w2)) *
                     BOOSTSIZEMULT * world->agents.agents[i].boost;
     } else { // no boost
       healthloss += LOSS_SPEED * BOTSPEED *
-                    (abs(world->agents.agents[i].w1) + abs(world->agents.agents[i].w2));
+                    (fabsf(world->agents.agents[i].w1) + fabsf(world->agents.agents[i].w2));
     }
 
     // shouting costs energy.
@@ -184,8 +184,8 @@ world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
     // process temperature preferences
     // calculate temperature at the agents spot. (based on distance from
     // equator)
-    dd = 2.0 * abs(world->agents.agents[i].pos.x / WIDTH - 0.5);
-    discomfort = abs(dd - world->agents.agents[i].temperature_preference);
+    dd = 2.0 * fabs(world->agents.agents[i].pos.x / WIDTH - 0.5);
+    discomfort = fabsf(dd - world->agents.agents[i].temperature_preference);
     discomfort = discomfort * discomfort;
     if (discomfort < 0.08)
       discomfort = 0;
@@ -409,7 +409,7 @@ void world_setInputsRunBrain(struct World *world) {
 
           // sound (number of agents nearby)
           soaccum += 0.4 * (DIST - d) / DIST *
-                     (fmax(fabs(a2->w1), fabs(a2->w2)));
+                     (fmax(fabsf(a2->w1), fabsf(a2->w2)));
         }
 
         // current angle between bots
@@ -427,21 +427,21 @@ void world_setInputsRunBrain(struct World *world) {
         if (backangle > M_PI)
           backangle -= 2 * M_PI;
         float diff1 = leyeangle - ang;
-        if (fabs(diff1) > M_PI)
-          diff1 = 2 * M_PI - fabs(diff1);
-        diff1 = fabs(diff1);
+        if (fabsf(diff1) > M_PI)
+          diff1 = 2 * M_PI - fabsf(diff1);
+        diff1 = fabsf(diff1);
         float diff2 = reyeangle - ang;
-        if (fabs(diff2) > M_PI)
-          diff2 = 2 * M_PI - fabs(diff2);
-        diff2 = fabs(diff2);
+        if (fabsf(diff2) > M_PI)
+          diff2 = 2 * M_PI - fabsf(diff2);
+        diff2 = fabsf(diff2);
         float diff3 = backangle - ang;
-        if (fabs(diff3) > M_PI)
-          diff3 = 2 * M_PI - fabs(diff3);
-        diff3 = fabs(diff3);
+        if (fabsf(diff3) > M_PI)
+          diff3 = 2 * M_PI - fabsf(diff3);
+        diff3 = fabsf(diff3);
         float diff4 = forwangle - ang;
-        if (fabs(forwangle) > M_PI)
-          diff4 = 2 * M_PI - fabs(forwangle);
-        diff4 = fabs(diff4);
+        if (fabsf(forwangle) > M_PI)
+          diff4 = 2 * M_PI - fabsf(forwangle);
+        diff4 = fabsf(diff4);
 
         if (diff1 < PI38) {
           // we see this agent with left eye. Accumulate info
@@ -511,8 +511,8 @@ void world_setInputsRunBrain(struct World *world) {
     // temperature varies from 0 to 1 across screen.
     // it is 0 at equator (in middle), and 1 on edges. Agents can sense
     // discomfort
-    float dd = 2.0 * abs(a->pos.x / WIDTH - 0.5);
-    float discomfort = abs(dd - a->temperature_preference);
+    float dd = 2.0 * fabs(a->pos.x / WIDTH - 0.5);
+    float discomfort = fabsf(dd - a->temperature_preference);
 
     a->in[0] = cap(p1);
     a->in[1] = cap(r1);
@@ -529,8 +529,8 @@ void world_setInputsRunBrain(struct World *world) {
     a->in[13] = cap(r3);
     a->in[14] = cap(g3);
     a->in[15] = cap(b3);
-    a->in[16] = abs(sin(world->modcounter / a->clockf1));
-    a->in[17] = abs(sin(world->modcounter / a->clockf2));
+    a->in[16] = fabs(sin(world->modcounter / a->clockf1));
+    a->in[17] = fabs(sin(world->modcounter / a->clockf2));
     a->in[18] = cap(hearaccum); // HEARING (other agents shouting)
     a->in[19] = cap(blood);
     a->in[20] = cap(discomfort);
@@ -635,7 +635,7 @@ void world_processOutputs(struct World *world) {
       // agent eats the food
       float itk = fmin(f, FOODINTAKE);
       float speedmul =
-          (1 - (abs(a->w1) + abs(a->w2)) / 2) * 0.6 + 0.4;
+          (1 - (fabsf(a->w1) + fabsf(a->w2)) / 2) * 0.6 + 0.4;
       itk = itk * a->herbivore *
             speedmul; // herbivores gain more from ground food
       a->health += itk;
@@ -683,10 +683,10 @@ void world_processOutputs(struct World *world) {
         struct Vector2f tmp;
         vector2f_sub(&tmp, &world->agents.agents[j].pos, &a->pos);
         float diff = vector2f_angle_between(&v, &tmp);
-        if (fabs(diff) < M_PI / 8) {
+        if (fabsf(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
           float DMG = SPIKEMULT * a->spikeLength *
-                      fmax(fabs(a->w1), fabs(a->w2)) *
+                      fmax(fabsf(a->w1), fabsf(a->w2)) *
                       BOOSTSIZEMULT;
 
           world->agents.agents[j].health -= DMG;
@@ -703,7 +703,7 @@ void world_processOutputs(struct World *world) {
           vector2f_init(&v2, 1, 0);
           vector2f_rotate(&v2, world->agents.agents[j].angle);
           float adiff = vector2f_angle_between(&v, &v2);
-          if (fabs(adiff) < M_PI / 2) {
+          if (fabsf(adiff) < M_PI / 2) {
             // this was attack from the back. Retract spike of the other agent
             // (startle!) this is done so that the other agent cant right away
             // "by accident" attack this agent

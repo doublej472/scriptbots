@@ -205,6 +205,7 @@ int kbhit() {
 void runWithGraphics(int argc, char **argv, struct Base *base) {
 
 #ifdef OPENGL
+  init_glview();
   GLVIEW.base = base;
 
   // GLUT SETUP

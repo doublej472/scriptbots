@@ -23,6 +23,7 @@ struct GLView {
 
 extern struct GLView GLVIEW;
 
+void init_glview();
 void gl_processMouse(int button, int state, int x, int y);
 void gl_processMouseActiveMotion(int x, int y);
 void gl_changeSize(int w, int h);
