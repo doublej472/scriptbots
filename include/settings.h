@@ -14,8 +14,8 @@ extern int MAX_SECONDS;
 
 #define INPUTSIZE 42
 #define OUTPUTSIZE 18
-#define BRAINSIZE 250
-#define CONNS 5
+#define BRAINSIZE 200
+#define CONNS 4
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 // const int WIDTH = 2000;  //width and height of simulation world
