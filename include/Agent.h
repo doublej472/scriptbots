@@ -4,15 +4,13 @@
 #include "MLPBrain.h"
 #include "vec2f.h"
 
-#include <string>
-
 struct Agent {
   int touch : 1; // is bot close to wall?
   int boost : 1; // is this agent boosting
   int spiked : 1;
   int hybrid : 1; // is this agent result of crossover?
 
-  Vector2f pos;
+  struct Vector2f pos;
 
   float health; // in [0,2]. I cant remember why.
   float angle;  // of the bot
@@ -56,15 +54,15 @@ struct Agent {
   float
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
-  MLPBrain brain;
+  struct MLPBrain brain;
 
 };
 
-void agent_init(Agent& agent);
-void agent_print(Agent& agent);
-void agent_initevent(Agent& agent, float size, float r, float g, float b);
-void agent_tick(Agent& agent);
-void agent_reproduce(Agent& child, Agent& parent, float MR, float MR2);
-void agent_crossover(Agent& target, const Agent& agent1, const Agent& agent2);
+void agent_init(struct Agent *agent);
+void agent_print(struct Agent *agent);
+void agent_initevent(struct Agent *agent, float size, float r, float g, float b);
+void agent_tick(struct Agent *agent);
+void agent_reproduce(struct Agent *child, struct Agent *parent, float MR, float MR2);
+void agent_crossover(struct Agent *target, const struct Agent *agent1, const struct Agent *agent2);
 
 #endif // AGENT_H

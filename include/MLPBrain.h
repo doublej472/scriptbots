@@ -16,21 +16,21 @@ struct MLPBox {
   float out;    // current output
 };
 
-void mlpbox_init(MLPBox& box);
+void mlpbox_init(struct MLPBox *box);
 
 /**
  * Damped Weighted Recurrent AND/OR Network
  */
 struct MLPBrain {
-  MLPBox boxes[BRAINSIZE];
+  struct MLPBox boxes[BRAINSIZE];
 };
 
-void mlpbrain_init(MLPBrain& brain);
-void mlpbrain_init(MLPBrain& brain, const MLPBrain& other);
-void mlpbrain_set(MLPBrain& target, const MLPBrain& source);
-void mlpbrain_tick(MLPBrain& brain, const float *in, float *out);
-void mlpbrain_mutate(MLPBrain& brain, float mutaterate, float mutaterate2);
-void mlpbrain_crossover( MLPBrain& target, const MLPBrain& source1, const
-  MLPBrain& source2);
+void mlpbrain_init(struct MLPBrain *brain);
+void mlpbrain_init_other(struct MLPBrain *brain, const struct MLPBrain *other);
+void mlpbrain_set(struct MLPBrain *target, const struct MLPBrain *source);
+void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out);
+void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2);
+void mlpbrain_crossover(struct MLPBrain *target, const struct MLPBrain *source1, const
+  struct MLPBrain *source2);
 
 #endif

@@ -4,5 +4,6 @@
 Debug/
 Release/
 build/
+build-clang/
 *.csv
 *.dat

@@ -1,43 +1,39 @@
-#include <ctime>
-#include <bits/stdc++.h> 
+#include <time.h>
 #include <getopt.h>
 #include <stdio.h>
-
-#include "config.h"
-
-#include "include/World.h"
-#include "include/helpers.h"
-#include <omp.h>
-#include "include/settings.h"
-
-// Determine if and what kind of graphics to use:
-#ifdef OPENGL
-#include "include/GLView.h"
-#ifdef LOCAL_GLUT32
-#include "include/glut.h"
-#else
-#ifdef MAC_GLUT
-#include <GLUT/glut.h>
-#else
-#include <GL/glut.h>
-#endif
-#endif
-#else
-#include "include/Base.h" // this is normally included in GLView.h
-#endif
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 // For detecting keyboard:
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 
-using namespace std;
+#include "config.h"
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+// Determine if and what kind of graphics to use:
+#ifdef OPENGL
+#include <GL/glut.h>
+#include "include/GLView.h"
+#endif
+
+
+#include "include/Base.h"
+#include "include/World.h"
+#include "include/helpers.h"
+#include "include/settings.h"
+
 
 // ---------------------------------------------------------------------------
 // Global Vars:
 
 #ifdef OPENGL
-GLView *GLVIEW = new GLView(); // only use when graphic support is enabled
+struct GLView GLVIEW; // only use when graphic support is enabled
 #endif
 
 int MAX_EPOCHS = INT_MAX; // inifinity
@@ -49,8 +45,8 @@ int NUM_THREADS;
 // ---------------------------------------------------------------------------
 // Prototypes:
 int kbhit();
-void runHeadless(Base &base);
-void runWithGraphics(int &argc, char **argv, Base &base);
+void runHeadless(struct Base *base);
+void runWithGraphics(int argc, char **argv, struct Base *base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
@@ -60,9 +56,9 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = 1;
 #endif
-  #ifdef OPENMP
+#ifdef OPENMP
   NUM_THREADS = get_nprocs();
-  #endif
+#endif
   int loadWorldFromFile = 0;
 
   // Retrieve command line arguments
@@ -102,35 +98,31 @@ int main(int argc, char **argv) {
   omp_set_num_threads(NUM_THREADS);
   #endif
 
-  Base base;
-  base_init(base);
+  struct Base base;
+  struct World world;
+  world_init(&world);
+  base_init(&base, &world);
 
-  cout << "--------------------------------------------------------------------"
-          "-----------"
-       << endl;
-  cout << "ScriptBots - Evolutionary Artificial Life Simulation of "
-          "Predator-Prey Dynamics"
-       << endl;
-  cout << "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins"
-       << endl
-       << endl;
-  cout << "Environment:" << endl;
+  printf("-------------------------------------------------------------------------------\n");
+  printf("ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics\n");
+  printf("   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins\n\n");
+  printf("Environment:");
 #ifdef OPENGL
-  cout << "   OpenGL and GLUT found!" << endl;
+  printf("   OpenGL and GLUT found!\n");
 #else
-  cout << "   OpenGL and GLUT NOT found!" << endl;
+  printf("   OpenGL and GLUT NOT found!\n");
 #endif
 #ifdef OPENMP
-  cout << "   OpenMP found!" << endl;
-  cout << "      " << get_nprocs() << " processors available" << endl;
-  cout << "      Using " << NUM_THREADS << " threads" << endl;
-  cout << "   Termination:" << endl;
+  printf("   OpenMP found!\n");
+  printf("      %li processors available\n", get_nprocs());
+  printf("      Using %i threads\n", NUM_THREADS);
+  printf("   Termination:\n");
   if (MAX_EPOCHS < INT_MAX)
-    cout << "      Stopping at " << MAX_EPOCHS << " epochs" << endl;
+    printf("      Stopping at %i epochs\n", MAX_EPOCHS);
   else
-    cout << "      Press any key to save and end simulation\n" << endl;
+    printf("      Press any key to save and end simulation\n\n");
 #else
-  cout << "   OpenMP NOT found!" << endl;
+  printf("   OpenMP NOT found!\n");
 #endif
   if (WIDTH % CZ != 0 || HEIGHT % CZ != 0) {
     printf("   WARNING: The cell size variable CZ should divide evenly "
@@ -138,10 +130,9 @@ int main(int argc, char **argv) {
     printf(" and HEIGHT\n");
   }
   if (HEADLESS) {
-    cout << "   Headless Mode - No graphics\n";
-    cout << "------------------------------------------------------------------"
-            "-------------"
-         << endl;
+    printf("   Headless Mode - No graphics\n");
+    printf("------------------------------------------------------------------"
+            "-------------\n");
   } else {
     printf("\nInstructions:\n");
     printf("   p= pause, d= toggle drawing (for faster computation), f= draw "
@@ -153,30 +144,27 @@ int main(int argc, char **argv) {
     printf("   YELLOW: bot just spiked another bot\n");
     printf("   GREEN: agent just reproduced\n");
     printf("   GREY: bot is getting group health bonus\n");
-    cout << "------------------------------------------------------------------"
-            "-------------"
-         << endl;
+    printf("------------------------------------------------------------------"
+            "-------------\n");
   }
 
   srand(time(0));
 
   // Load file if needed
   if (loadWorldFromFile) {
-    base_loadworld(base);
+    base_loadworld(&base);
 
     // check if epoch is greater than passed parameter
-    if (base.world->epoch() > MAX_EPOCHS)
-      cout << endl
-           << "Warning: the loaded file has an epoch later than the specefied "
-              "end time parameter"
-           << endl;
+    if (base.world->current_epoch > MAX_EPOCHS)
+      printf("\nWarning: the loaded file has an epoch later than the specefied "
+              "end time parameter\n");
   }
 
   // Decide if to graphics or not
   if (HEADLESS) {
-    runHeadless(base);
+    runHeadless(&base);
   } else {
-    runWithGraphics(argc, argv, base);
+    runWithGraphics(argc, argv, &base);
   }
 
   return 0;
@@ -214,10 +202,10 @@ int kbhit() {
 // ---------------------------------------------------------------------------
 // Run Scriptbots with graphics
 // ---------------------------------------------------------------------------
-void runWithGraphics(int &argc, char **argv, Base &base) {
+void runWithGraphics(int argc, char **argv, struct Base *base) {
 
 #ifdef OPENGL
-  GLVIEW->setBase(&base);
+  GLVIEW.base = base;
 
   // GLUT SETUP
   glutInit(&argc, argv);
@@ -241,11 +229,11 @@ void runWithGraphics(int &argc, char **argv, Base &base) {
 // ---------------------------------------------------------------------------
 // Run Scriptbots headless
 // ---------------------------------------------------------------------------
-void runHeadless(Base &base) {
+void runHeadless(struct Base *base) {
 
   printf("Simulation Starting...\r");
-  while (!kbhit() && !base.world->stopSim) {
-    base.world->update();
+  while (!kbhit() && !base->world->stopSim) {
+    world_update(base->world);
   }
 
   base_saveworld(base);

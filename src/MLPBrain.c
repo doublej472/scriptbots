@@ -1,46 +1,48 @@
-#include <cstring>
+#include <string.h>
+#include <stdlib.h>
+#include "include/helpers.h"
 #include "include/MLPBrain.h"
-using namespace std;
 
-void mlpbox_init(MLPBox& box) {
-  memset(&box, '\0', sizeof(MLPBox));
+void mlpbox_init(struct MLPBox *box) {
+  memset(box, '\0', sizeof(struct MLPBox));
 
   for (int i = 0; i < CONNS; i++) {
-    box.w[i] = randf(-3, 3);
+    box->w[i] = randf(-3, 3);
     // Make 30% of brain connect to input
     if (randf(0, 1) < 0.3) {
-      box.id[i] = randi(0, INPUTSIZE);
+      box->id[i] = randi(0, INPUTSIZE);
     } else {
-      box.id[i] = randi(INPUTSIZE, BRAINSIZE);
+      box->id[i] = randi(INPUTSIZE, BRAINSIZE);
     }
   }
 
   // how fast neuron/box moves towards its target. 1 is instant.
-  box.kp = randf(0.1,1);
-  box.gw = randf(0, 5);
-  box.bias = randf(-1.5, 1.5);
-  box.out = 0;
-  box.target = 0;
+  box->kp = randf(0.1,1);
+  box->gw = randf(0, 5);
+  box->bias = randf(-1.5, 1.5);
+  box->out = 0;
+  box->target = 0;
 }
 
-void mlpbrain_init(MLPBrain& brain) {
+void mlpbrain_init(struct MLPBrain *brain) {
   for (int i = 0; i < BRAINSIZE; i++) {
-    mlpbox_init(brain.boxes[i]);
+    mlpbox_init(&brain->boxes[i]);
   }
 }
 
-void mlpbrain_init(MLPBrain& brain, const MLPBrain &other) {
-  memcpy(brain.boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
+void mlpbrain_init_other(struct MLPBrain *brain, const struct MLPBrain *other) {
+  memcpy(brain->boxes, other->boxes, sizeof(struct MLPBox) * BRAINSIZE);
 }
 
-void mlpbrain_set(MLPBrain& target, const MLPBrain& source) {
-  if (&target != &source)
-    memcpy(target.boxes, source.boxes, sizeof(MLPBox) * BRAINSIZE);
+void mlpbrain_set(struct MLPBrain *target, const struct MLPBrain *source) {
+  if (target != source) {
+    memcpy(target->boxes, source->boxes, sizeof(struct MLPBox) * BRAINSIZE);
+  }
 }
 
-void mlpbrain_tick(MLPBrain& brain, const float *in, float *out) {
+void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
   // do a single tick of the brain
-  MLPBox* boxes = brain.boxes;
+  struct MLPBox* boxes = brain->boxes;
 
   // take first few boxes and set their out to in[].
   for (int i = 0; i < INPUTSIZE; i++) {
@@ -49,7 +51,7 @@ void mlpbrain_tick(MLPBrain& brain, const float *in, float *out) {
 
   // then do a dynamics tick and set all targets
   for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
-    MLPBox* abox = &boxes[i];
+    struct MLPBox* abox = &boxes[i];
 
     float acc = 0;
     for (int j = 0; j < CONNS; j++) {
@@ -68,7 +70,7 @@ void mlpbrain_tick(MLPBrain& brain, const float *in, float *out) {
 
   // make all boxes go a bit toward target
   for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
-    MLPBox *abox = &boxes[i];
+    struct MLPBox *abox = &boxes[i];
     abox->out = abox->out + (abox->target - abox->out) * abox->kp;
   }
 
@@ -83,8 +85,8 @@ void mlpbrain_tick(MLPBrain& brain, const float *in, float *out) {
   MR - how often do mutation occur?
   MR2 - how significant are the mutations?
 */
-void mlpbrain_mutate(MLPBrain& brain, float mutaterate, float mutaterate2) {
-  MLPBox* boxes = brain.boxes;
+void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2) {
+  struct MLPBox* boxes = brain->boxes;
 
   for (int j = 0; j < BRAINSIZE; j++) {
 
@@ -135,27 +137,27 @@ void mlpbrain_mutate(MLPBrain& brain, float mutaterate, float mutaterate2) {
 }
 
 void mlpbrain_crossover(
-  MLPBrain& target,
-  const MLPBrain& source1,
-  const MLPBrain& source2) {
+  struct MLPBrain *target,
+  const struct MLPBrain *source1,
+  const struct MLPBrain *source2) {
 
   for (size_t i = 0; i < BRAINSIZE; i++) {
     if (randf(0, 1) < 0.5) {
-      target.boxes[i].bias = source1.boxes[i].bias;
-      target.boxes[i].gw = source1.boxes[i].gw;
-      target.boxes[i].kp = source1.boxes[i].kp;
+      target->boxes[i].bias = source1->boxes[i].bias;
+      target->boxes[i].gw = source1->boxes[i].gw;
+      target->boxes[i].kp = source1->boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
-        target.boxes[i].id[j] = source1.boxes[i].id[j];
-        target.boxes[i].w[j] = source1.boxes[i].w[j];
+        target->boxes[i].id[j] = source1->boxes[i].id[j];
+        target->boxes[i].w[j] = source1->boxes[i].w[j];
       }
 
     } else {
-      target.boxes[i].bias = source2.boxes[i].bias;
-      target.boxes[i].gw = source2.boxes[i].gw;
-      target.boxes[i].kp = source2.boxes[i].kp;
+      target->boxes[i].bias = source2->boxes[i].bias;
+      target->boxes[i].gw = source2->boxes[i].gw;
+      target->boxes[i].kp = source2->boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
-        target.boxes[i].id[j] = source2.boxes[i].id[j];
-        target.boxes[i].w[j] = source2.boxes[i].w[j];
+        target->boxes[i].id[j] = source2->boxes[i].id[j];
+        target->boxes[i].w[j] = source2->boxes[i].w[j];
       }
     }
   }

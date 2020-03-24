@@ -1,65 +1,17 @@
-#include <ctime>
+#include <time.h>
 #include <stdio.h>
 
+#include "include/settings.h"
 #include "include/World.h"
 #include "include/vec.h"
 #include "include/helpers.h"
-#include "include/settings.h"
 #include "include/vec2f.h"
-#include <omp.h> // OpenMP multithreading
+#include <stdlib.h>
 #include <stdio.h>
-#include <ctime>
-#include <iostream>
-
-using namespace std;
-
-World::World()
-    : stopSim(false), modcounter(0), current_epoch(0), idcounter(0),
-      numAgentsAdded(0), FW(WIDTH / CZ),
-      FH(HEIGHT / CZ) {
-  clock_gettime(CLOCK_MONOTONIC_RAW, &startTime);
-
-  avec_init(&agents, NUMBOTS);
-
-  // Track total running time:
-  clock_gettime(CLOCK_MONOTONIC_RAW, &totalStartTime);
-
-  // create the bots but with 20% more carnivores, to give them head start
-  addRandomBots(int(NUMBOTS * .8));
-  for (int i = 0; i < int(NUMBOTS * .2); ++i)
-    addCarnivore();
-
-  // inititalize food layer
-  srand(time(0));
-  double rand1; // store temp random float to save randf() call
-
-  for (int x = 0; x < FW; x++) {
-    for (int y = 0; y < FH; y++) {
-
-      rand1 = randf(0, 1);
-      if (rand1 > .5) {
-        food[x][y] = rand1 * FOODMAX;
-      } else {
-        food[x][y] = 0;
-      }
-    }
-  }
-
-  // Decide if world if closed based on settings.h
-  WORLD_CLOSED = CLOSED;
-
-  // Delete the old report to start fresh
-  remove("report.csv");
-}
-
-void World::printState() {
-  cout << "World State Info -----------" << endl;
-  cout << "Epoch:\t\t" << current_epoch << endl;
-  cout << "Tick:\t\t" << modcounter << endl;
-  cout << "Num Agents:\t" << agents.size << endl;
-  cout << "Agents Added:\t" << numAgentsAdded << endl;
-  cout << "----------------------------" << endl;
-}
+#include <time.h>
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 static void timespec_diff(struct timespec* result, struct timespec *start,
                           struct timespec *stop) {
@@ -72,19 +24,71 @@ static void timespec_diff(struct timespec* result, struct timespec *start,
     }
 }
 
-void World::update() {
+void world_init(struct World *world) {
+  world->stopSim = 0;
+  world->modcounter = 0;
+  world->current_epoch = 0;
+  world->idcounter = 0;
+  world->numAgentsAdded = 0;
+  world->FW = WIDTH / CZ;
+  world->FH = HEIGHT / CZ;
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &world->startTime);
+  // Track total running time:
+  clock_gettime(CLOCK_MONOTONIC_RAW, &world->totalStartTime);
+
+  avec_init(&world->agents, NUMBOTS);
+
+  // create the bots but with 20% more carnivores, to give them head start
+  world_addRandomBots(world, (int) NUMBOTS * .8);
+  for (int i = 0; i < (int) NUMBOTS * .2; ++i)
+    world_addCarnivore(world);
+
+  // inititalize food layer
+  srand(time(0));
+  double rand1; // store temp random float to save randf() call
+
+  for (int x = 0; x < world->FW; x++) {
+    for (int y = 0; y < world->FH; y++) {
+
+      rand1 = randf(0, 1);
+      if (rand1 > .5) {
+        world->food[x][y] = rand1 * FOODMAX;
+      } else {
+        world->food[x][y] = 0;
+      }
+    }
+  }
+
+  // Decide if world if closed based on settings.h
+  world->closed = CLOSED;
+
+  // Delete the old report to start fresh
+  remove("report.csv");
+}
+
+void world_printState(struct World *world) {
+  printf("World State Info -----------\n");
+  printf("Epoch:\t\t%i\n", world->current_epoch);
+  printf("Tick:\t\t%i\n", world->modcounter);
+  printf("Num Agents:%li\n", world->agents.size);
+  printf("Agents Added:%i\n", world->numAgentsAdded);
+  printf("----------------------------\n");
+}
+
+void world_update(struct World *world) {
   // Increment Tick
-  modcounter++;
+  world->modcounter++;
 
   // Increment Epoch
-  if (modcounter >= 10000) {
-    modcounter = 0;
-    current_epoch++;
+  if (world->modcounter >= 10000) {
+    world->modcounter = 0;
+    world->current_epoch++;
   }
 
   // Update GUI every REPORTS_PER_EPOCH amount:
-  if (REPORTS_PER_EPOCH > 0 && (modcounter % reportInterval == 0)) {
-    writeReport();
+  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % reportInterval == 0)) {
+    world_writeReport(world);
 
     // Update GUI
     struct timespec endTime;
@@ -92,50 +96,49 @@ void World::update() {
     struct timespec ts_delta;
     struct timespec ts_totaldelta;
 
-    timespec_diff(&ts_delta, &startTime, &endTime);
-    timespec_diff(&ts_totaldelta, &totalStartTime, &endTime);
+    timespec_diff(&ts_delta, &world->startTime, &endTime);
+    timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
 
     float deltat = (float) ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
     float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
 
     printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
-           "%i - Time: %.2f sec     \r",
-           current_epoch, modcounter / 100, int(agents.size),
-           int(reportInterval / deltat),
+           "%f - Time: %.2f sec     \r",
+           world->current_epoch, world->modcounter / 100, (int) world->agents.size,
+           (int) reportInterval / deltat,
            totaldeltat);
 
-    startTime = endTime;
+    world->startTime = endTime;
 
     // Check if simulation needs to end
 
-    if (current_epoch >= MAX_EPOCHS ||
-        (endTime.tv_sec - totalStartTime.tv_sec) >= MAX_SECONDS)
-      stopSim = true;
+    if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec -
+world->totalStartTime.tv_sec) >= MAX_SECONDS) { world->stopSim = 1; }
   }
 
   // What kind of food method are we using?
   if (FOOD_MODEL == FOOD_MODEL_GROW) {
     // GROW food enviroment model
-    if (modcounter % FOODADDFREQ == 0) {
-      for (int x = 0; x < FW; ++x) {
-        for (int y = 0; y < FH; ++y) {
+    if (world->modcounter % FOODADDFREQ == 0) {
+      for (int x = 0; x < world->FW; ++x) {
+        for (int y = 0; y < world->FH; ++y) {
           // only grow if not dead
-          if (food[x][y] > 0) {
+          if (world->food[x][y] > 0) {
 
             // Grow current square
-            growFood(x, y);
+            world_growFood(world, x, y);
 
             // Grow surrounding squares sometimes and only if well grown
-            if (randf(0, food[x][y]) > .1) {
+            if (randf(0, world->food[x][y]) > .1) {
               // Spread to surrounding squares
-              growFood(x + 1, y - 1);
-              growFood(x + 1, y);
-              growFood(x + 1, y + 1);
-              growFood(x - 1, y - 1);
-              growFood(x - 1, y);
-              growFood(x - 1, y + 1);
-              growFood(x, y - 1);
-              growFood(x, y + 1);
+              world_growFood(world, x + 1, y - 1);
+              world_growFood(world, x + 1, y);
+              world_growFood(world, x + 1, y + 1);
+              world_growFood(world, x - 1, y - 1);
+              world_growFood(world, x - 1, y);
+              world_growFood(world, x - 1, y + 1);
+              world_growFood(world, x, y - 1);
+              world_growFood(world, x, y + 1);
             }
           }
         }
@@ -143,53 +146,53 @@ void World::update() {
     }
   } else {
     // Add Random food model - default
-    if (modcounter % FOODADDFREQ == 0) {
-      fx = randi(0, FW);
-      fy = randi(0, FH);
-      food[fx][fy] = FOODMAX;
+    if (world->modcounter % FOODADDFREQ == 0) {
+      world->fx = randi(0, world->FW);
+      world->fy = randi(0, world->FH);
+      world->food[world->fx][world->fy] = FOODMAX;
     }
   }
 
   // give input to every agent. Sets in[] array. Runs brain
-  setInputsRunBrain();
+  world_setInputsRunBrain(world);
 
   // read output and process consequences of bots on environment. requires out[]
-  processOutputs();
+  world_processOutputs(world);
 
   float healthloss;     // amount of health lost
   float dd, discomfort; // temperature preference vars
   float d, agemult;     // used for dead agents
 
   // process bots health
-  for (size_t i = 0; i < agents.size; i++) {
+  for (size_t i = 0; i < world->agents.size; i++) {
     healthloss = LOSS_BASE; // base amount of health lost every turn for
                                   // being alive
 
     // remove health based on wheel speed
-    if (agents.agents[i].boost) { // is using boost
+    if (world->agents.agents[i].boost) { // is using boost
       healthloss += LOSS_SPEED * BOTSPEED *
-                    (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) *
-                    BOOSTSIZEMULT * agents.agents[i].boost;
+                    (abs(world->agents.agents[i].w1) + abs(world->agents.agents[i].w2)) *
+                    BOOSTSIZEMULT * world->agents.agents[i].boost;
     } else { // no boost
       healthloss += LOSS_SPEED * BOTSPEED *
-                    (abs(agents.agents[i].w1) + abs(agents.agents[i].w2));
+                    (abs(world->agents.agents[i].w1) + abs(world->agents.agents[i].w2));
     }
 
     // shouting costs energy.
-    healthloss += LOSS_SHOUTING * agents.agents[i].soundmul;
+    healthloss += LOSS_SHOUTING * world->agents.agents[i].soundmul;
 
     // process temperature preferences
     // calculate temperature at the agents spot. (based on distance from
     // equator)
-    dd = 2.0 * abs(agents.agents[i].pos.x / WIDTH - 0.5);
-    discomfort = abs(dd - agents.agents[i].temperature_preference);
+    dd = 2.0 * abs(world->agents.agents[i].pos.x / WIDTH - 0.5);
+    discomfort = abs(dd - world->agents.agents[i].temperature_preference);
     discomfort = discomfort * discomfort;
     if (discomfort < 0.08)
       discomfort = 0;
     healthloss += LOSS_TEMP * discomfort;
 
     // apply the health changes
-    agents.agents[i].health -= healthloss;
+    world->agents.agents[i].health -= healthloss;
 
     //------------------------------------------------------------------------------------------
 
@@ -199,16 +202,16 @@ void World::update() {
     // it so that natural deaths can't be capitalized on. I feel I must do this
     // or otherwise agents will sit on spot and wait for things to die around
     // them. They must do work!
-    if (agents.agents[i].health <= 0 && agents.agents[i].spiked) {
+    if (world->agents.agents[i].health <= 0 && world->agents.agents[i].spiked) {
 
       // distribute its food. It will be erased soon
       // first figure out how many are around, to distribute this evenly
       int numaround = 0;
-      for (size_t j = 0; j < agents.size; j++) {
+      for (size_t j = 0; j < world->agents.size; j++) {
         // only carnivores get food. not same agent as dying
-        if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
+        if (world->agents.agents[j].herbivore < .1 && world->agents.agents[j].health > 0) {
 
-          d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
+          d = vector2f_dist(&world->agents.agents[i].pos, &world->agents.agents[j].pos);
           if (d < FOOD_DISTRIBUTION_RADIUS) {
             numaround++;
           }
@@ -219,16 +222,16 @@ void World::update() {
       // at age 5, they mature and give full. This can also help prevent
       // agents eating their young right away
       agemult = 1.0;
-      if (agents.agents[i].age < 5)
-        agemult = agents.agents[i].age * 0.2;
+      if (world->agents.agents[i].age < 5)
+        agemult = world->agents.agents[i].age * 0.2;
 
       if (numaround > 0) {
         // distribute its food evenly
-        for (size_t j = 0; j < agents.size; j++) {
+        for (size_t j = 0; j < world->agents.size; j++) {
           // only carnivores get food. not same agent as dying
-          if (agents.agents[j].herbivore < .1 && agents.agents[j].health > 0) {
+          if (world->agents.agents[j].herbivore < .1 && world->agents.agents[j].health > 0) {
 
-            d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
+            d = vector2f_dist(&world->agents.agents[i].pos, &world->agents.agents[j].pos);
             if (d < FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
@@ -239,25 +242,25 @@ void World::update() {
                       -----------------------------------
                       numaround ^ 1.25
               */
-              agents.agents[j].health += 5 * (1 - agents.agents[j].herbivore) *
-                                  (1 - agents.agents[j].herbivore) /
+              world->agents.agents[j].health += 5 * (1 - world->agents.agents[j].herbivore) *
+                                  (1 - world->agents.agents[j].herbivore) /
                                   pow(numaround, 1.25) * agemult;
 
               // make this bot reproduce sooner
-              agents.agents[j].repcounter -= 6 * (1 - agents.agents[j].herbivore) *
-                                      (1 - agents.agents[j].herbivore) /
+              world->agents.agents[j].repcounter -= 6 * (1 - world->agents.agents[j].herbivore) *
+                                      (1 - world->agents.agents[j].herbivore) /
                                       pow(numaround, 1.25) * agemult;
 
-              if (agents.agents[j].health > 2)
-                agents.agents[j].health = 2; // cap it!
+              if (world->agents.agents[j].health > 2)
+                world->agents.agents[j].health = 2; // cap it!
 
-              agent_initevent(agents.agents[j], 30, 1, 1, 1); // white means they ate! nice
+              agent_initevent(&world->agents.agents[j], 30, 1, 1, 1); // white means they ate! nice
             }
           }
         }
       } else {
         // if no agents are around to eat it, it becomes regular food
-        food[(int)agents.agents[i].pos.x / CZ][(int)agents.agents[i].pos.y / CZ] =
+        world->food[(int)world->agents.agents[i].pos.x / CZ][(int)world->agents.agents[i].pos.y / CZ] =
             FOOD_DEAD *
             FOODMAX; // since it was dying it is not much food
       }
@@ -265,41 +268,41 @@ void World::update() {
   }
 
   // Delete dead agents
-  for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].health <= 0) {
-      avec_delete(&agents, i);
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].health <= 0) {
+      avec_delete(&world->agents, i);
     }
   }
 
   // Handle reproduction
-  for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].repcounter < 0 && agents.agents[i].health > REP_MIN_HEALTH &&
-        modcounter % 15 == 0 && randf(0, 1) < 0.1) {
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].repcounter < 0 && world->agents.agents[i].health > REP_MIN_HEALTH &&
+        world->modcounter % 15 == 0 && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
       // the parent splits it health evenly with all of its babies
-      agents.agents[i].health -= agents.agents[i].health / (BABIES + 1);
+      world->agents.agents[i].health -= world->agents.agents[i].health / (BABIES + 1);
 
       // add BABIES new agents to agents[]
-      reproduce(i, agents.agents[i].MUTRATE1, agents.agents[i].MUTRATE2);
+      world_reproduce(world, i, world->agents.agents[i].MUTRATE1, world->agents.agents[i].MUTRATE2);
 
-      agents.agents[i].repcounter =
-          agents.agents[i].herbivore *
+      world->agents.agents[i].repcounter =
+          world->agents.agents[i].herbivore *
               randf(REPRATEH - 0.1, REPRATEH + 0.1) +
-          (1 - agents.agents[i].herbivore) *
+          (1 - world->agents.agents[i].herbivore) *
               randf(REPRATEC - 0.1, REPRATEC + 0.1);
     }
   }
 
   // add new agents, if environment isn't closed
-  if (!WORLD_CLOSED) {
+  if (!world->closed) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
-    if (agents.size < NUMBOTS_MIN) {
-      addRandomBots(10); // add new agent
+    if (world->agents.size < NUMBOTS_MIN) {
+      world_addRandomBots(world, 10); // add new agent
     }
     /*
-      if (modcounter%100==0) {
+      if (world->modcounter%100==0) {
       if (randf(0,1)<0.5){
       addRandomBots(1); //every now and then add random bots in
       }else{
@@ -309,37 +312,43 @@ void World::update() {
     */
   }
 }
+
 // Grow food around square
-void World::growFood(int x, int y) {
+void world_growFood(struct World *world, int x, int y) {
   // check if food square is inside the world
-  if (food[x][y] < FOODMAX && x >= 0 && x < FW && y >= 0 && y < FH)
-    food[x][y] += FOODGROWTH;
+  if (world->food[x][y] < FOODMAX 
+    && x >= 0
+    && x < world->FW
+    && y >= 0
+    && y < world->FH) {
+      world->food[x][y] += FOODGROWTH;
+    }
 }
 
-void World::setInputsRunBrain() {
+void world_setInputsRunBrain(struct World *world) {
   // See README.markdown for documentation of input ids
 
 #pragma omp parallel for
-  for (size_t i = 0; i < agents.size; i++) {
+  for (size_t i = 0; i < world->agents.size; i++) {
 
-    Agent *a = &agents.agents[i];
+    struct Agent *a = &world->agents.agents[i];
 
     // General settings
     // says that agent was not hit this turn
-    a->spiked = false;
+    a->spiked = 0;
 
     // process indicator used in drawing
     if (a->indicator > 0)
       a->indicator--;
 
     // Update agents age
-    if (!modcounter % 100)
+    if (!world->modcounter % 100)
       a->age++;
 
     // FOOD
     int cx = (int)a->pos.x / CZ;
     int cy = (int)a->pos.y / CZ;
-    a->in[4] = food[cx][cy] / FOODMAX;
+    a->in[4] = world->food[cx][cy] / FOODMAX;
 
     // SOUND SMELL EYES
     float p1 = 0;
@@ -365,11 +374,11 @@ void World::setInputsRunBrain() {
     float health_gain = 0;
 
     // SMELL SOUND EYES
-    for (size_t j = 0; j < agents.size; j++) {
+    for (size_t j = 0; j < world->agents.size; j++) {
       if (i == j)
         continue; // do not process self
 
-      Agent *a2 = &agents.agents[j];
+      struct Agent *a2 = &world->agents.agents[j];
 
       // Do manhattan-distance estimation
       if (a->pos.x < a2->pos.x - DIST ||
@@ -379,7 +388,7 @@ void World::setInputsRunBrain() {
         continue;
 
       // standard distance formula (more fine grain)
-      float d = vector2f_dist(a->pos, a2->pos);
+      float d = vector2f_dist(&a->pos, &a2->pos);
 
       if (d < DIST) { // two bots are within DIST of each other
 
@@ -396,15 +405,15 @@ void World::setInputsRunBrain() {
           // when they are ontop each other
           float ratio = (1 - (DIST_GROUPING - d) / DIST_GROUPING);
           health_gain += GAIN_GROUPING * ratio;
-          agent_initevent(*a, 5 * ratio, .5, .5, .5); // visualize it
+          agent_initevent(a, 5 * ratio, .5, .5, .5); // visualize it
 
           // sound (number of agents nearby)
           soaccum += 0.4 * (DIST - d) / DIST *
-                     (max(fabs(a2->w1), fabs(a2->w2)));
+                     (fmax(fabs(a2->w1), fabs(a2->w2)));
         }
 
         // current angle between bots
-        float ang = vector2f_angle_between(a->pos, a2->pos);
+        float ang = vector2f_angle_between(&a->pos, &a2->pos);
 
         // left and right eyes
         float leyeangle = a->angle - PI8;
@@ -495,9 +504,9 @@ void World::setInputsRunBrain() {
     if (a->pos.x < 2 || a->pos.x > WIDTH - 3 || a->pos.y < 2 ||
         a->pos.y > HEIGHT - 3)
       // they are very close to the wall (1 or 2 pixels)
-      touch = 1;
+      a->touch = 1;
     else
-      touch = 0;
+      a->touch = 0;
 
     // temperature varies from 0 to 1 across screen.
     // it is 0 at equator (in middle), and 1 on edges. Agents can sense
@@ -520,12 +529,12 @@ void World::setInputsRunBrain() {
     a->in[13] = cap(r3);
     a->in[14] = cap(g3);
     a->in[15] = cap(b3);
-    a->in[16] = abs(sin(modcounter / a->clockf1));
-    a->in[17] = abs(sin(modcounter / a->clockf2));
+    a->in[16] = abs(sin(world->modcounter / a->clockf1));
+    a->in[17] = abs(sin(world->modcounter / a->clockf2));
     a->in[18] = cap(hearaccum); // HEARING (other agents shouting)
     a->in[19] = cap(blood);
     a->in[20] = cap(discomfort);
-    a->in[21] = cap(touch);
+    a->in[21] = cap(a->touch);
     // change the random input at random intervals (10% chance)
     if (randf(0, 1) < .1)
       a->in[22] = randf(0, 1); // random input for bot
@@ -538,17 +547,17 @@ void World::setInputsRunBrain() {
     }
 
     // Now process brain
-    agent_tick(*a);
+    agent_tick(a);
   }
 
 }
 
-void World::processOutputs() {
+void world_processOutputs(struct World *world) {
   // See README.markdown for documentation of output ids
 
 #pragma omp parallel for
-  for (size_t i = 0; i < agents.size; i++) {
-    Agent *a = &agents.agents[i];
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
 
     a->red = a->out[2];
     a->gre = a->out[3];
@@ -568,14 +577,14 @@ void World::processOutputs() {
 
     // Move bots
 
-    Vector2f v;
-    vector2f_init(v, BOTRADIUS / 2, 0);
-    vector2f_rotate(v, a->angle + M_PI / 2);
+    struct Vector2f v;
+    vector2f_init(&v, BOTRADIUS / 2, 0);
+    vector2f_rotate(&v, a->angle + M_PI / 2);
 
-    Vector2f w1p;
-    Vector2f w2p;
-    vector2f_add(w1p, a->pos, v); // wheel positions
-    vector2f_sub(w2p, a->pos, v); // wheel positions
+    struct Vector2f w1p;
+    struct Vector2f w2p;
+    vector2f_add(&w1p, &a->pos, &v); // wheel positions
+    vector2f_sub(&w2p, &a->pos, &v); // wheel positions
 
     float BW1 = BOTSPEED * a->w1; // bot speed * wheel speed
     float BW2 = BOTSPEED * a->w2;
@@ -586,17 +595,17 @@ void World::processOutputs() {
     }
 
     // move bots
-    Vector2f vv;
-    vector2f_sub(vv, w2p, a->pos);
-    vector2f_rotate(vv, -BW1);
+    struct Vector2f vv;
+    vector2f_sub(&vv, &w2p, &a->pos);
+    vector2f_rotate(&vv, -BW1);
 
-    vector2f_sub(a->pos, w2p, vv);
+    vector2f_sub(&a->pos, &w2p, &vv);
     a->angle -= BW1;
     if (a->angle < -M_PI)
       a->angle = M_PI - (-M_PI - a->angle);
-    vector2f_sub(vv, a->pos, w1p);
-    vector2f_rotate(vv, BW2);
-    vector2f_add(a->pos, w1p, vv);
+    vector2f_sub(&vv, &a->pos, &w1p);
+    vector2f_rotate(&vv, BW2);
+    vector2f_add(&a->pos, &w1p, &vv);
     a->angle += BW2;
     if (a->angle > M_PI)
       a->angle = -M_PI + (a->angle - M_PI);
@@ -619,34 +628,35 @@ void World::processOutputs() {
 
     // process food intake
 
-    int cx = (int)agents.agents[i].pos.x / CZ;
-    int cy = (int)agents.agents[i].pos.y / CZ;
-    float f = food[cx][cy];
-    if (f > 0 && agents.agents[i].health < 2) {
+    int cx = (int)world->agents.agents[i].pos.x / CZ;
+    int cy = (int)world->agents.agents[i].pos.y / CZ;
+    float f = world->food[cx][cy];
+    if (f > 0 && a->health < 2) {
       // agent eats the food
-      float itk = min(f, FOODINTAKE);
+      float itk = fmin(f, FOODINTAKE);
       float speedmul =
-          (1 - (abs(agents.agents[i].w1) + abs(agents.agents[i].w2)) / 2) * 0.6 + 0.4;
-      itk = itk * agents.agents[i].herbivore *
+          (1 - (abs(a->w1) + abs(a->w2)) / 2) * 0.6 + 0.4;
+      itk = itk * a->herbivore *
             speedmul; // herbivores gain more from ground food
-      agents.agents[i].health += itk;
-      agents.agents[i].repcounter -= 3 * itk;
-      food[cx][cy] -= min(f, FOODWASTE);
+      a->health += itk;
+      a->repcounter -= 3 * itk;
+      world->food[cx][cy] -= fmin(f, FOODWASTE);
     }
 
     // process giving and receiving of food
-    agents.agents[i].dfood = 0;
+    a->dfood = 0;
 
-    if (agents.agents[i].give > 0.5) {
-      for (size_t j = 0; j < agents.size; j++) {
-        float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
+    if (a->give > 0.5) {
+      for (size_t j = 0; j < world->agents.size; j++) {
+        float d = vector2f_dist(&a->pos, &world->agents.agents[j].pos);
         if (d < FOOD_SHARING_DISTANCE) {
           // initiate transfer
-          if (agents.agents[j].health < 2)
-            agents.agents[j].health += FOODTRANSFER;
-          agents.agents[i].health -= FOODTRANSFER;
-          agents.agents[j].dfood += FOODTRANSFER; // only for drawing
-          agents.agents[i].dfood -= FOODTRANSFER;
+          if (world->agents.agents[j].health < 2) {
+            world->agents.agents[j].health += FOODTRANSFER;
+            a->health -= FOODTRANSFER;
+            world->agents.agents[j].dfood += FOODTRANSFER; // only for drawing
+            a->dfood -= FOODTRANSFER;
+          }
         }
       }
     }
@@ -654,137 +664,132 @@ void World::processOutputs() {
     // NOTE: herbivore cant attack. TODO: hmmmmm
     // fot now ok: I want herbivores to run away from carnivores, not kill
     // them back
-    if (agents.agents[i].herbivore > 0.8 || agents.agents[i].spikeLength < 0.2 ||
-        agents.agents[i].w1 < 0.5 || agents.agents[i].w2 < 0.5)
+    if (a->herbivore > 0.8 || a->spikeLength < 0.2 ||
+        a->w1 < 0.5 || a->w2 < 0.5)
       continue;
 
-    for (size_t j = 0; j < agents.size; j++) {
+    for (size_t j = 0; j < world->agents.size; j++) {
 
       if (i == j)
         continue;
-      float d = vector2f_dist(agents.agents[i].pos, agents.agents[j].pos);
+      float d = vector2f_dist(&a->pos, &world->agents.agents[j].pos);
 
       if (d < 2 * BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
-        Vector2f v;
-        vector2f_init(v, 1, 0);
-        vector2f_rotate(v, agents.agents[i].angle);
-        Vector2f tmp;
-        vector2f_sub(tmp, agents.agents[j].pos, agents.agents[i].pos);
-        float diff = vector2f_angle_between(v, tmp);
+        struct Vector2f v;
+        vector2f_init(&v, 1, 0);
+        vector2f_rotate(&v, a->angle);
+        struct Vector2f tmp;
+        vector2f_sub(&tmp, &world->agents.agents[j].pos, &a->pos);
+        float diff = vector2f_angle_between(&v, &tmp);
         if (fabs(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
-          float DMG = SPIKEMULT * agents.agents[i].spikeLength *
-                      max(fabs(agents.agents[i].w1), fabs(agents.agents[i].w2)) *
+          float DMG = SPIKEMULT * a->spikeLength *
+                      fmax(fabs(a->w1), fabs(a->w2)) *
                       BOOSTSIZEMULT;
 
-          agents.agents[j].health -= DMG;
+          world->agents.agents[j].health -= DMG;
 
-          if (agents.agents[i].health > 2)
-            agents.agents[i].health = 2;    // cap health at 2
-          agents.agents[i].spikeLength = 0; // retract spike back down
+          if (a->health > 2)
+            a->health = 2;    // cap health at 2
+          a->spikeLength = 0; // retract spike back down
 
-          agent_initevent(agents.agents[i],
+          agent_initevent(&world->agents.agents[i],
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
-          Vector2f v2;
-          vector2f_init(v2, 1, 0);
-          vector2f_rotate(v2, agents.agents[j].angle);
-          float adiff = vector2f_angle_between(v, v2);
+          struct Vector2f v2;
+          vector2f_init(&v2, 1, 0);
+          vector2f_rotate(&v2, world->agents.agents[j].angle);
+          float adiff = vector2f_angle_between(&v, &v2);
           if (fabs(adiff) < M_PI / 2) {
             // this was attack from the back. Retract spike of the other agent
             // (startle!) this is done so that the other agent cant right away
             // "by accident" attack this agent
-            agents.agents[j].spikeLength = 0;
+            world->agents.agents[j].spikeLength = 0;
           }
 
-          agents.agents[j].spiked =
-              true; // set a flag saying that this agent was hit this turn
+          world->agents.agents[j].spiked =
+              1; // set a flag saying that this agent was hit this turn
         }
       }
     }
   }
 }
 
-void World::addRandomBots(int num) {
-  numAgentsAdded += num; // record in report
+void world_addRandomBots(struct World *world, int num) {
+  world->numAgentsAdded += num; // record in report
 
   for (int i = 0; i < num; i++) {
-    Agent a;
-    agent_init(a);
-    a.id = idcounter;
-    idcounter++;
+    struct Agent a;
+    agent_init(&a);
+    a.id = world->idcounter;
+    world->idcounter++;
 
-    avec_push_back(&agents, a);
+    avec_push_back(&world->agents, a);
   }
 }
-void World::addCarnivore() {
-  Agent a;
-  agent_init(a);
-  a.id = idcounter;
-  idcounter++;
-  a.herbivore = randf(0, 0.1);
-  avec_push_back(&agents, a);
 
-  ++numAgentsAdded; // record in report
+void world_addCarnivore(struct World *world) {
+  struct Agent a;
+  agent_init(&a);
+  a.id = world->idcounter;
+  a.herbivore = randf(0, 0.1);
+  avec_push_back(&world->agents, a);
+
+  world->idcounter++;
+  world->numAgentsAdded++;
 }
 
-void World::addNewByCrossover() {
+void world_addNewByCrossover(struct World *world) {
   // find two success cases
-  size_t i1 = randi(0, agents.size);
-  size_t i2 = randi(0, agents.size);
-  for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].age > agents.agents[i1].age && randf(0, 1) < 0.1) {
+  size_t i1 = randi(0, world->agents.size);
+  size_t i2 = randi(0, world->agents.size);
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].age > world->agents.agents[i1].age && randf(0, 1) < 0.1) {
       i1 = i;
     }
-    if (agents.agents[i].age > agents.agents[i2].age && randf(0, 1) < 0.1 && i != i1) {
+    if (world->agents.agents[i].age > world->agents.agents[i2].age && randf(0, 1) < 0.1 && i != i1) {
       i2 = i;
     }
   }
 
-  Agent *a1 = &agents.agents[i1];
-  Agent *a2 = &agents.agents[i2];
+  struct Agent *a1 = &world->agents.agents[i1];
+  struct Agent *a2 = &world->agents.agents[i2];
 
   // cross brains
-  Agent anew;
-  agent_init(anew);
-  agent_crossover(anew, *a1, *a2);
+  struct Agent anew;
+  agent_init(&anew);
+  agent_crossover(&anew, a1, a2);
 
   // maybe do mutation here? I dont know. So far its only crossover
-  anew.id = idcounter;
-  idcounter++;
-  avec_push_back(&agents, anew);
+  anew.id = world->idcounter;
+  world->idcounter++;
+  avec_push_back(&world->agents, anew);
 
-  ++numAgentsAdded; // record in report
+  world->numAgentsAdded++; // record in report
 }
 
-void World::reproduce(int ai, float MR, float MR2) {
+void world_reproduce(struct World *world, int ai, float MR, float MR2) {
   if (randf(0, 1) < 0.04)
     MR = MR * randf(1, 10);
   if (randf(0, 1) < 0.04)
     MR2 = MR2 * randf(1, 10);
 
-  agent_initevent(agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
+  agent_initevent(&world->agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
   for (int i = 0; i < BABIES; i++) {
 
-    Agent a2;
-    agent_init(a2);
-    agent_reproduce(a2, agents.agents[ai], MR, MR2);
-    a2.id = idcounter;
-    idcounter++;
-    avec_push_back(&agents, a2);
-
-    // TODO fix recording
-    // record this
-    // FILE* fp = fopen("log.txt", "a");
-    // fprintf(fp, "%i %i %i\n", 1, this->id, a2.id); //1 marks the event: child
-    // is born fclose(fp);
+    struct Agent a2;
+    agent_init(&a2);
+    agent_reproduce(&a2, &world->agents.agents[ai], MR, MR2);
+    a2.id = world->idcounter;
+    world->idcounter++;
+    avec_push_back(&world->agents, a2);
   }
 }
 
-void World::writeReport() {
+void world_writeReport(struct World *world) {
   // save all kinds of nice data stuff
   int numherb = 0;
   int numcarn = 0;
@@ -792,24 +797,24 @@ void World::writeReport() {
   int topcarn = 0;
   int total_age = 0;
   int avg_age;
-  double epoch_decimal = modcounter / 10000.0 + current_epoch;
+  double epoch_decimal = world->modcounter / 10000.0 + world->current_epoch;
 
   // Count number of herb, carn and top of each
-  for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].herbivore > 0.5)
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].herbivore > 0.5)
       numherb++;
     else
       numcarn++;
 
-    if (agents.agents[i].herbivore > 0.5 && agents.agents[i].gencount > topherb)
-      topherb = agents.agents[i].gencount;
-    if (agents.agents[i].herbivore < 0.5 && agents.agents[i].gencount > topcarn)
-      topcarn = agents.agents[i].gencount;
+    if (world->agents.agents[i].herbivore > 0.5 && world->agents.agents[i].gencount > topherb)
+      topherb = world->agents.agents[i].gencount;
+    if (world->agents.agents[i].herbivore < 0.5 && world->agents.agents[i].gencount > topcarn)
+      topcarn = world->agents.agents[i].gencount;
 
     // Average Age:
-    total_age += agents.agents[i].age;
+    total_age += world->agents.agents[i].age;
   }
-  avg_age = total_age / agents.size;
+  avg_age = total_age / world->agents.size;
 
   // Compute Standard Devitation of every weight in every agents brain
   double total_std_dev = 0;
@@ -819,16 +824,16 @@ void World::writeReport() {
   for (int i = 0; i < BRAINSIZE; i++)
   {
     double box_sum = 0;
-    double box_weights[agents.size];
+    double box_weights[world->agents.size];
     double box_mean;
     double box_square_sum = 0;
 
     // loop through every agent to get the weight
-    for (size_t a = 0; a < agents.size; a++) {
+    for (size_t a = 0; a < world->agents.size; a++) {
       double box_weight_sum = 0;
 
       for (int b = 0; b < CONNS; b++) {
-        box_weight_sum += agents.agents[a].brain.boxes[i].w[b];
+        box_weight_sum += world->agents.agents[a].brain.boxes[i].w[b];
       }
       // Add this sum to total stats:
       box_sum += box_weight_sum;
@@ -842,7 +847,7 @@ void World::writeReport() {
     // Now calculate the population standard deviation for this box:
     // Compute diff of each weight sum from mean and square the result, then add
     // it:
-    for (size_t c = 0; c < agents.size; c++) {
+    for (size_t c = 0; c < world->agents.size; c++) {
       box_square_sum += pow(box_weights[c] - box_mean, 2);
     }
   }
@@ -853,43 +858,39 @@ void World::writeReport() {
   FILE *fp = fopen("report.csv", "a");
 
   fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn,
-          topherb, topcarn, int(total_mean_std_dev), avg_age, numAgentsAdded);
+          topherb, topcarn, (int) total_mean_std_dev, avg_age, world->numAgentsAdded);
 
   fclose(fp);
 
   // Reset number agents added to zero
-  numAgentsAdded = 0;
+  world->numAgentsAdded = 0;
 }
 
-void World::reset() {
-  avec_free(&agents);
-  avec_init(&agents, NUMBOTS + 10);
-  addRandomBots(NUMBOTS);
+void world_reset(struct World *world) {
+  avec_free(&world->agents);
+  avec_init(&world->agents, NUMBOTS + 10);
+  world_addRandomBots(world, NUMBOTS);
 }
 
-void World::setClosed(int close) { WORLD_CLOSED = close; }
-
-int World::isClosed() { return WORLD_CLOSED; }
-
-void World::processMouse(int button, int state, int x, int y) {
+void world_processMouse(struct World *world, int button, int state, int x, int y) {
   if (state == 0) {
     float mind = 1e10;
     size_t mini = -1;
     float d;
 
-    for (size_t i = 0; i < agents.size; i++) {
-      d = pow(x - agents.agents[i].pos.x, 2) + pow(y - agents.agents[i].pos.y, 2);
+    for (size_t i = 0; i < world->agents.size; i++) {
+      d = pow(x - world->agents.agents[i].pos.x, 2) + pow(y - world->agents.agents[i].pos.y, 2);
       if (d < mind) {
         mind = d;
         mini = i;
       }
     }
     // toggle selection of this agent
-    for (size_t i = 0; i < agents.size; i++) {
+    for (size_t i = 0; i < world->agents.size; i++) {
       if (i != mini) {
-        agents.agents[i].selectflag = false;
+        world->agents.agents[i].selectflag = 0;
       } else {
-        agents.agents[i].selectflag = !agents.agents[mini].selectflag;
+        world->agents.agents[i].selectflag = world->agents.agents[mini].selectflag ? 0 : 1;
       }
     }
 
@@ -897,39 +898,30 @@ void World::processMouse(int button, int state, int x, int y) {
   }
 }
 
-void World::draw(View *view, int drawfood) {
-  if (drawfood) {
-    for (int i = 0; i < FW; i++) {
-      for (int j = 0; j < FH; j++) {
-        float f = 0.5 * food[i][j] / FOODMAX;
-        view->drawFood(i, j, f);
-      }
-    }
+int world_numHerbivores(struct World *world) {
+  int numherb = 0;
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].herbivore > 0.5)
+      numherb++;
   }
-  for (size_t i = 0; i < agents.size; i++) {
-    view->drawAgent(agents.agents[i]);
-  }
+
+  return numherb;
 }
 
-pair<int, int> World::numHerbCarnivores() const {
-  int numherb = 0;
+int world_numCarnivores(struct World *world) {
   int numcarn = 0;
-  for (size_t i = 0; i < agents.size; i++) {
-    if (agents.agents[i].herbivore > 0.5)
-      numherb++;
-    else
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i].herbivore <= 0.5)
       numcarn++;
   }
 
-  return pair<int, int>(numherb, numcarn);
+  return numcarn;
 }
 
-int World::numAgents() const {
-  if (agents.size == 0) {
-    cout << "Population is extinct at epoch " << current_epoch << endl;
+int world_numAgents(struct World *world) {
+  if (world->closed && world->agents.size == 0) {
+    printf("Population is extinct at epoch %i\n", world->current_epoch);
     exit(1);
   }
-  return agents.size;
+  return world->agents.size;
 }
-
-int World::epoch() const { return current_epoch; }

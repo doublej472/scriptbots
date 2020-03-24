@@ -3,11 +3,11 @@
 #include "World.h"
 
 struct Base {
-  World *world;
+  struct World *world;
 };
 
-void base_init(Base& base);
-void base_saveworld(Base& base);
-void base_loadworld(Base& base);
+void base_init(struct Base *base, struct World *world);
+void base_saveworld(struct Base *base);
+void base_loadworld(struct Base *base);
 
 #endif // BASE_H
