@@ -16,7 +16,7 @@ MLPBox::MLPBox() {
   }
 
   // how fast neuron/box moves towards its target. 1 is instant.
-  kp= randf(0.1,1);
+  kp = randf(0.1,1);
   gw = randf(0, 5);
   bias = randf(-1.5, 1.5);
 
@@ -31,12 +31,17 @@ MLPBrain::MLPBrain() {}
 MLPBrain::~MLPBrain() {}
 
 MLPBrain::MLPBrain(const MLPBrain &other) {
-  memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
+  for (int i = 0; i < BRAINSIZE; i++) {
+    this->boxes[i] = other.boxes[i];
+  }
 }
 
 MLPBrain &MLPBrain::operator=(const MLPBrain &other) {
-  if (this != &other)
-    memcpy(boxes, other.boxes, sizeof(MLPBox) * BRAINSIZE);
+  if (this != &other) {
+    for (int i = 0; i < BRAINSIZE; i++) {
+      this->boxes[i] = other.boxes[i];
+    }
+  }
   return *this;
 }
 
