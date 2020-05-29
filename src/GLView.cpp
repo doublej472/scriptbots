@@ -58,6 +58,7 @@ GLView::GLView()
 }
 
 GLView::~GLView() {}
+
 void GLView::changeSize(int w, int h) {
   // Reset the coordinate system before modifying
   glViewport(0, 0, w, h);
@@ -80,12 +81,12 @@ void GLView::processMouse(int button, int state, int x, int y) {
 
   // Scroll up
   if (button == 3) {
-    scalemult += 0.025;
+    scalemult += scalemult * 0.05;
   }
 
   // Scroll down
   if (button == 4) {
-    scalemult -= 0.025;
+    scalemult -= scalemult * 0.05;
   }
 
   if (scalemult < 0.01)
@@ -102,7 +103,7 @@ void GLView::processMouseActiveMotion(int x, int y) {
 
   if (downb[1] == 1) {
     // mouse wheel. Change scale
-    scalemult -= 0.002 * (y - mousey);
+    scalemult -= 0.005 * (y - mousey) * scalemult;
     if (scalemult < 0.01)
       scalemult = 0.01;
   }
