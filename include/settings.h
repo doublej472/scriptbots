@@ -90,6 +90,8 @@ const int FOOD_MODEL =
     FOOD_MODEL_RAND;             // what kind of food appearance is to be used
 const float FOODGROWTH = 0.0005; // how quickly does food grow on a square. only
                                  // used with FOOD_MODEL_GROW
+const float FOODGROWTH_MIN = 0.1;  // how much food is required to spread to a
+                                    // new square with FOOD_MODEL_GROW
 const float FOODINTAKE = 0.00225; // how much does every agent consume?
 const float FOODWASTE = 0.001;    // how much food disapears if agent eats?
 const float FOODMAX = 0.5;        // how much food per cell can there be at max?

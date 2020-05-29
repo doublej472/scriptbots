@@ -112,7 +112,7 @@ void World::update() {
             growFood(x, y);
 
             // Grow surrounding squares sometimes and only if well grown
-            if (randf(0, food[x][y]) > .1) {
+            if (randf(0, food[x][y]) > conf::FOODGROWTH_MIN) {
               // Spread to surrounding squares
               growFood(x + 1, y - 1);
               growFood(x + 1, y);
