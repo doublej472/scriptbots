@@ -215,6 +215,15 @@ void GLView::renderScene() {
 }
 
 void GLView::drawAgent(const Agent &agent) {
+
+  float asx = (agent.pos.x + xtranslate) * (scalemult*0.9f);
+  float asy = (agent.pos.y + ytranslate) * (scalemult*0.9f);
+
+  if ( asx > wwidth/2   || asx < -wwidth/2 ||
+       asy > wheight/2  || asy < -wheight/2) {
+    return;
+  }
+
   float n;
   float r = conf::BOTRADIUS;
   float rp = conf::BOTRADIUS + 2;
