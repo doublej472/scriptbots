@@ -80,7 +80,7 @@ public:
 
   bool spiked;
 
-  float in[INPUTSIZE]; // input: 2 eyes, sensors for R,G,B,proximity each,
+  float in[INPUTSIZE];   // input: 2 eyes, sensors for R,G,B,proximity each,
                          // then Sound, Smell, Health
   float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
 
@@ -96,7 +96,7 @@ public:
   float ir, ig, ib; // indicator colors
   int selectflag;   // is this agent selected?
   float dfood;      // what is change in health of this agent due to
-               // giving/receiving?
+                    // giving/receiving?
 
   float give; // is this agent attempting to give food to other agent?
 
@@ -110,7 +110,6 @@ public:
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
   MLPBrain brain;
-
 };
 
 #endif // AGENT_H

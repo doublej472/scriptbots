@@ -1,5 +1,5 @@
-#include "config.h"
 #include "include/GLView.h"
+#include "config.h"
 #include <ctime>
 #ifdef MAC_GLUT
 #include <GLUT/glut.h>
@@ -42,8 +42,8 @@ void drawCircle(float x, float y, float r) {
 GLView::GLView()
     : // World *s) :
       //        world(world),
-      paused(false), draw(true), skipdraw(1), drawfood(true),
-      modcounter(0), lastUpdate(0), frames(0) {
+      paused(false), draw(true), skipdraw(1), drawfood(true), modcounter(0),
+      lastUpdate(0), frames(0) {
 
   xtranslate = -conf::WIDTH / 2;
   ytranslate = -conf::HEIGHT / 2;
@@ -122,47 +122,47 @@ void GLView::processMouseActiveMotion(int x, int y) {
 
 void GLView::processNormalKeys(unsigned char key, int x, int y) {
   switch (key) {
-    case 27:
-      printf("\n\nESC key pressed, shutting down\n");
-      base->saveWorld();
-      exit(0);
-      break;
-    case 'r':
-      base->world->reset();
-      printf("Agents reset\n");
-      break;
-    case 'p':
-      paused = !paused;
-      break;
-    case 'd':
-      draw = !draw;
-      break;
-    case '=':
-    case '+':
-      skipdraw++;
-      break;
-    case '-':
-      skipdraw--;
-      break;
-    case 'f':
-      drawfood = !drawfood;
-      break;
-    case 'a':
-      for (int i = 0; i < 10; i++) {
-        base->world->addNewByCrossover();
-      }
-      break;
-    case 'q':
-      for (int i = 0; i < 10; i++) {
-        base->world->addCarnivore();
-      }
-      break;
-    case 'c':
-      base->world->setClosed(!base->world->isClosed());
-      printf("Environemt closed now= %i\n", base->world->isClosed());
-      break;
-    default:
-      printf("Unknown key pressed: %i\n", key);
+  case 27:
+    printf("\n\nESC key pressed, shutting down\n");
+    base->saveWorld();
+    exit(0);
+    break;
+  case 'r':
+    base->world->reset();
+    printf("Agents reset\n");
+    break;
+  case 'p':
+    paused = !paused;
+    break;
+  case 'd':
+    draw = !draw;
+    break;
+  case '=':
+  case '+':
+    skipdraw++;
+    break;
+  case '-':
+    skipdraw--;
+    break;
+  case 'f':
+    drawfood = !drawfood;
+    break;
+  case 'a':
+    for (int i = 0; i < 10; i++) {
+      base->world->addNewByCrossover();
+    }
+    break;
+  case 'q':
+    for (int i = 0; i < 10; i++) {
+      base->world->addCarnivore();
+    }
+    break;
+  case 'c':
+    base->world->setClosed(!base->world->isClosed());
+    printf("Environemt closed now= %i\n", base->world->isClosed());
+    break;
+  default:
+    printf("Unknown key pressed: %i\n", key);
   }
 }
 
@@ -176,7 +176,8 @@ void GLView::handleIdle() {
   frames++;
   if ((currentTime - lastUpdate) >= 1000) {
     std::pair<int, int> num_herbs_carns = base->world->numHerbCarnivores();
-    sprintf(buf, "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
+    sprintf(buf,
+            "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
             frames, base->world->numAgents(), num_herbs_carns.second,
             num_herbs_carns.first, base->world->epoch());
     glutSetWindowTitle(buf);
@@ -216,11 +217,11 @@ void GLView::renderScene() {
 
 void GLView::drawAgent(const Agent &agent) {
 
-  float asx = (agent.pos.x + xtranslate) * (scalemult*0.9f);
-  float asy = (agent.pos.y + ytranslate) * (scalemult*0.9f);
+  float asx = (agent.pos.x + xtranslate) * (scalemult * 0.9f);
+  float asy = (agent.pos.y + ytranslate) * (scalemult * 0.9f);
 
-  if ( asx > wwidth/2   || asx < -wwidth/2 ||
-       asy > wheight/2  || asy < -wheight/2) {
+  if (asx > wwidth / 2 || asx < -wwidth / 2 || asy > wheight / 2 ||
+      asy < -wheight / 2) {
     return;
   }
 
@@ -272,9 +273,9 @@ void GLView::drawAgent(const Agent &agent) {
       glVertex3f(offx + xx + ss * j, yy, 0.0f);
       glVertex3f(offx + xx + ss * j, yy + ss, 0.0f);
       glVertex3f(offx + ss * j, yy + ss, 0.0f);
-      if ((j + 1) % (int) floor(sqrt(BRAINSIZE)) == 0) {
+      if ((j + 1) % (int)floor(sqrt(BRAINSIZE)) == 0) {
         yy += ss;
-        offx -= ss * (int) floor(sqrt(BRAINSIZE));
+        offx -= ss * (int)floor(sqrt(BRAINSIZE));
       }
     }
 

@@ -150,7 +150,7 @@ void World::update() {
 
   float healthloss;     // amount of health lost
   float dd, discomfort; // temperature preference vars
-  int numaround;     // used for dead agents
+  int numaround;        // used for dead agents
   float d, agemult;     // used for dead agents
 
   // check if first agent in vector (the oldest) is too old
@@ -834,8 +834,7 @@ void World::writeReport() {
   double total_mean_std_dev;
 
   // loop through every box in brain (there are BRAINSIZE of these)
-  for (int i = 0; i < BRAINSIZE; i++)
-  {
+  for (int i = 0; i < BRAINSIZE; i++) {
     double box_sum = 0;
     double box_weights[agents.size()];
     double box_mean;

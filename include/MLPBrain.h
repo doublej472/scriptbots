@@ -25,8 +25,8 @@ public:
 
   float w[CONNS]; // weight of each connecting box
   int id[CONNS];  // id in boxes[] of the connecting box
-  float kp;             // damper
-  float gw;             // global w
+  float kp;       // damper
+  float gw;       // global w
   float bias;
 
   // state variables

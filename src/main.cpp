@@ -6,8 +6,8 @@
 
 #include "include/PerfTimer.h"
 #include "include/World.h"
-#include <omp.h>
 #include "include/settings.h"
+#include <omp.h>
 
 // Include Boost serialization:
 #include "include/boost.h"
@@ -64,11 +64,11 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = true;
 #endif
-  #ifdef OPENMP
+#ifdef OPENMP
   NUM_THREADS =
       omp_get_num_procs(); // Specifies the number of threads to use
                            // Defaults to the number of available processors
-  #endif
+#endif
   bool loadWorldFromFile = false;
 
   // Retrieve command line arguments
@@ -103,10 +103,10 @@ int main(int argc, char **argv) {
     }
   }
 
-  #ifdef OPENMP
+#ifdef OPENMP
   // Set the number of threads now, just once, here:
   omp_set_num_threads(NUM_THREADS);
-  #endif
+#endif
 
   Base base;
 

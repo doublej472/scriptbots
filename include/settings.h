@@ -40,9 +40,9 @@ const int REPORTS_PER_EPOCH =
     50; // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-const int NUMBOTS = 1000;    // initially
-const int NUMBOTS_MIN = 20; // for open world, the threshold to start adding
-                            // bots
+const int NUMBOTS = 1000;      // initially
+const int NUMBOTS_MIN = 20;    // for open world, the threshold to start adding
+                               // bots
 const float BOTRADIUS = 10;    // for drawing
 const float BOTSPEED = 0.1;    // how fast they can move
 const float SPIKESPEED = 0.01; // how quickly can attack spike go up?
@@ -93,8 +93,8 @@ const float FOODGROWTH = 0.0005; // how quickly does food grow on a square. only
 const float FOODINTAKE = 0.00225; // how much does every agent consume?
 const float FOODWASTE = 0.001;    // how much food disapears if agent eats?
 const float FOODMAX = 0.5;        // how much food per cell can there be at max?
-const int FOODADDFREQ = 8; // how often does random square get to full food?
-                           // (the lower the more often food is added)
+const int FOODADDFREQ = 8;  // how often does random square get to full food?
+                            // (the lower the more often food is added)
 const float FOOD_DEAD = .1; // what percent of FOOD MAX does a dead agent create
                             // that is not eaten by carnivores?
 const float FOOD_MEAT_VALUE =

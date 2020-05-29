@@ -16,7 +16,7 @@ MLPBox::MLPBox() {
   }
 
   // how fast neuron/box moves towards its target. 1 is instant.
-  kp = randf(0.1,1);
+  kp = randf(0.1, 1);
   gw = randf(0, 5);
   bias = randf(-1.5, 1.5);
 
