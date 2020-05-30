@@ -19,6 +19,8 @@ struct GLView {
   int downb[3];
   int mousex, mousey;
   int wwidth, wheight;
+  int is_fullscreen;
+  int prev_width, prev_height;
 };
 
 extern struct GLView GLVIEW;
@@ -33,5 +35,6 @@ void gl_renderScene();
 void drawAgent(const struct Agent *agent);
 void drawFood(int x, int y, float quantity);
 void glview_draw(struct World *world, int drawfood);
+void glview_toggleFullscreen();
 
 #endif // GLVIEW_H

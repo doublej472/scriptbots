@@ -147,6 +147,11 @@ void gl_processNormalKeys(unsigned char key, int x, int y) {
       GLVIEW.base->world->closed = GLVIEW.base->world->closed ? 0 : 1;
       printf("Environemt closed now= %i\n", GLVIEW.base->world->closed);
       break;
+    // C-f
+    case 6:
+      glview_toggleFullscreen();
+      printf("Toggling full screen\n");
+      break;
     default:
       printf("Unknown key pressed: %i\n", key);
   }
@@ -449,4 +454,15 @@ void glview_draw(struct World *world, int drawfood) {
   for (size_t i = 0; i < world->agents.size; i++) {
     drawAgent(&world->agents.agents[i]);
   }
+}
+
+void glview_toggleFullscreen() {
+  if (GLVIEW.is_fullscreen) {
+    glutReshapeWindow(GLVIEW.prev_width, GLVIEW.prev_height);
+  } else {
+    GLVIEW.prev_width = GLVIEW.wwidth;
+    GLVIEW.prev_height = GLVIEW.wheight;
+    glutFullScreen();
+  }
+  GLVIEW.is_fullscreen = !GLVIEW.is_fullscreen;
 }
