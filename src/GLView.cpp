@@ -1,13 +1,12 @@
 #include "include/GLView.h"
 #include "config.h"
+#include <cstdio>
 #include <ctime>
 #ifdef MAC_GLUT
 #include <GLUT/glut.h>
 #else
 #include <GL/glut.h>
 #endif
-
-#include <stdio.h>
 
 void gl_processNormalKeys(unsigned char key, int x, int y) {
   GLVIEW->processNormalKeys(key, x, y);
@@ -37,6 +36,31 @@ void drawCircle(float x, float y, float r) {
     n = k * (M_PI / 8);
     glVertex3f(x + r * sin(n), y + r * cos(n), 0);
   }
+}
+
+void drawRectangleLines(float x, float y, float width, float height) {
+  glVertex3f(x, y, 0.0f);
+  glVertex3f(x + width, y, 0.0f);
+
+  glVertex3f(x + width, y, 0.0f);
+  glVertex3f(x + width, y + height, 0.0f);
+
+  glVertex3f(x + width, y + height, 0.0f);
+  glVertex3f(x, y + height, 0.0f);
+
+  glVertex3f(x, y + height, 0.0f);
+  glVertex3f(x, y, 0.0f);
+}
+
+// Assumes we are in GL_TRIANGLE
+void drawRectangle(float x, float y, float width, float height) {
+  glVertex3f(x, y, 0.0f);
+  glVertex3f(x + width, y, 0.0f);
+  glVertex3f(x, y + height, 0.0f);
+
+  glVertex3f(x + width, y, 0.0f);
+  glVertex3f(x, y + height, 0.0f);
+  glVertex3f(x + width, y + height, 0.0f);
 }
 
 GLView::GLView()
@@ -236,11 +260,12 @@ void GLView::renderScene() {
 
 void GLView::drawAgent(const Agent &agent) {
 
-  float asx = (agent.pos.x + xtranslate) * (scalemult * 0.9f);
-  float asy = (agent.pos.y + ytranslate) * (scalemult * 0.9f);
+  // Determine if an agent is off screen, give some wiggle room
+  float asx = (agent.pos.x + xtranslate) * (scalemult);
+  float asy = (agent.pos.y + ytranslate) * (scalemult);
 
-  if (asx > wwidth / 2 || asx < -wwidth / 2 || asy > wheight / 2 ||
-      asy < -wheight / 2) {
+  if ((agent.selectflag == 0) && (asx > wwidth * 2 || asx < -wwidth * 2 ||
+                                  asy > wheight * 2 || asy < -wheight * 2)) {
     return;
   }
 
@@ -258,44 +283,84 @@ void GLView::drawAgent(const Agent &agent) {
 
     glPushMatrix();
     glTranslatef(agent.pos.x - 80, agent.pos.y + 20, 0);
-    // draw inputs, outputs
-    float yy = 15;
-    float xx = 15;
-    float ss = 16;
-    glBegin(GL_QUADS);
-    for (int j = 0; j < INPUTSIZE; j++) {
-      float col = agent.in[j];
-      glColor3f(col, col, col);
-      glVertex3f(0 + ss * j, 0, 0.0f);
-      glVertex3f(xx + ss * j, 0, 0.0f);
-      glVertex3f(xx + ss * j, yy, 0.0f);
-      glVertex3f(0 + ss * j, yy, 0.0f);
-    }
-    yy += 5;
-    for (int j = 0; j < OUTPUTSIZE; j++) {
-      float col = agent.out[j];
-      glColor3f(col, col, col);
-      glVertex3f(0 + ss * j, yy, 0.0f);
-      glVertex3f(xx + ss * j, yy, 0.0f);
-      glVertex3f(xx + ss * j, yy + ss, 0.0f);
-      glVertex3f(0 + ss * j, yy + ss, 0.0f);
-    }
-    yy += ss * 2;
 
-    // draw brain. Eventually move this to brain class?
-    float offx = 0;
-    ss = 8;
+    float ss = 8;
+    float spacing = 8;
+    int brainlength = (int)floor(sqrt(BRAINSIZE));
+    float xbrain = (ss + spacing) * 2;
+    float xoutput = (3 + brainlength) * (ss + spacing);
+
+    glBegin(GL_TRIANGLES);
+    // inputs
+    for (int j = 0; j < INPUTSIZE; j++) {
+      float color = agent.in[j];
+      glColor3f(0.0f, 0.0f, color);
+      drawRectangle(0, (ss + spacing) * j, ss, ss);
+    }
+
+    // neurons
     for (int j = 0; j < BRAINSIZE; j++) {
-      float col = agent.brain.boxes[j].out;
-      glColor3f(col, col, col);
-      glVertex3f(offx + 0 + ss * j, yy, 0.0f);
-      glVertex3f(offx + xx + ss * j, yy, 0.0f);
-      glVertex3f(offx + xx + ss * j, yy + ss, 0.0f);
-      glVertex3f(offx + ss * j, yy + ss, 0.0f);
-      if ((j + 1) % (int)floor(sqrt(BRAINSIZE)) == 0) {
-        yy += ss;
-        offx -= ss * (int)floor(sqrt(BRAINSIZE));
+      float row = j / brainlength; // y
+      float col = j % brainlength; // x
+      float color = agent.brain.boxes[j].out;
+
+      glColor3f(color, color, color);
+      drawRectangle(col * (ss + spacing) + xbrain, row * (ss + spacing * 3), ss,
+                    ss);
+    }
+
+    // outputs
+    for (int j = 0; j < OUTPUTSIZE; j++) {
+      float color = agent.out[j];
+      glColor3f(color, 0.0f, 0.0f);
+      drawRectangle(xoutput, j * (ss + spacing), ss, ss);
+    }
+    glEnd();
+
+    glBegin(GL_LINES);
+    // Draw connections
+    // inputs
+    for (int j = 0; j < INPUTSIZE; j++) {
+      float x2 = j % brainlength;
+      float y2 = j / brainlength;
+      float color = agent.in[j];
+      glColor3f(0.0f, 0.0f, color);
+      glVertex3f(ss, (ss + spacing) * j + (ss / 2), 0.0f);
+      glVertex3f(xbrain + x2 * (ss + spacing), y2 * (ss + spacing * 3) + ss / 2,
+                 0);
+    }
+
+    // brain
+    for (int j = 0; j < BRAINSIZE; j++) {
+      float x1 = j % brainlength;
+      float y1 = j / brainlength;
+      // For each connection
+      for (int k = 0; k < CONNS; k++) {
+        float x2 = agent.brain.boxes[j].id[k] % brainlength;
+        float y2 = agent.brain.boxes[j].id[k] / brainlength;
+        float alpha = std::min(
+            std::max(agent.brain.boxes[j].w[k] * agent.brain.boxes[j].out,
+                     0.0f),
+            1.0f);
+        glColor3f(alpha, 0.0f, 0.0f);
+        glVertex3f(xbrain + x1 * (ss + spacing) + ss,
+                   y1 * (ss + spacing * 3) + ss / 2, 0);
+        glColor3f(0.0f, 0.0f, alpha);
+        glVertex3f(xbrain + x2 * (ss + spacing),
+                   y2 * (ss + spacing * 3) + ss / 2, 0);
       }
+    }
+
+    // outputs
+    for (int j = 0; j < OUTPUTSIZE; j++) {
+      float x1 = (j + BRAINSIZE - OUTPUTSIZE) % brainlength;
+      float y1 = (j + BRAINSIZE - OUTPUTSIZE) / brainlength;
+      float color = agent.out[j];
+
+      glColor3f(color, 0.0f, 0.0f);
+      glVertex3f(xbrain + x1 * (ss + spacing) + ss,
+                 y1 * (ss + spacing * 3) + ss / 2, 0.0f);
+      glVertex3f(xoutput, j * (ss + spacing) + (ss / 2), 0.0f);
     }
 
     glEnd();
@@ -384,43 +449,28 @@ void GLView::drawAgent(const Agent &agent) {
   // and health
   int xo = 18;
   int yo = -15;
-  glBegin(GL_QUADS);
+  glBegin(GL_TRIANGLES);
   // black background
   glColor3f(0, 0, 0);
-  glVertex3f(agent.pos.x + xo, agent.pos.y + yo, 0);
-  glVertex3f(agent.pos.x + xo + 5, agent.pos.y + yo, 0);
-  glVertex3f(agent.pos.x + xo + 5, agent.pos.y + yo + 40, 0);
-  glVertex3f(agent.pos.x + xo, agent.pos.y + yo + 40, 0);
+  drawRectangle(agent.pos.x + xo, agent.pos.y + yo, 5, 40);
 
   // health
   glColor3f(0, 0.8, 0);
-  glVertex3f(agent.pos.x + xo, agent.pos.y + yo + 20 * (2 - agent.health), 0);
-  glVertex3f(agent.pos.x + xo + 5, agent.pos.y + yo + 20 * (2 - agent.health),
-             0);
-  glVertex3f(agent.pos.x + xo + 5, agent.pos.y + yo + 40, 0);
-  glVertex3f(agent.pos.x + xo, agent.pos.y + yo + 40, 0);
+  drawRectangle(agent.pos.x + xo, agent.pos.y + yo + 20 * (2 - agent.health), 5,
+                40 - 20 * (2 - agent.health));
 
   // if this is a hybrid, we want to put a marker down
   if (agent.hybrid) {
     glColor3f(0, 0, 0.8);
-    glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo, 0);
-    glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo, 0);
-    glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 10, 0);
-    glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 10, 0);
+    drawRectangle(agent.pos.x + xo + 6, agent.pos.y + yo, 6, 10);
   }
 
   glColor3f(1 - agent.herbivore, agent.herbivore, 0);
-  glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 12, 0);
-  glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 12, 0);
-  glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 22, 0);
-  glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 22, 0);
+  drawRectangle(agent.pos.x + xo + 6, agent.pos.y + yo + 12, 6, 10);
 
   // how much sound is this bot making?
   glColor3f(agent.soundmul, agent.soundmul, agent.soundmul);
-  glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 24, 0);
-  glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 24, 0);
-  glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 34, 0);
-  glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 34, 0);
+  drawRectangle(agent.pos.x + xo + 6, agent.pos.y + yo + 24, 6, 10);
 
   // draw giving/receiving
   if (agent.dfood != 0) {
@@ -430,10 +480,7 @@ void GLView::drawAgent(const Agent &agent) {
       glColor3f(0, mag, 0); // draw boost as green outline
     else
       glColor3f(mag, 0, 0);
-    glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 36, 0);
-    glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 36, 0);
-    glVertex3f(agent.pos.x + xo + 12, agent.pos.y + yo + 46, 0);
-    glVertex3f(agent.pos.x + xo + 6, agent.pos.y + yo + 46, 0);
+    drawRectangle(agent.pos.x + xo + 6, agent.pos.y + yo + 36, 6, 10);
   }
 
   glEnd();
@@ -468,12 +515,9 @@ void GLView::drawAgent(const Agent &agent) {
 void GLView::drawFood(int x, int y, float quantity) {
   // draw food
   if (drawfood) {
-    glBegin(GL_QUADS);
+    glBegin(GL_TRIANGLES);
     glColor3f(0.9 - quantity, 0.9 - quantity, 1.0 - quantity);
-    glVertex3f(x * conf::CZ, y * conf::CZ, 0);
-    glVertex3f(x * conf::CZ + conf::CZ, y * conf::CZ, 0);
-    glVertex3f(x * conf::CZ + conf::CZ, y * conf::CZ + conf::CZ, 0);
-    glVertex3f(x * conf::CZ, y * conf::CZ + conf::CZ, 0);
+    drawRectangle(x * conf::CZ, y * conf::CZ, conf::CZ, conf::CZ);
     glEnd();
   }
 }
