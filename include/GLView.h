@@ -34,6 +34,7 @@ public:
   void changeSize(int w, int h);
   void handleIdle();
   void renderScene();
+  void toggleFullscreen();
 
 private:
   //    World *world;
@@ -53,6 +54,8 @@ private:
   int downb[3];
   int mousex, mousey;
   int wwidth, wheight;
+  bool is_fullscreen;
+  int prev_width, prev_height;
 };
 
 #endif // GLVIEW_H

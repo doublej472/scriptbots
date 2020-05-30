@@ -55,9 +55,23 @@ GLView::GLView()
   mousey = 0;
   wwidth = conf::WWIDTH;
   wheight = conf::WHEIGHT;
+  is_fullscreen = false;
+  prev_width = wwidth;
+  prev_height = wheight;
 }
 
 GLView::~GLView() {}
+
+void GLView::toggleFullscreen() {
+  if (is_fullscreen) {
+    glutReshapeWindow(prev_width, prev_height);
+  } else {
+    prev_width = wwidth;
+    prev_height = wheight;
+    glutFullScreen();
+  }
+  is_fullscreen = !is_fullscreen;
+}
 
 void GLView::changeSize(int w, int h) {
   // Reset the coordinate system before modifying
@@ -160,6 +174,11 @@ void GLView::processNormalKeys(unsigned char key, int x, int y) {
   case 'c':
     base->world->setClosed(!base->world->isClosed());
     printf("Environemt closed now= %i\n", base->world->isClosed());
+    break;
+  // C-f
+  case 6:
+    toggleFullscreen();
+    printf("Toggling full screen\n");
     break;
   default:
     printf("Unknown key pressed: %i\n", key);

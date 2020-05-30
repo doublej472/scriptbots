@@ -227,7 +227,6 @@ void runWithGraphics(int &argc, char **argv, Base &base) {
   // GLUT SETUP
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-  glutInitWindowPosition(30, 30);
   glutInitWindowSize(conf::WWIDTH, conf::WHEIGHT);
   glutCreateWindow("Scriptbots");
   glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
