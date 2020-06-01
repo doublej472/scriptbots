@@ -209,8 +209,8 @@ void World::update() {
         // only carnivores get food. not same agent as dying
         if (agents[j].herbivore < .1 && agents[j].health > 0) {
 
-          d = (agents[i].pos - agents[j].pos).length();
-          if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
+          d = (agents[i].pos - agents[j].pos).lengthSq();
+          if (d < conf::FOOD_DISTRIBUTION_RADIUS*conf::FOOD_DISTRIBUTION_RADIUS) {
             numaround++;
           }
         }
@@ -229,8 +229,8 @@ void World::update() {
           // only carnivores get food. not same agent as dying
           if (agents[j].herbivore < .1 && agents[j].health > 0) {
 
-            d = (agents[i].pos - agents[j].pos).length();
-            if (d < conf::FOOD_DISTRIBUTION_RADIUS) {
+            d = (agents[i].pos - agents[j].pos).lengthSq();
+            if (d < conf::FOOD_DISTRIBUTION_RADIUS*conf::FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
                       coefficient = 5
@@ -396,17 +396,11 @@ void World::setInputsRunBrain() {
 
       Agent *a2 = &agents[j];
 
-      // Do manhattan-distance estimation
-      if (a->pos.x < a2->pos.x - conf::DIST ||
-          a->pos.x > a2->pos.x + conf::DIST ||
-          a->pos.y > a2->pos.y + conf::DIST ||
-          a->pos.y < a2->pos.y - conf::DIST)
-        continue;
-
       // standard distance formula (more fine grain)
-      float d = (a->pos - a2->pos).length();
+      float d = (a->pos - a2->pos).lengthSq();
 
-      if (d < conf::DIST) { // two bots are within DIST of each other
+      if (d < conf::DIST*conf::DIST) { // two bots are within DIST of each other
+        d = sqrt(d);
 
         // smell
         smaccum += 0.3 * (conf::DIST - d) / conf::DIST;
@@ -661,8 +655,8 @@ void World::processOutputs() {
 
     if (a->give > 0.5) {
       for (size_t j = 0; j < agents.size(); j++) {
-        float d = (a->pos - agents[j].pos).length();
-        if (d < conf::FOOD_SHARING_DISTANCE) {
+        float d = (a->pos - agents[j].pos).lengthSq();
+        if (d < conf::FOOD_SHARING_DISTANCE*conf::FOOD_SHARING_DISTANCE) {
           // initiate transfer
           if (agents[j].health < 2)
             agents[j].health += conf::FOODTRANSFER;
@@ -684,9 +678,9 @@ void World::processOutputs() {
 
       if (i == j)
         continue;
-      float d = (a->pos - agents[j].pos).length();
+      float d = (a->pos - agents[j].pos).lengthSq();
 
-      if (d < 2 * conf::BOTRADIUS) {
+      if (d < (2 * conf::BOTRADIUS)*(2 * conf::BOTRADIUS)) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         Vector2f v(1, 0);
