@@ -267,8 +267,8 @@ void GLView::drawAgent(const Agent &agent) {
   float asx = (agent.pos.x + xtranslate) * (scalemult);
   float asy = (agent.pos.y + ytranslate) * (scalemult);
 
-  if ((agent.selectflag == 0) && (asx > wwidth * 2 || asx < -wwidth * 2 ||
-                                  asy > wheight * 2 || asy < -wheight * 2)) {
+  if ((agent.selectflag == 0) && (asx > wwidth * 1.1f || asx < -wwidth * 1.1f ||
+                                  asy > wheight * 1.1f || asy < -wheight * 1.1f)) {
     return;
   }
 
