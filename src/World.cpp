@@ -508,10 +508,7 @@ void World::setInputsRunBrain() {
     }
 
     // APPLY HEALTH GAIN
-    if (health_gain > conf::GAIN_GROUPING) // cap at conf value
-      a->health += conf::GAIN_GROUPING;
-    else
-      a->health += health_gain;
+    a->health += max(conf::GAIN_GROUPING, health_gain);
 
     if (a->health > 2) // limit the amount of health
       a->health = 2;
@@ -644,34 +641,34 @@ void World::processOutputs() {
 
     // process food intake
 
-    int cx = (int)agents[i].pos.x / conf::CZ;
-    int cy = (int)agents[i].pos.y / conf::CZ;
+    int cx = (int)a->pos.x / conf::CZ;
+    int cy = (int)a->pos.y / conf::CZ;
     float f = food[cx][cy];
-    if (f > 0 && agents[i].health < 2) {
+    if (f > 0 && a->health < 2) {
       // agent eats the food
       float itk = min(f, conf::FOODINTAKE);
       float speedmul =
-          (1 - (abs(agents[i].w1) + abs(agents[i].w2)) / 2) * 0.6 + 0.4;
-      itk = itk * agents[i].herbivore *
+          (1 - (abs(a->w1) + abs(a->w2)) / 2) * 0.6 + 0.4;
+      itk = itk * a->herbivore *
             speedmul; // herbivores gain more from ground food
-      agents[i].health += itk;
-      agents[i].repcounter -= 3 * itk;
+      a->health += itk;
+      a->repcounter -= 3 * itk;
       food[cx][cy] -= min(f, conf::FOODWASTE);
     }
 
     // process giving and receiving of food
-    agents[i].dfood = 0;
+    a->dfood = 0;
 
-    if (agents[i].give > 0.5) {
+    if (a->give > 0.5) {
       for (size_t j = 0; j < agents.size(); j++) {
-        float d = (agents[i].pos - agents[j].pos).length();
+        float d = (a->pos - agents[j].pos).length();
         if (d < conf::FOOD_SHARING_DISTANCE) {
           // initiate transfer
           if (agents[j].health < 2)
             agents[j].health += conf::FOODTRANSFER;
-          agents[i].health -= conf::FOODTRANSFER;
+          a->health -= conf::FOODTRANSFER;
           agents[j].dfood += conf::FOODTRANSFER; // only for drawing
-          agents[i].dfood -= conf::FOODTRANSFER;
+          a->dfood -= conf::FOODTRANSFER;
         }
       }
     }
@@ -679,35 +676,35 @@ void World::processOutputs() {
     // NOTE: herbivore cant attack. TODO: hmmmmm
     // fot now ok: I want herbivores to run away from carnivores, not kill
     // them back
-    if (agents[i].herbivore > 0.8 || agents[i].spikeLength < 0.2 ||
-        agents[i].w1 < 0.5 || agents[i].w2 < 0.5)
+    if (a->herbivore > 0.8 || a->spikeLength < 0.2 ||
+        a->w1 < 0.5 || a->w2 < 0.5)
       continue;
 
     for (size_t j = 0; j < agents.size(); j++) {
 
       if (i == j)
         continue;
-      float d = (agents[i].pos - agents[j].pos).length();
+      float d = (a->pos - agents[j].pos).length();
 
       if (d < 2 * conf::BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         Vector2f v(1, 0);
-        v.rotate(agents[i].angle);
-        float diff = v.angle_between(agents[j].pos - agents[i].pos);
+        v.rotate(a->angle);
+        float diff = v.angle_between(agents[j].pos - a->pos);
         if (fabs(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
-          float DMG = conf::SPIKEMULT * agents[i].spikeLength *
-                      max(fabs(agents[i].w1), fabs(agents[i].w2)) *
+          float DMG = conf::SPIKEMULT * a->spikeLength *
+                      max(fabs(a->w1), fabs(a->w2)) *
                       conf::BOOSTSIZEMULT;
 
           agents[j].health -= DMG;
 
-          if (agents[i].health > 2)
-            agents[i].health = 2;    // cap health at 2
-          agents[i].spikeLength = 0; // retract spike back down
+          if (a->health > 2)
+            a->health = 2;    // cap health at 2
+          a->spikeLength = 0; // retract spike back down
 
-          agents[i].initEvent(
+          a->initEvent(
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
