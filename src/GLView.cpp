@@ -66,8 +66,8 @@ void drawRectangle(float x, float y, float width, float height) {
 GLView::GLView()
     : // World *s) :
       //        world(world),
-      paused(false), draw(true), skipdraw(1), drawfood(true), modcounter(0),
-      lastUpdate(0), frames(0) {
+      paused(false), draw(true), skipdraw(1), drawfood(true), drawconns(true),
+      modcounter(0), lastUpdate(0), frames(0) {
 
   xtranslate = -conf::WIDTH / 2;
   ytranslate = -conf::HEIGHT / 2;
@@ -185,6 +185,9 @@ void GLView::processNormalKeys(unsigned char key, int x, int y) {
   case 'f':
     drawfood = !drawfood;
     break;
+  case 'g':
+    drawconns = !drawconns;
+    break;
   case 'a':
     for (int i = 0; i < 10; i++) {
       base->world->addNewByCrossover();
@@ -294,7 +297,7 @@ void GLView::drawAgent(const Agent &agent) {
     // inputs
     for (int j = 0; j < INPUTSIZE; j++) {
       float color = agent.in[j];
-      glColor3f(0.0f, 0.0f, color);
+      glColor3f(0.3f, 0.3f, color);
       drawRectangle(0, (ss + spacing) * j, ss, ss);
     }
 
@@ -312,58 +315,59 @@ void GLView::drawAgent(const Agent &agent) {
     // outputs
     for (int j = 0; j < OUTPUTSIZE; j++) {
       float color = agent.out[j];
-      glColor3f(color, 0.0f, 0.0f);
+      glColor3f(color, 0.3f, 0.3f);
       drawRectangle(xoutput, j * (ss + spacing), ss, ss);
     }
     glEnd();
 
-    glBegin(GL_LINES);
     // Draw connections
-    // inputs
-    for (int j = 0; j < INPUTSIZE; j++) {
-      float x2 = j % brainlength;
-      float y2 = j / brainlength;
-      float color = agent.in[j];
-      glColor3f(0.0f, 0.0f, color);
-      glVertex3f(ss, (ss + spacing) * j + (ss / 2), 0.0f);
-      glVertex3f(xbrain + x2 * (ss + spacing), y2 * (ss + spacing * 3) + ss / 2,
-                 0);
-    }
-
-    // brain
-    for (int j = 0; j < BRAINSIZE; j++) {
-      float x1 = j % brainlength;
-      float y1 = j / brainlength;
-      // For each connection
-      for (int k = 0; k < CONNS; k++) {
-        float x2 = agent.brain.boxes[j].id[k] % brainlength;
-        float y2 = agent.brain.boxes[j].id[k] / brainlength;
-        float alpha = std::min(
-            std::max(agent.brain.boxes[j].w[k] * agent.brain.boxes[j].out,
-                     0.0f),
-            1.0f);
-        glColor3f(alpha, 0.0f, 0.0f);
-        glVertex3f(xbrain + x1 * (ss + spacing) + ss,
-                   y1 * (ss + spacing * 3) + ss / 2, 0);
-        glColor3f(0.0f, 0.0f, alpha);
+    if (drawconns) {
+      glBegin(GL_LINES);
+      // inputs
+      for (int j = 0; j < INPUTSIZE; j++) {
+        float x2 = j % brainlength;
+        float y2 = j / brainlength;
+        float color = agent.in[j];
+        glColor3f(0.0f, 0.0f, color);
+        glVertex3f(ss, (ss + spacing) * j + (ss / 2), 0.0f);
         glVertex3f(xbrain + x2 * (ss + spacing),
                    y2 * (ss + spacing * 3) + ss / 2, 0);
       }
+
+      // brain
+      for (int j = 0; j < BRAINSIZE; j++) {
+        float x1 = j % brainlength;
+        float y1 = j / brainlength;
+        // For each connection
+        for (int k = 0; k < CONNS; k++) {
+          float x2 = agent.brain.boxes[j].id[k] % brainlength;
+          float y2 = agent.brain.boxes[j].id[k] / brainlength;
+          float alpha = std::min(
+              std::max(agent.brain.boxes[j].w[k] * agent.brain.boxes[j].out,
+                       0.0f),
+              1.0f);
+          glColor3f(alpha, 0.0f, 0.0f);
+          glVertex3f(xbrain + x1 * (ss + spacing) + ss,
+                     y1 * (ss + spacing * 3) + ss / 2, 0);
+          glColor3f(0.0f, 0.0f, alpha);
+          glVertex3f(xbrain + x2 * (ss + spacing),
+                     y2 * (ss + spacing * 3) + ss / 2, 0);
+        }
+      }
+
+      // outputs
+      for (int j = 0; j < OUTPUTSIZE; j++) {
+        float x1 = (j + BRAINSIZE - OUTPUTSIZE) % brainlength;
+        float y1 = (j + BRAINSIZE - OUTPUTSIZE) / brainlength;
+        float color = agent.out[j];
+
+        glColor3f(color, 0.0f, 0.0f);
+        glVertex3f(xbrain + x1 * (ss + spacing) + ss,
+                   y1 * (ss + spacing * 3) + ss / 2, 0.0f);
+        glVertex3f(xoutput, j * (ss + spacing) + (ss / 2), 0.0f);
+      }
+      glEnd();
     }
-
-    // outputs
-    for (int j = 0; j < OUTPUTSIZE; j++) {
-      float x1 = (j + BRAINSIZE - OUTPUTSIZE) % brainlength;
-      float y1 = (j + BRAINSIZE - OUTPUTSIZE) / brainlength;
-      float color = agent.out[j];
-
-      glColor3f(color, 0.0f, 0.0f);
-      glVertex3f(xbrain + x1 * (ss + spacing) + ss,
-                 y1 * (ss + spacing * 3) + ss / 2, 0.0f);
-      glVertex3f(xoutput, j * (ss + spacing) + (ss / 2), 0.0f);
-    }
-
-    glEnd();
     glPopMatrix();
   }
 

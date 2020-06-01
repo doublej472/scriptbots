@@ -43,6 +43,7 @@ private:
   bool draw;
   int skipdraw;
   bool drawfood;
+  bool drawconns;
   char buf[100];
   char buf2[10];
   int modcounter;
