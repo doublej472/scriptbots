@@ -12,14 +12,14 @@ void renderString(float x, float y, void *font, const char *string, float r,
                   float g, float b) {
   glColor3f(r, g, b);
   glRasterPos2f(x, y);
-  int len = (int)strlen(string);
-  for (int i = 0; i < len; i++)
+  int32_t len = (int32_t)strlen(string);
+  for (int32_t i = 0; i < len; i++)
     glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, string[i]);
 }
 
 void drawCircle(float x, float y, float r) {
   float n;
-  for (int k = 0; k < 17; k++) {
+  for (int32_t k = 0; k < 17; k++) {
     n = k * (M_PI / 8);
     glVertex3f(x + r * sin(n), y + r * cos(n), 0);
   }
@@ -45,7 +45,7 @@ void init_glview() {
   GLVIEW.wheight = WHEIGHT;
 }
 
-void gl_changeSize(int w, int h) {
+void gl_changeSize(int32_t w, int32_t h) {
   // Reset the coordinate system before modifying
   glViewport(0, 0, w, h);
   glMatrixMode(GL_PROJECTION);
@@ -55,13 +55,13 @@ void gl_changeSize(int w, int h) {
   GLVIEW.wheight = h;
 }
 
-void gl_processMouse(int button, int state, int x, int y) {
+void gl_processMouse(int32_t button, int32_t state, int32_t x, int32_t y) {
   // printf("MOUSE EVENT: button=%i state=%i x=%i y=%i\n", button, state, x, y);
 
   // have world deal with it. First translate to world coordinates though
   if (button == 0) {
-    int wx = (int)((x - GLVIEW.wwidth / 2) / GLVIEW.scalemult) - GLVIEW.xtranslate;
-    int wy = (int)((y - GLVIEW.wheight / 2) / GLVIEW.scalemult) - GLVIEW.ytranslate;
+    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2) / GLVIEW.scalemult) - GLVIEW.xtranslate;
+    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2) / GLVIEW.scalemult) - GLVIEW.ytranslate;
     world_processMouse(GLVIEW.base->world, button, state, wx, wy);
   }
 
@@ -83,7 +83,7 @@ void gl_processMouse(int button, int state, int x, int y) {
   GLVIEW.downb[button] = 1 - state; // state is backwards, ah well
 }
 
-void gl_processMouseActiveMotion(int x, int y) {
+void gl_processMouseActiveMotion(int32_t x, int32_t y) {
   // printf("MOUSE MOTION x=%i y=%i, %i %i %i\n", x, y, downb[0], downb[1],
   // downb[2]);
 
@@ -106,7 +106,7 @@ void gl_processMouseActiveMotion(int x, int y) {
   GLVIEW.mousey = y;
 }
 
-void gl_processNormalKeys(unsigned char key, int x, int y) {
+void gl_processNormalKeys(unsigned char key, int32_t x, int32_t y) {
   switch (key) {
     case 27:
       printf("\n\nESC key pressed, shutting down\n");
@@ -134,12 +134,12 @@ void gl_processNormalKeys(unsigned char key, int x, int y) {
       GLVIEW.drawfood = !GLVIEW.drawfood;
       break;
     case 'a':
-      for (int i = 0; i < 10; i++) {
+      for (int32_t i = 0; i < 10; i++) {
         world_addNewByCrossover(GLVIEW.base->world);
       }
       break;
     case 'q':
-      for (int i = 0; i < 10; i++) {
+      for (int32_t i = 0; i < 10; i++) {
         world_addCarnivore(GLVIEW.base->world);
       }
       break;
@@ -163,11 +163,11 @@ void gl_handleIdle() {
     world_update(GLVIEW.base->world);
 
   // show FPS
-  int currentTime = glutGet(GLUT_ELAPSED_TIME);
+  int32_t currentTime = glutGet(GLUT_ELAPSED_TIME);
   GLVIEW.frames++;
   if ((currentTime - GLVIEW.lastUpdate) >= 1000) {
-    int num_herbs = world_numHerbivores(GLVIEW.base->world);
-    int num_carns = world_numCarnivores(GLVIEW.base->world);
+    int32_t num_herbs = world_numHerbivores(GLVIEW.base->world);
+    int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf, "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
             GLVIEW.frames, world_numAgents(GLVIEW.base->world), num_carns,
             num_herbs, GLVIEW.base->world->current_epoch);
@@ -237,7 +237,7 @@ void drawAgent(const struct Agent *agent) {
     float xx = 15;
     float ss = 16;
     glBegin(GL_QUADS);
-    for (int j = 0; j < INPUTSIZE; j++) {
+    for (int32_t j = 0; j < INPUTSIZE; j++) {
       col = agent->in[j];
       glColor3f(col, col, col);
       glVertex3f(0 + ss * j, 0, 0.0f);
@@ -246,7 +246,7 @@ void drawAgent(const struct Agent *agent) {
       glVertex3f(0 + ss * j, yy, 0.0f);
     }
     yy += 5;
-    for (int j = 0; j < OUTPUTSIZE; j++) {
+    for (int32_t j = 0; j < OUTPUTSIZE; j++) {
       col = agent->out[j];
       glColor3f(col, col, col);
       glVertex3f(0 + ss * j, yy, 0.0f);
@@ -259,7 +259,7 @@ void drawAgent(const struct Agent *agent) {
     // draw brain. Eventually move this to brain class?
     float offx = 0;
     ss = 8;
-    for (int j = 0; j < BRAINSIZE; j++) {
+    for (int32_t j = 0; j < BRAINSIZE; j++) {
       col = agent->brain.boxes[j].out;
       glColor3f(col, col, col);
       glVertex3f(offx + 0 + ss * j, yy, 0.0f);
@@ -284,7 +284,7 @@ void drawAgent(const struct Agent *agent) {
       glColor3f(0, mag, 0); // draw boost as green outline
     else
       glColor3f(mag, 0, 0);
-    for (int k = 0; k < 17; k++) {
+    for (int32_t k = 0; k < 17; k++) {
       n = k * (M_PI / 8);
       glVertex3f(agent->pos.x + rp * sin(n), agent->pos.y + rp * cos(n), 0);
       n = (k + 1) * (M_PI / 8);
@@ -298,7 +298,7 @@ void drawAgent(const struct Agent *agent) {
     glBegin(GL_POLYGON);
     glColor3f(agent->ir, agent->ig, agent->ib);
     drawCircle(agent->pos.x, agent->pos.y,
-               BOTRADIUS + ((int)agent->indicator));
+               BOTRADIUS + ((int32_t)agent->indicator));
     glEnd();
   }
 
@@ -306,7 +306,7 @@ void drawAgent(const struct Agent *agent) {
   glBegin(GL_LINES);
   // and view cones
   glColor3f(0.5, 0.5, 0.5);
-  for (int j = -2; j < 3; j++) {
+  for (int32_t j = -2; j < 3; j++) {
     if (j == 0)
       continue;
     glVertex3f(agent->pos.x, agent->pos.y, 0);
@@ -342,7 +342,7 @@ void drawAgent(const struct Agent *agent) {
   else
     glColor3f(0, 0, 0);
 
-  for (int k = 0; k < 17; k++) {
+  for (int32_t k = 0; k < 17; k++) {
     n = k * (M_PI / 8);
     glVertex3f(agent->pos.x + r * sin(n), agent->pos.y + r * cos(n), 0);
     n = (k + 1) * (M_PI / 8);
@@ -356,8 +356,8 @@ void drawAgent(const struct Agent *agent) {
   glEnd();
 
   // and health
-  int xo = 18;
-  int yo = -15;
+  int32_t xo = 18;
+  int32_t yo = -15;
   glBegin(GL_QUADS);
   // black background
   glColor3f(0, 0, 0);
@@ -439,7 +439,7 @@ void drawAgent(const struct Agent *agent) {
   }
 }
 
-void drawFood(int x, int y, float quantity) {
+void drawFood(int32_t x, int32_t y, float quantity) {
   // draw food
   if (GLVIEW.drawfood) {
     glBegin(GL_QUADS);
@@ -452,10 +452,10 @@ void drawFood(int x, int y, float quantity) {
   }
 }
 
-void glview_draw(struct World *world, int drawfood) {
+void glview_draw(struct World *world, int32_t drawfood) {
   if (drawfood) {
-    for (int i = 0; i < world->FW; i++) {
-      for (int j = 0; j < world->FH; j++) {
+    for (int32_t i = 0; i < world->FW; i++) {
+      for (int32_t j = 0; j < world->FH; j++) {
         float f = 0.5 * world->food[i][j] / FOODMAX;
         drawFood(i, j, f);
       }

@@ -1,14 +1,15 @@
 #ifndef AGENT_H
 #define AGENT_H
+#include <stdint.h>
 
 #include "MLPBrain.h"
 #include "vec2f.h"
 
 struct Agent {
-  int touch : 1; // is bot close to wall?
-  int boost : 1; // is this agent boosting
-  int spiked : 1;
-  int hybrid : 1; // is this agent result of crossover?
+  int32_t touch; // is bot close to wall?
+  int32_t boost; // is this agent boosting
+  int32_t spiked;
+  int32_t hybrid; // is this agent result of crossover?
 
   struct Vector2f pos;
 
@@ -23,7 +24,7 @@ struct Agent {
   float w2;
 
   float spikeLength;
-  int age;
+  int32_t age;
 
 
   float in[INPUTSIZE]; // input: 2 eyes, sensors for R,G,B,proximity each,
@@ -31,7 +32,7 @@ struct Agent {
   float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
-  int gencount;           // generation counter
+  int32_t gencount;           // generation counter
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
   float soundmul; // sound multiplier of this bot. It can scream, or be very
                   // sneaky. This is actually always set to output 8
@@ -39,13 +40,13 @@ struct Agent {
   // variables for drawing purposes
   float indicator;
   float ir, ig, ib; // indicator colors
-  int selectflag;   // is this agent selected?
+  int32_t selectflag;   // is this agent selected?
   float dfood;      // what is change in health of this agent due to
                // giving/receiving?
 
   float give; // is this agent attempting to give food to other agent?
 
-  int id;
+  int32_t id;
 
   // inhereted stuff
   float herbivore; // is this agent a herbivore? between 0 and 1

@@ -36,17 +36,17 @@
 struct GLView GLVIEW; // only use when graphic support is enabled
 #endif
 
-int MAX_EPOCHS = INT_MAX; // inifinity
-int MAX_SECONDS = INT_MAX;
-int VERBOSE;
-int HEADLESS;
-int NUM_THREADS;
+int32_t MAX_EPOCHS = INT_MAX; // inifinity
+int32_t MAX_SECONDS = INT_MAX;
+int32_t VERBOSE;
+int32_t HEADLESS;
+int32_t NUM_THREADS;
 
 // ---------------------------------------------------------------------------
 // Prototypes:
-int kbhit();
+int32_t kbhit();
 void runHeadless(struct Base *base);
-void runWithGraphics(int argc, char **argv, struct Base *base);
+void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 #ifdef OPENMP
   NUM_THREADS = get_nprocs();
 #endif
-  int loadWorldFromFile = 0;
+  int32_t loadWorldFromFile = 0;
 
   // Retrieve command line arguments
   // -h: Run program headless
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   // -w: Load world state from file
   // -n: Specify number of threads
   // -e: Specify maximum epochs to run
-  int c;
+  int32_t c;
   while ((c = getopt(argc, argv, "vhwn:e:s:")) != -1) {
     switch (c) {
     case 'h':
@@ -174,10 +174,10 @@ int main(int argc, char **argv) {
 // Used for detecting keyboard end
 // Cross-platform?
 // ---------------------------------------------------------------------------
-int kbhit() {
+int32_t kbhit() {
   struct termios oldt, newt;
-  int ch;
-  int oldf;
+  int32_t ch;
+  int32_t oldf;
 
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
@@ -202,7 +202,7 @@ int kbhit() {
 // ---------------------------------------------------------------------------
 // Run Scriptbots with graphics
 // ---------------------------------------------------------------------------
-void runWithGraphics(int argc, char **argv, struct Base *base) {
+void runWithGraphics(int32_t argc, char **argv, struct Base *base) {
 
 #ifdef OPENGL
   init_glview();

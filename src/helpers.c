@@ -8,12 +8,12 @@ float randf(float a, float b) {
   return ((b - a) * ((float)rand() / RAND_MAX)) + a;
 }
 
-// uniform random int in [a,b)
-int randi(int a, int b) { return (rand() % (b - a)) + a; }
+// uniform random int32_t in [a,b)
+int32_t randi(int32_t a, int32_t b) { return (rand() % (b - a)) + a; }
 
 // normalvariate random N(mu, sigma)
 double randn(double mu, double sigma) {
-  static int deviateAvailable = 0; //	flag
+  static int32_t deviateAvailable = 0; //	flag
   static float storedDeviate;           //	deviate from previous calculation
   double polar, rsquared, var1, var2;
   if (!deviateAvailable) {

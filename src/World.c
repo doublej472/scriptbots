@@ -40,16 +40,16 @@ void world_init(struct World *world) {
   avec_init(&world->agents, NUMBOTS);
 
   // create the bots but with 20% more carnivores, to give them head start
-  world_addRandomBots(world, (int) NUMBOTS * .8);
-  for (int i = 0; i < (int) NUMBOTS * .2; ++i)
+  world_addRandomBots(world, (int32_t) NUMBOTS * .8);
+  for (int32_t i = 0; i < (int32_t) NUMBOTS * .2; ++i)
     world_addCarnivore(world);
 
   // inititalize food layer
   srand(time(0));
   double rand1; // store temp random float to save randf() call
 
-  for (int x = 0; x < world->FW; x++) {
-    for (int y = 0; y < world->FH; y++) {
+  for (int32_t x = 0; x < world->FW; x++) {
+    for (int32_t y = 0; y < world->FH; y++) {
 
       rand1 = randf(0, 1);
       if (rand1 > .5) {
@@ -81,8 +81,8 @@ static void world_update_food(struct World *world) {
   if (FOOD_MODEL == FOOD_MODEL_GROW) {
     // GROW food enviroment model
     if (world->modcounter % FOODADDFREQ == 0) {
-      for (int x = 0; x < world->FW; ++x) {
-        for (int y = 0; y < world->FH; ++y) {
+      for (int32_t x = 0; x < world->FW; ++x) {
+        for (int32_t y = 0; y < world->FH; ++y) {
           // only grow if not dead
           if (world->food[x][y] > 0) {
 
@@ -132,8 +132,8 @@ static void world_update_gui(struct World *world) {
 
   printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
          "%f - Time: %.2f sec     \r",
-         world->current_epoch, world->modcounter / 100, (int) world->agents.size,
-         (int) reportInterval / deltat,
+         world->current_epoch, world->modcounter / 100, (int32_t) world->agents.size,
+         (int32_t) reportInterval / deltat,
          totaldeltat);
 
   world->startTime = endTime;
@@ -150,8 +150,8 @@ struct Agent_d {
   float dist2;
 };
 
-int world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d *close_agents) {
-    int num_close_agents = 0;
+int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d *close_agents) {
+    int32_t num_close_agents = 0;
 
     for (size_t j = 0; j < world->agents.size; j++) {
 
@@ -182,9 +182,9 @@ int world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d 
 
     // Insertion sort, since this is a small array
     // Sorted from closest to furthest agent
-    for (int j = 1; j < num_close_agents; j++) {
+    for (int32_t j = 1; j < num_close_agents; j++) {
       struct Agent_d key = close_agents[j];
-      int k = j - 1;
+      int32_t k = j - 1;
 
       while (k >= 0 && close_agents[k].dist2 > key.dist2) {
           close_agents[k + 1] = close_agents[k];
@@ -197,7 +197,7 @@ int world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d 
 }
 
 void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
-*close_agents, int num_close_agents) {
+*close_agents, int32_t num_close_agents) {
     // if this agent was spiked this round as well (i.e. killed). This will make
     // it so that natural deaths can't be capitalized on. I feel I must do this
     // or otherwise agents will sit on spot and wait for things to die around
@@ -207,7 +207,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
       // distribute its food. It will be erased soon
       // since the close_agents array is sorted, just get the index where we
       // should stop distributing the body, the the number of carnivores around
-      int num_to_dist_body = 0;
+      int32_t num_to_dist_body = 0;
       for (size_t j = 0; j < num_close_agents; j++) {
         struct Agent_d cagent = close_agents[j];
 
@@ -266,7 +266,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
         }
       } else {
         // if no agents are around to eat it, it becomes regular food
-        world->food[(int)a->pos.x / CZ][(int)a->pos.y / CZ] =
+        world->food[(int32_t)a->pos.x / CZ][(int32_t)a->pos.y / CZ] =
             FOOD_DEAD *
             FOODMAX; // since it was dying it is not much food
       }
@@ -301,7 +301,7 @@ void world_update(struct World *world) {
     struct Agent *a = &world->agents.agents[i];
 
     struct Agent_d close_agents[NUMBOTS_CLOSE];
-    int num_close_agents = world_get_close_agents(world, a, close_agents);
+    int32_t num_close_agents = world_get_close_agents(world, a, close_agents);
 
     // Distribute dead agents to nearby carnivores
     world_dist_dead_agent(world, a, close_agents, num_close_agents);
@@ -362,7 +362,7 @@ void world_update(struct World *world) {
 }
 
 // Grow food around square
-void world_growFood(struct World *world, int x, int y) {
+void world_growFood(struct World *world, int32_t x, int32_t y) {
   // check if food square is inside the world
   if (world->food[x][y] < FOODMAX 
     && x >= 0
@@ -394,8 +394,8 @@ void world_setInputsRunBrain(struct World *world) {
       a->age++;
 
     // FOOD
-    int cx = (int)a->pos.x / CZ;
-    int cy = (int)a->pos.y / CZ;
+    int32_t cx = (int32_t)a->pos.x / CZ;
+    int32_t cy = (int32_t)a->pos.y / CZ;
     a->in[4] = world->food[cx][cy] / FOODMAX;
 
     // SOUND SMELL EYES
@@ -591,7 +591,7 @@ void world_setInputsRunBrain(struct World *world) {
     // Copy last ouput and last "plan" to the current inputs
     // PREV_OUT is 23-32
     // PREV_PLAN is 33-42
-    for (int i = 0; i < OUTPUTSIZE; ++i) {
+    for (int32_t i = 0; i < OUTPUTSIZE; ++i) {
       a->in[i + 23] = a->out[i];
     }
 
@@ -677,8 +677,8 @@ void world_processOutputs(struct World *world) {
 
     // process food intake
 
-    int cx = (int)world->agents.agents[i].pos.x / CZ;
-    int cy = (int)world->agents.agents[i].pos.y / CZ;
+    int32_t cx = (int32_t)world->agents.agents[i].pos.x / CZ;
+    int32_t cy = (int32_t)world->agents.agents[i].pos.y / CZ;
     float f = world->food[cx][cy];
     if (f > 0 && a->health < 2) {
       // agent eats the food
@@ -767,10 +767,10 @@ void world_processOutputs(struct World *world) {
   }
 }
 
-void world_addRandomBots(struct World *world, int num) {
+void world_addRandomBots(struct World *world, int32_t num) {
   world->numAgentsAdded += num; // record in report
 
-  for (int i = 0; i < num; i++) {
+  for (int32_t i = 0; i < num; i++) {
     struct Agent a;
     agent_init(&a);
     a.id = world->idcounter;
@@ -820,14 +820,14 @@ void world_addNewByCrossover(struct World *world) {
   world->numAgentsAdded++; // record in report
 }
 
-void world_reproduce(struct World *world, int ai, float MR, float MR2) {
+void world_reproduce(struct World *world, int32_t ai, float MR, float MR2) {
   if (randf(0, 1) < 0.04)
     MR = MR * randf(1, 10);
   if (randf(0, 1) < 0.04)
     MR2 = MR2 * randf(1, 10);
 
   agent_initevent(&world->agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
-  for (int i = 0; i < BABIES; i++) {
+  for (int32_t i = 0; i < BABIES; i++) {
 
     struct Agent a2;
     agent_init(&a2);
@@ -840,12 +840,12 @@ void world_reproduce(struct World *world, int ai, float MR, float MR2) {
 
 void world_writeReport(struct World *world) {
   // save all kinds of nice data stuff
-  int numherb = 0;
-  int numcarn = 0;
-  int topherb = 0;
-  int topcarn = 0;
-  int total_age = 0;
-  int avg_age;
+  int32_t numherb = 0;
+  int32_t numcarn = 0;
+  int32_t topherb = 0;
+  int32_t topcarn = 0;
+  int32_t total_age = 0;
+  int32_t avg_age;
   double epoch_decimal = world->modcounter / 10000.0 + world->current_epoch;
 
   // Count number of herb, carn and top of each
@@ -870,7 +870,7 @@ void world_writeReport(struct World *world) {
   double total_mean_std_dev;
 
   // loop through every box in brain (there are BRAINSIZE of these)
-  for (int i = 0; i < BRAINSIZE; i++)
+  for (int32_t i = 0; i < BRAINSIZE; i++)
   {
     double box_sum = 0;
     double box_weights[world->agents.size];
@@ -881,7 +881,7 @@ void world_writeReport(struct World *world) {
     for (size_t a = 0; a < world->agents.size; a++) {
       double box_weight_sum = 0;
 
-      for (int b = 0; b < CONNS; b++) {
+      for (int32_t b = 0; b < CONNS; b++) {
         box_weight_sum += world->agents.agents[a].brain.boxes[i].w[b];
       }
       // Add this sum to total stats:
@@ -907,7 +907,7 @@ void world_writeReport(struct World *world) {
   FILE *fp = fopen("report.csv", "a");
 
   fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn,
-          topherb, topcarn, (int) total_mean_std_dev, avg_age, world->numAgentsAdded);
+          topherb, topcarn, (int32_t) total_mean_std_dev, avg_age, world->numAgentsAdded);
 
   fclose(fp);
 
@@ -921,7 +921,7 @@ void world_reset(struct World *world) {
   world_addRandomBots(world, NUMBOTS);
 }
 
-void world_processMouse(struct World *world, int button, int state, int x, int y) {
+void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {
   if (state == 0) {
     float mind = 1e10;
     size_t mini = -1;
@@ -947,8 +947,8 @@ void world_processMouse(struct World *world, int button, int state, int x, int y
   }
 }
 
-int world_numHerbivores(struct World *world) {
-  int numherb = 0;
+int32_t world_numHerbivores(struct World *world) {
+  int32_t numherb = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
     if (world->agents.agents[i].herbivore > 0.5)
       numherb++;
@@ -957,8 +957,8 @@ int world_numHerbivores(struct World *world) {
   return numherb;
 }
 
-int world_numCarnivores(struct World *world) {
-  int numcarn = 0;
+int32_t world_numCarnivores(struct World *world) {
+  int32_t numcarn = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
     if (world->agents.agents[i].herbivore <= 0.5)
       numcarn++;
@@ -967,7 +967,7 @@ int world_numCarnivores(struct World *world) {
   return numcarn;
 }
 
-int world_numAgents(struct World *world) {
+int32_t world_numAgents(struct World *world) {
   if (world->closed && world->agents.size == 0) {
     printf("Population is extinct at epoch %i\n", world->current_epoch);
     exit(1);

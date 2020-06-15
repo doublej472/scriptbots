@@ -1,16 +1,15 @@
 // see README.markdown -> BRAIN MAPPING for explanation of input and output size
 #ifndef SETTINGS_H
 #define SETTINGS_H
-
-// Includes
+#include <stdint.h>
 #include <math.h> // for the math consts below
 
 // Global variables
-extern int VERBOSE;
-extern int HEADLESS;
-extern int NUM_THREADS;
-extern int MAX_EPOCHS;
-extern int MAX_SECONDS;
+extern int32_t VERBOSE;
+extern int32_t HEADLESS;
+extern int32_t NUM_THREADS;
+extern int32_t MAX_EPOCHS;
+extern int32_t MAX_SECONDS;
 
 #define INPUTSIZE 42
 #define OUTPUTSIZE 18
@@ -18,8 +17,8 @@ extern int MAX_SECONDS;
 #define CONNS 4
 
 // WORLD / WINDOW SETTINGS -------------------------------------
-// const int WIDTH = 2000;  //width and height of simulation world
-// const int HEIGHT = 1500;
+// const int32_t WIDTH = 2000;  //width and height of simulation world
+// const int32_t HEIGHT = 1500;
 #define WIDTH 4000
 #define HEIGHT 2500
  // computer window width and height

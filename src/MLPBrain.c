@@ -6,7 +6,7 @@
 void mlpbox_init(struct MLPBox *box) {
   memset(box, '\0', sizeof(struct MLPBox));
 
-  for (int i = 0; i < CONNS; i++) {
+  for (int32_t i = 0; i < CONNS; i++) {
     box->w[i] = randf(-3, 3);
     // Make 30% of brain connect to input
     if (randf(0, 1) < 0.3) {
@@ -25,7 +25,7 @@ void mlpbox_init(struct MLPBox *box) {
 }
 
 void mlpbrain_init(struct MLPBrain *brain) {
-  for (int i = 0; i < BRAINSIZE; i++) {
+  for (int32_t i = 0; i < BRAINSIZE; i++) {
     mlpbox_init(&brain->boxes[i]);
   }
 }
@@ -45,17 +45,17 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
   struct MLPBox* boxes = brain->boxes;
 
   // take first few boxes and set their out to in[].
-  for (int i = 0; i < INPUTSIZE; i++) {
+  for (int32_t i = 0; i < INPUTSIZE; i++) {
     boxes[i].out = in[i];
   }
 
   // then do a dynamics tick and set all targets
-  for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
+  for (int32_t i = INPUTSIZE; i < BRAINSIZE; i++) {
     struct MLPBox* abox = &boxes[i];
 
     float acc = 0;
-    for (int j = 0; j < CONNS; j++) {
-      int idx = abox->id[j];
+    for (int32_t j = 0; j < CONNS; j++) {
+      int32_t idx = abox->id[j];
       float val = boxes[idx].out;
       acc += val * abox->w[j];
     }
@@ -69,13 +69,13 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
   }
 
   // make all boxes go a bit toward target
-  for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
+  for (int32_t i = INPUTSIZE; i < BRAINSIZE; i++) {
     struct MLPBox *abox = &boxes[i];
     abox->out = abox->out + (abox->target - abox->out) * abox->kp;
   }
 
   // finally set out[] to the last few boxes output
-  for (int i = 0; i < OUTPUTSIZE; i++) {
+  for (int32_t i = 0; i < OUTPUTSIZE; i++) {
     out[i] = boxes[BRAINSIZE - 1 - i].out;
   }
 }
@@ -88,7 +88,7 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
 void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2) {
   struct MLPBox* boxes = brain->boxes;
 
-  for (int j = 0; j < BRAINSIZE; j++) {
+  for (int32_t j = 0; j < BRAINSIZE; j++) {
 
     // Modify bias
     if (randf(0, 1) < mutaterate * 3) { // why 3?
@@ -121,15 +121,15 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2
 
     // Modify weight
     if (randf(0, 1) < mutaterate * 3) {
-      int rc = randi(0, CONNS);
+      int32_t rc = randi(0, CONNS);
       boxes[j].w[rc] += randn(0, mutaterate2);
       //          a2.mutations.push_back("weight jiggled\n");
     }
 
     // Modify connectivity of brain
     if (randf(0, 1) < mutaterate * 3) {
-      int rc = randi(0, CONNS);
-      int ri = randi(0, BRAINSIZE);
+      int32_t rc = randi(0, CONNS);
+      int32_t ri = randi(0, BRAINSIZE);
       boxes[j].id[rc] = ri;
       //             a2.mutations.push_back("connectivity changed\n");
     }
