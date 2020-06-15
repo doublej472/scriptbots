@@ -67,12 +67,12 @@ void gl_processMouse(int button, int state, int x, int y) {
 
   // Scroll up
   if (button == 3) {
-    GLVIEW.scalemult += 0.025;
+    GLVIEW.scalemult += GLVIEW.scalemult * 0.05;
   }
 
   // Scroll down
   if (button == 4) {
-    GLVIEW.scalemult -= 0.025;
+    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05;
   }
 
   if (GLVIEW.scalemult < 0.01)
@@ -89,7 +89,7 @@ void gl_processMouseActiveMotion(int x, int y) {
 
   if (GLVIEW.downb[1] == 1) {
     // mouse wheel. Change scale
-    GLVIEW.scalemult -= 0.002 * (y - GLVIEW.mousey);
+    GLVIEW.scalemult -= 0.005 * (y - GLVIEW.mousey) * GLVIEW.scalemult;
     if (GLVIEW.scalemult < 0.01)
       GLVIEW.scalemult = 0.01;
   }
