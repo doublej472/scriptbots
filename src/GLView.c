@@ -207,9 +207,19 @@ void gl_renderScene() {
 }
 
 void drawAgent(const struct Agent *agent) {
+  // Determine if an agent is off screen, give some wiggle room
+  float asx = (agent->pos.x + GLVIEW.xtranslate) * (GLVIEW.scalemult);
+  float asy = (agent->pos.y + GLVIEW.ytranslate) * (GLVIEW.scalemult);
+
+  if ((agent->selectflag == 0) && (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
+                                  asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
+    return;
+  }
+
   float n;
   float r = BOTRADIUS;
   float rp = BOTRADIUS + 2;
+
   // handle selected agent
   if (agent->selectflag > 0) {
 
