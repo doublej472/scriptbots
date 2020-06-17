@@ -20,6 +20,7 @@ add_global_link_arguments(['-lm'], language: 'c')
 incdir = include_directories('include')
 
 deps = [
+  c.find_library('sqlite3')
 ]
 
 srcfiles = [
