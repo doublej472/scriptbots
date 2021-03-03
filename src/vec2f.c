@@ -8,15 +8,16 @@ void vector2f_init(struct Vector2f *vec, float x, float y) {
 }
 
 float vector2f_length(struct Vector2f *vec) {
-  return sqrt(powf(vec->x, 2) + powf(vec->y, 2));
+  return sqrt(vec->x*vec->x + vec->y*vec->y);
 }
 
 float vector2f_dist(struct Vector2f *vec1, struct Vector2f *vec2) {
-  return sqrt(powf(vec2->x - vec1->x, 2) + powf(vec2->y - vec1->y, 2));
+  return sqrt(vector2f_dist2(vec1, vec2));
 }
 
 float vector2f_dist2(struct Vector2f *vec1, struct Vector2f *vec2) {
-  return powf(vec2->x - vec1->x, 2) + powf(vec2->y - vec1->y, 2);
+  return ((vec2->x - vec1->x) * (vec2->x - vec1->x))
+    + ((vec2->y - vec1->y) * (vec2->y - vec1->y));
 }
 
 float vector2f_angle(struct Vector2f *vec) {

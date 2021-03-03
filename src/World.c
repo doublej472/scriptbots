@@ -131,7 +131,7 @@ static void world_update_gui(struct World *world) {
   float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
 
   printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
-         "%f - Time: %.2f sec     \r",
+         "%.1f - Time: %.2f sec     \r",
          world->current_epoch, world->modcounter / 100, (int32_t) world->agents.size,
          (int32_t) reportInterval / deltat,
          totaldeltat);
@@ -198,11 +198,7 @@ int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agen
 
 void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
 *close_agents, int32_t num_close_agents) {
-    // if this agent was spiked this round as well (i.e. killed). This will make
-    // it so that natural deaths can't be capitalized on. I feel I must do this
-    // or otherwise agents will sit on spot and wait for things to die around
-    // them. They must do work!
-    if (a->health <= 0 && a->spiked) {
+    
 
       // distribute its food. It will be erased soon
       // since the close_agents array is sorted, just get the index where we
@@ -270,7 +266,6 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
             FOOD_DEAD *
             FOODMAX; // since it was dying it is not much food
       }
-    }
 }
 
 void world_update(struct World *world) {
@@ -300,11 +295,17 @@ void world_update(struct World *world) {
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
-    struct Agent_d close_agents[NUMBOTS_CLOSE];
-    int32_t num_close_agents = world_get_close_agents(world, a, close_agents);
+    // if this agent was spiked this round as well (i.e. killed). This will make
+    // it so that natural deaths can't be capitalized on. I feel I must do this
+    // or otherwise agents will sit on spot and wait for things to die around
+    // them. They must do work!
+    if (a->health <= 0 && a->spiked) {
+      struct Agent_d close_agents[NUMBOTS_CLOSE];
+      int32_t num_close_agents = world_get_close_agents(world, a, close_agents);
 
-    // Distribute dead agents to nearby carnivores
-    world_dist_dead_agent(world, a, close_agents, num_close_agents);
+      // Distribute dead agents to nearby carnivores
+      world_dist_dead_agent(world, a, close_agents, num_close_agents);
+    }
 
     // Handle reproduction
     if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH
@@ -591,8 +592,8 @@ void world_setInputsRunBrain(struct World *world) {
     // Copy last ouput and last "plan" to the current inputs
     // PREV_OUT is 23-32
     // PREV_PLAN is 33-42
-    for (int32_t i = 0; i < OUTPUTSIZE; ++i) {
-      a->in[i + 23] = a->out[i];
+    for (int i = 0; i < OUTPUTSIZE; i++) {
+      a->in[i + INPUTSIZE-OUTPUTSIZE-1] = a->out[i];
     }
 
     // Now process brain

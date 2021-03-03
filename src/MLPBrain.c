@@ -45,17 +45,17 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
   struct MLPBox* boxes = brain->boxes;
 
   // take first few boxes and set their out to in[].
-  for (int32_t i = 0; i < INPUTSIZE; i++) {
+  for (int i = 0; i < INPUTSIZE; i++) {
     boxes[i].out = in[i];
   }
 
   // then do a dynamics tick and set all targets
-  for (int32_t i = INPUTSIZE; i < BRAINSIZE; i++) {
+  for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
     struct MLPBox* abox = &boxes[i];
 
     float acc = 0;
-    for (int32_t j = 0; j < CONNS; j++) {
-      int32_t idx = abox->id[j];
+    for (int j = 0; j < CONNS; j++) {
+      int idx = abox->id[j];
       float val = boxes[idx].out;
       acc += val * abox->w[j];
     }
@@ -66,17 +66,14 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
     acc = 1.0 / (1.0 + fast_exp(-acc)); // logistic function, ranges from 0 to 1
 
     abox->target = acc;
-  }
 
-  // make all boxes go a bit toward target
-  for (int32_t i = INPUTSIZE; i < BRAINSIZE; i++) {
-    struct MLPBox *abox = &boxes[i];
-    abox->out = abox->out + (abox->target - abox->out) * abox->kp;
+    // make all boxes go a bit toward target
+    abox->out += (abox->target - abox->out) * abox->kp;
   }
 
   // finally set out[] to the last few boxes output
-  for (int32_t i = 0; i < OUTPUTSIZE; i++) {
-    out[i] = boxes[BRAINSIZE - 1 - i].out;
+  for (int i = 0; i < OUTPUTSIZE; i++) {
+    out[i] = boxes[BRAINSIZE - OUTPUTSIZE + i].out;
   }
 }
 
@@ -93,13 +90,13 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2
     // Modify bias
     if (randf(0, 1) < mutaterate * 3) { // why 3?
       boxes[j].bias += randn(
-          0, mutaterate2); // TODO: maybe make 0 be -mutaterate2 and add bottom limit?
+          -mutaterate2, mutaterate2); // TODO: maybe make 0 be -mutaterate2 and add bottom limit?
                    //             a2.mutations.push_back("bias jiggled\n");
     }
 
     // Modify kp
     if (randf(0, 1) < mutaterate * 3) {
-      boxes[j].kp += randn(0, mutaterate2); // TODO: maybe make the 0 be -mutaterate2 ?
+      boxes[j].kp += randn(-mutaterate2, mutaterate2); // TODO: maybe make the 0 be -mutaterate2 ?
 
       // Limit the change:
       if (boxes[j].kp < 0.01)
@@ -112,7 +109,7 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2
 
     // Modify gw
     if (randf(0, 1) < mutaterate * 3) {
-      boxes[j].gw += randn(0, mutaterate2);
+      boxes[j].gw += randn(-mutaterate2, mutaterate2);
       if (boxes[j].gw < 0)
         boxes[j].gw = 0;
 
@@ -122,7 +119,7 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate, float mutaterate2
     // Modify weight
     if (randf(0, 1) < mutaterate * 3) {
       int32_t rc = randi(0, CONNS);
-      boxes[j].w[rc] += randn(0, mutaterate2);
+      boxes[j].w[rc] += randn(-mutaterate2, mutaterate2);
       //          a2.mutations.push_back("weight jiggled\n");
     }
 
