@@ -22,7 +22,7 @@ void avec_delete(struct AVec *vec, size_t idx) {
 
 void avec_push_back(struct AVec *vec, struct Agent a) {
   if (vec->size == vec->allocated) {
-    vec->agents = (struct Agent*) realloc(vec->agents, sizeof(struct Agent) * vec->allocated*2);
+    vec->agents = (struct Agent*) realloc(vec->agents, sizeof(struct Agent) * (vec->allocated + 16));
     vec->allocated = vec->allocated + 16;
   }
   vec->agents[vec->size] = a;
