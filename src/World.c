@@ -344,6 +344,8 @@ void world_update(struct World *world) {
 
     // Cull any dead agents
     if (a->health <= 0) {
+      // The i-- is very important here, since we need to retry the current iteration
+      // because it was replaced with a different agent
       avec_delete(&world->agents, i--);
       continue;
     }

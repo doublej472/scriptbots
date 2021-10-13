@@ -18,6 +18,9 @@ void avec_free(struct AVec* vec) {
 void avec_delete(struct AVec *vec, size_t idx) {
   vec->agents[idx] = vec->agents[vec->size-1];
   vec->size--;
+  if (vec->size < (vec->allocated - 1) * 0.9) {
+    avec_shrink(vec, vec->size);
+  }
 }
 
 void avec_push_back(struct AVec *vec, struct Agent a) {
@@ -27,6 +30,14 @@ void avec_push_back(struct AVec *vec, struct Agent a) {
   }
   vec->agents[vec->size] = a;
   vec->size++;
+}
+
+// Shrinks the array to size or vec->size, whichever is greater
+void avec_shrink(struct AVec *vec, size_t size) {
+  int newsize = size < vec->size ? vec->size : size;
+
+  vec->agents = (struct Agent*) realloc(vec->agents, sizeof(struct Agent) * newsize);
+  vec->allocated = newsize;
 }
 
 struct Agent* avec_get(struct AVec *vec, size_t idx) {
