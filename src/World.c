@@ -1,5 +1,6 @@
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "include/settings.h"
 #include "include/World.h"
@@ -13,7 +14,7 @@
 #include <omp.h>
 #endif
 
-static void timespec_diff(struct timespec* result, struct timespec *start,
+static void timespec_diff(struct timespec *result, struct timespec *start,
                           struct timespec *stop) {
     if ((stop->tv_nsec - start->tv_nsec) < 0) {
         result->tv_sec = stop->tv_sec - start->tv_sec - 1;
@@ -37,7 +38,8 @@ void world_init(struct World *world) {
   // Track total running time:
   clock_gettime(CLOCK_MONOTONIC_RAW, &world->totalStartTime);
 
-  avec_init(&world->agents, NUMBOTS);
+  avec_init(&world->agents, 16);
+  avec_init(&world->agents_staging, 8);
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t) NUMBOTS * .8);
@@ -197,14 +199,14 @@ int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agen
 }
 
 void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
-*close_agents, int32_t num_close_agents) {
+*close_agents, int num_close_agents) {
     
 
       // distribute its food. It will be erased soon
       // since the close_agents array is sorted, just get the index where we
       // should stop distributing the body, the the number of carnivores around
-      int32_t num_to_dist_body = 0;
-      for (size_t j = 0; j < num_close_agents; j++) {
+      int num_to_dist_body = 0;
+      for (int j = 0; j < num_close_agents; j++) {
         struct Agent_d cagent = close_agents[j];
 
         // only carnivores get food. not same agent as dying
@@ -227,7 +229,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
 
       if (num_to_dist_body > 0) {
         // distribute its food evenly
-        for (size_t j = 0; j < num_close_agents; j++) {
+        for (int j = 0; j < num_close_agents; j++) {
           struct Agent *a2 = close_agents[j].agent;
 
           // only carnivores get food. not same agent as dying
@@ -307,6 +309,8 @@ void world_update(struct World *world) {
       world_dist_dead_agent(world, a, close_agents, num_close_agents);
     }
 
+    int rep = 0;
+
     // Handle reproduction
     if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH
         && randf(0, 1) < 0.1) {
@@ -316,8 +320,7 @@ void world_update(struct World *world) {
       // the parent splits it health evenly with all of its babies
       a->health -= a->health / (BABIES + 1);
 
-      // add BABIES new agents to agents[]
-      world_reproduce(world, i, a->MUTRATE1, a->MUTRATE2);
+      rep = 1;
 
       a->repcounter =
           a->herbivore *
@@ -329,8 +332,10 @@ void world_update(struct World *world) {
     // Process agent health
     agent_process_health(a);
 
-    // Finally run agent input
-
+    if (rep) {
+      // add BABIES new agents to agents[]
+      world_reproduce(world, i, a->MUTRATE1, a->MUTRATE2);
+    }
   }
 
   // Check for and delete dead agents
@@ -365,20 +370,29 @@ void world_update(struct World *world) {
 // Grow food around square
 void world_growFood(struct World *world, int32_t x, int32_t y) {
   // check if food square is inside the world
-  if (world->food[x][y] < FOODMAX 
-    && x >= 0
+  if ( x >= 0
     && x < world->FW
     && y >= 0
-    && y < world->FH) {
+    && y < world->FH
+    && world->food[x][y] < FOODMAX) {
       world->food[x][y] += FOODGROWTH;
     }
 }
 
 void world_setInputsRunBrain(struct World *world) {
+  // Add agents from staging vector
+  for (size_t i = 0; i < world->agents_staging.size; i++) {
+    avec_push_back(&world->agents, *avec_get(&world->agents_staging, i));
+  }
+  world->agents_staging.size = 0;
   // See README.markdown for documentation of input ids
-
-#pragma omp parallel for
-  for (size_t i = 0; i < world->agents.size; i++) {
+  #pragma omp parallel
+  {
+    #ifdef OPENMP
+    srand(((int) time(NULL)) ^ omp_get_thread_num());
+    #endif
+    #pragma omp for
+    for (size_t i = 0; i < world->agents.size; i++) {
 
     struct Agent *a = &world->agents.agents[i];
 
@@ -599,7 +613,7 @@ void world_setInputsRunBrain(struct World *world) {
     // Now process brain
     agent_tick(a);
   }
-
+  }
 }
 
 void world_processOutputs(struct World *world) {
@@ -777,7 +791,7 @@ void world_addRandomBots(struct World *world, int32_t num) {
     a.id = world->idcounter;
     world->idcounter++;
 
-    avec_push_back(&world->agents, a);
+    avec_push_back(&world->agents_staging, a);
   }
 }
 
@@ -786,7 +800,7 @@ void world_addCarnivore(struct World *world) {
   agent_init(&a);
   a.id = world->idcounter;
   a.herbivore = randf(0, 0.1);
-  avec_push_back(&world->agents, a);
+  avec_push_back(&world->agents_staging, a);
 
   world->idcounter++;
   world->numAgentsAdded++;
@@ -816,7 +830,7 @@ void world_addNewByCrossover(struct World *world) {
   // maybe do mutation here? I dont know. So far its only crossover
   anew.id = world->idcounter;
   world->idcounter++;
-  avec_push_back(&world->agents, anew);
+  avec_push_back(&world->agents_staging, anew);
 
   world->numAgentsAdded++; // record in report
 }
@@ -835,7 +849,7 @@ void world_reproduce(struct World *world, int32_t ai, float MR, float MR2) {
     agent_reproduce(&a2, &world->agents.agents[ai], MR, MR2);
     a2.id = world->idcounter;
     world->idcounter++;
-    avec_push_back(&world->agents, a2);
+    avec_push_back(&world->agents_staging, a2);
   }
 }
 
@@ -917,8 +931,9 @@ void world_writeReport(struct World *world) {
 }
 
 void world_reset(struct World *world) {
+  world->agents.size = 0;
   avec_free(&world->agents);
-  avec_init(&world->agents, NUMBOTS + 10);
+  avec_init(&world->agents, 16);
   world_addRandomBots(world, NUMBOTS);
 }
 

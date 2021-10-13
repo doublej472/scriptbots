@@ -10,6 +10,9 @@
 
 void renderString(float x, float y, void *font, const char *string, float r,
                   float g, float b) {
+  if (!GLVIEW.draw_text) {
+    return;
+  }
   glColor3f(r, g, b);
   glRasterPos2f(x, y);
   int32_t len = (int32_t)strlen(string);
@@ -43,6 +46,7 @@ void init_glview() {
   GLVIEW.mousey = 0;
   GLVIEW.wwidth = WWIDTH;
   GLVIEW.wheight = WHEIGHT;
+  GLVIEW.draw_text = 1;
 }
 
 void gl_changeSize(int32_t w, int32_t h) {
@@ -147,6 +151,14 @@ void gl_processNormalKeys(unsigned char key, int32_t x, int32_t y) {
       GLVIEW.base->world->closed = GLVIEW.base->world->closed ? 0 : 1;
       printf("Environemt closed now= %i\n", GLVIEW.base->world->closed);
       break;
+    case 'z':
+      GLVIEW.xtranslate = -WIDTH / 2;
+      GLVIEW.ytranslate = -HEIGHT / 2;
+      GLVIEW.scalemult = 0.4; // 1.0;
+      break;
+    case 't':
+      GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
+      break;
     // C-f
     case 6:
       glview_toggleFullscreen();
@@ -223,6 +235,10 @@ void drawAgent(const struct Agent *agent) {
   // handle selected agent
   if (agent->selectflag > 0) {
 
+    // lerp to the target
+    GLVIEW.xtranslate += (-agent->pos.x - GLVIEW.xtranslate) * 0.05f;
+    GLVIEW.ytranslate += (-agent->pos.y - GLVIEW.ytranslate) * 0.05f;
+
     // draw selection
     glBegin(GL_POLYGON);
     glColor3f(1, 1, 0);
@@ -230,7 +246,11 @@ void drawAgent(const struct Agent *agent) {
     glEnd();
 
     glPushMatrix();
-    glTranslatef(agent->pos.x - 80, agent->pos.y + 20, 0);
+    glViewport(0, 0, GLVIEW.wwidth, GLVIEW.wheight);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, GLVIEW.wwidth, GLVIEW.wheight, 0, 0, 1);
+    glTranslatef(10, 10, 0);
     // draw inputs, outputs
     float col;
     float yy = 15;

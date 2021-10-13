@@ -22,6 +22,7 @@ struct GLView {
   int32_t wwidth, wheight;
   int32_t is_fullscreen;
   int32_t prev_width, prev_height;
+  int32_t draw_text;
 };
 
 extern struct GLView GLVIEW;

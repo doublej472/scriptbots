@@ -30,6 +30,9 @@ struct World {
   struct timespec totalStartTime; // used for deciding when to quit the simulation
 
   struct AVec agents;
+  // When agents get added to the world, they go the this AVec first, then
+  // they get pushed to the agents array
+  struct AVec agents_staging;
 };
 
 void world_init(struct World *world);
