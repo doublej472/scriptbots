@@ -47,7 +47,6 @@ void world_init(struct World *world) {
     world_addCarnivore(world);
 
   // inititalize food layer
-  srand(time(0));
   double rand1; // store temp random float to save randf() call
 
   for (int32_t x = 0; x < world->FW; x++) {

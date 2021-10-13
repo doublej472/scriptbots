@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include "World.h"
 
+struct SerializedWorld {
+  struct World world;
+};
+
 struct Base {
   struct World *world;
 };

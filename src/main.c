@@ -50,6 +50,7 @@ void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
+  srand(time(0));
   VERBOSE = 0; // Run in verbose mode
 #ifdef OPENGL
   HEADLESS = 0;
@@ -147,8 +148,6 @@ int main(int argc, char **argv) {
     printf("------------------------------------------------------------------"
             "-------------\n");
   }
-
-  srand(time(0));
 
   // Load file if needed
   if (loadWorldFromFile) {
