@@ -36,6 +36,7 @@ struct World {
 };
 
 void world_init(struct World *world);
+void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);
 void world_growFood(struct World *world, int32_t x, int32_t y);

@@ -25,6 +25,25 @@ static void timespec_diff(struct timespec *result, struct timespec *start,
     }
 }
 
+void world_flush_staging(struct World *world) {
+  // Check for and delete dead agents
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
+
+    // Cull any dead agents
+    if (a->health <= 0) {
+      // The i-- is very important here, since we need to retry the current iteration
+      // because it was replaced with a different agent
+      avec_delete(&world->agents, i--);
+    }
+  }
+  // Add agents from staging vector
+  for (size_t i = 0; i < world->agents_staging.size; i++) {
+    avec_push_back(&world->agents, *avec_get(&world->agents_staging, i));
+  }
+  world->agents_staging.size = 0;
+}
+
 void world_init(struct World *world) {
   world->stopSim = 0;
   world->modcounter = 0;
@@ -39,7 +58,7 @@ void world_init(struct World *world) {
   clock_gettime(CLOCK_MONOTONIC_RAW, &world->totalStartTime);
 
   avec_init(&world->agents, 16);
-  avec_init(&world->agents_staging, 8);
+  avec_init(&world->agents_staging, 16);
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t) NUMBOTS * .8);
@@ -337,18 +356,8 @@ void world_update(struct World *world) {
     }
   }
 
-  // Check for and delete dead agents
-  for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i];
-
-    // Cull any dead agents
-    if (a->health <= 0) {
-      // The i-- is very important here, since we need to retry the current iteration
-      // because it was replaced with a different agent
-      avec_delete(&world->agents, i--);
-      continue;
-    }
-  }
+  // Flush any agents in the staging array, and clean up old bots
+  world_flush_staging(world);
 
   // add new agents, if environment isn't closed
   if (!world->closed) {
@@ -381,11 +390,7 @@ void world_growFood(struct World *world, int32_t x, int32_t y) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
-  // Add agents from staging vector
-  for (size_t i = 0; i < world->agents_staging.size; i++) {
-    avec_push_back(&world->agents, *avec_get(&world->agents_staging, i));
-  }
-  world->agents_staging.size = 0;
+
   // See README.markdown for documentation of input ids
   #pragma omp parallel
   {
@@ -933,6 +938,7 @@ void world_writeReport(struct World *world) {
 
 void world_reset(struct World *world) {
   world->agents.size = 0;
+  world->agents_staging.size = 0;
   avec_free(&world->agents);
   avec_init(&world->agents, 16);
   world_addRandomBots(world, NUMBOTS);

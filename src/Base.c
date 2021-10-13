@@ -8,6 +8,8 @@ void base_init(struct Base *base, struct World *world) {
 }
 
 void base_saveworld(struct Base *base) {
+  world_flush_staging(base->world);
+
   FILE *f = fopen("world.dat", "wb");
   printf("Saving world to world.dat...\n");
 
@@ -18,13 +20,9 @@ void base_saveworld(struct Base *base) {
   w.agents_staging.agents = NULL;
   fwrite(&w, sizeof(struct World), 1, f);
 
-  printf("Writing %ld agents from agents...\n", base->world->agents.size);
+  printf("Writing %ld agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
   fwrite(base->world->agents.agents, sizeof(struct Agent), base->world->agents.size, f);
-
-  printf("Writing %ld agents from agents_staging...\n", base->world->agents_staging.size);
-  fwrite(&base->world->agents_staging.size, sizeof(long), 1, f);
-  fwrite(base->world->agents_staging.agents, sizeof(struct Agent), base->world->agents_staging.size, f);
 
   fclose(f);
   printf("Done!\n");
@@ -40,18 +38,12 @@ void base_loadworld(struct Base *base) {
   fread(base->world, sizeof(struct World), 1, f);
 
   long size = 0l;
-
   fread(&size, sizeof(long), 1, f);
   printf("Reading %ld agents from agents...\n", size);
   avec_init(&base->world->agents, size);
+  avec_init(&base->world->agents_staging, 16);
   fread(base->world->agents.agents, sizeof(struct Agent), size, f);
   base->world->agents.size = size;
-
-  fread(&size, sizeof(long), 1, f);
-  printf("Reading %ld agents from agents_staging...\n", size);
-  avec_init(&base->world->agents_staging, size);
-  fread(base->world->agents_staging.agents, sizeof(struct Agent), size, f);
-  base->world->agents_staging.size = size;
 
   printf("Fixing world struct...\n");
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->startTime);
