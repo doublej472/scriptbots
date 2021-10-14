@@ -159,6 +159,10 @@ void gl_processNormalKeys(unsigned char key, int32_t x, int32_t y) {
     case 't':
       GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
       break;
+    // C-s
+    case 19:
+      base_saveworld(GLVIEW.base);
+      break;
     // C-f
     case 6:
       glview_toggleFullscreen();
