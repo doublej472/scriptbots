@@ -56,6 +56,14 @@ struct Agent {
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
   struct MLPBrain brain;
+  // Used as a cache to find close agents
+  struct Agent_d *close_agents;
+  int32_t num_close_agents;
+};
+
+struct Agent_d {
+  struct Agent* agent;
+  float dist2;
 };
 
 void agent_init(struct Agent *agent);

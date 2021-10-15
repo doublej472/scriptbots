@@ -5,6 +5,7 @@
 #include "include/settings.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 void agent_init(struct Agent *agent) {
   vector2f_init(&agent->pos, randf(0, WIDTH), randf(0, HEIGHT));
@@ -44,6 +45,9 @@ void agent_init(struct Agent *agent) {
   agent->spiked = 0;
   memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
   memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
+
+  agent->close_agents = malloc(sizeof(struct Agent_d) * NUMBOTS_CLOSE);
+  agent->num_close_agents = 0;
   mlpbrain_init(&agent->brain);
 }
 

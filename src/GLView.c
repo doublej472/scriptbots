@@ -159,6 +159,10 @@ void gl_processNormalKeys(unsigned char key, int32_t x, int32_t y) {
     case 't':
       GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
       break;
+    // C-l
+    case 12:
+      base_loadworld(GLVIEW.base);
+      break;
     // C-s
     case 19:
       base_saveworld(GLVIEW.base);

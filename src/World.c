@@ -165,11 +165,6 @@ static void world_update_gui(struct World *world) {
   }
 }
 
-struct Agent_d {
-  struct Agent* agent;
-  float dist2;
-};
-
 int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d *close_agents) {
     int32_t num_close_agents = 0;
 
@@ -200,19 +195,6 @@ int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agen
       }
     }
 
-    // Insertion sort, since this is a small array
-    // Sorted from closest to furthest agent
-    for (int32_t j = 1; j < num_close_agents; j++) {
-      struct Agent_d key = close_agents[j];
-      int32_t k = j - 1;
-
-      while (k >= 0 && close_agents[k].dist2 > key.dist2) {
-          close_agents[k + 1] = close_agents[k];
-          k = k - 1;
-      }
-      close_agents[k+1] = key;
-    }
-
     return num_close_agents;
 }
 
@@ -230,7 +212,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
         // only carnivores get food. not same agent as dying
         if (cagent.agent->herbivore < .1 && cagent.agent->health > 0) {
 
-          float d = vector2f_dist2(&a->pos, &cagent.agent->pos);
+          float d = close_agents[j].dist2;
           if (d < FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
             num_to_dist_body++;
           }
@@ -253,7 +235,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a, struct Agent_d
           // only carnivores get food. not same agent as dying
           if (a2->herbivore < .1 && a2->health > 0) {
 
-            float d = vector2f_dist2(&a->pos, &a->pos);
+            float d = close_agents[j].dist2;
             if (d < FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
               // add to agent's health
               /*  percent_carnivore = 1-agents[j].herbivore
@@ -320,11 +302,8 @@ void world_update(struct World *world) {
     // or otherwise agents will sit on spot and wait for things to die around
     // them. They must do work!
     if (a->health <= 0 && a->spiked) {
-      struct Agent_d close_agents[NUMBOTS_CLOSE];
-      int32_t num_close_agents = world_get_close_agents(world, a, close_agents);
-
       // Distribute dead agents to nearby carnivores
-      world_dist_dead_agent(world, a, close_agents, num_close_agents);
+      world_dist_dead_agent(world, a, a->close_agents, a->num_close_agents);
     }
 
     int rep = 0;
@@ -347,33 +326,22 @@ void world_update(struct World *world) {
               randf(REPRATEC - 0.1, REPRATEC + 0.1);
     }
 
-    // Process agent health
     agent_process_health(a);
 
     if (rep) {
-      // add BABIES new agents to agents[]
       world_reproduce(world, i, a->MUTRATE1, a->MUTRATE2);
     }
   }
 
-  // Flush any agents in the staging array, and clean up old bots
+  // Flush any agents in the staging array, and clean up dead bots
   world_flush_staging(world);
 
   // add new agents, if environment isn't closed
   if (!world->closed) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
     if (world->agents.size < NUMBOTS_MIN) {
-      world_addRandomBots(world, 10); // add new agent
+      world_addRandomBots(world, 10);
     }
-    /*
-      if (world->modcounter%100==0) {
-      if (randf(0,1)<0.5){
-      addRandomBots(1); //every now and then add random bots in
-      }else{
-      addNewByCrossover(); //or by crossover
-      }
-      }
-    */
   }
 }
 
@@ -395,12 +363,14 @@ void world_setInputsRunBrain(struct World *world) {
   #pragma omp parallel
   {
     #ifdef OPENMP
-    srand(((int) time(NULL)) ^ omp_get_thread_num());
+    srand((rand()) ^ omp_get_thread_num());
     #endif
     #pragma omp for
     for (size_t i = 0; i < world->agents.size; i++) {
-
     struct Agent *a = &world->agents.agents[i];
+
+    // Update the close agents
+    a->num_close_agents = world_get_close_agents(world, a, a->close_agents);
 
     // General settings
     // says that agent was not hit this turn
@@ -443,23 +413,15 @@ void world_setInputsRunBrain(struct World *world) {
     float health_gain = 0;
 
     // SMELL SOUND EYES
-    for (size_t j = 0; j < world->agents.size; j++) {
-      if (i == j)
-        continue; // do not process self
+    for (int j = 0; j < a->num_close_agents; j++) {
 
-      struct Agent *a2 = &world->agents.agents[j];
-
-      // Do manhattan-distance estimation
-      if (a->pos.x < a2->pos.x - DIST ||
-          a->pos.x > a2->pos.x + DIST ||
-          a->pos.y > a2->pos.y + DIST ||
-          a->pos.y < a2->pos.y - DIST)
-        continue;
+      struct Agent *a2 = a->close_agents[j].agent;
 
       // standard distance formula (more fine grain)
-      float d = vector2f_dist2(&a->pos, &a2->pos);
+      float d = a->close_agents[j].dist2;
 
-      if (d < DIST*DIST) { // two bots are within DIST of each other
+      if (d < DIST*DIST) {
+        // Get the real distance now
         d = sqrt(d);
 
         // smell
@@ -605,9 +567,7 @@ void world_setInputsRunBrain(struct World *world) {
     a->in[19] = cap(blood);
     a->in[20] = cap(discomfort);
     a->in[21] = cap(a->touch);
-    // change the random input at random intervals (10% chance)
-    if (randf(0, 1) < .1)
-      a->in[22] = randf(0, 1); // random input for bot
+    a->in[22] = randf(0, 1); // random input for bot
 
     // Copy last ouput and last "plan" to the current inputs
     // PREV_OUT is 23-32
@@ -698,8 +658,8 @@ void world_processOutputs(struct World *world) {
 
     // process food intake
 
-    int32_t cx = (int32_t)world->agents.agents[i].pos.x / CZ;
-    int32_t cy = (int32_t)world->agents.agents[i].pos.y / CZ;
+    int32_t cx = (int32_t)a->pos.x / CZ;
+    int32_t cy = (int32_t)a->pos.y / CZ;
     float f = world->food[cx][cy];
     if (f > 0 && a->health < 2) {
       // agent eats the food
@@ -717,14 +677,15 @@ void world_processOutputs(struct World *world) {
     a->dfood = 0;
 
     if (a->give > 0.5) {
-      for (size_t j = 0; j < world->agents.size; j++) {
-        float d = vector2f_dist2(&a->pos, &world->agents.agents[j].pos);
+      for (int j = 0; j < a->num_close_agents; j++) {
+        float d = a->close_agents[j].dist2;
+        struct Agent *a2 = a->close_agents[j].agent;
         if (d < FOOD_SHARING_DISTANCE * FOOD_SHARING_DISTANCE) {
           // initiate transfer
-          if (world->agents.agents[j].health < 2) {
-            world->agents.agents[j].health += FOODTRANSFER;
+          if (a2->health < 2) {
+            a2->health += FOODTRANSFER;
             a->health -= FOODTRANSFER;
-            world->agents.agents[j].dfood += FOODTRANSFER; // only for drawing
+            a2->dfood += FOODTRANSFER; // only for drawing
             a->dfood -= FOODTRANSFER;
           }
         }
@@ -738,11 +699,10 @@ void world_processOutputs(struct World *world) {
         a->w1 < 0.5 || a->w2 < 0.5)
       continue;
 
-    for (size_t j = 0; j < world->agents.size; j++) {
+    for (int j = 0; j < a->num_close_agents; j++) {
 
-      if (i == j)
-        continue;
-      float d = vector2f_dist2(&a->pos, &world->agents.agents[j].pos);
+      float d = a->close_agents[j].dist2;
+      struct Agent *a2 = a->close_agents[j].agent;
 
       if (d < 2 * BOTRADIUS*BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
@@ -751,7 +711,7 @@ void world_processOutputs(struct World *world) {
         vector2f_init(&v, 1, 0);
         vector2f_rotate(&v, a->angle);
         struct Vector2f tmp;
-        vector2f_sub(&tmp, &world->agents.agents[j].pos, &a->pos);
+        vector2f_sub(&tmp, &a2->pos, &a->pos);
         float diff = vector2f_angle_between(&v, &tmp);
         if (fabsf(diff) < M_PI / 8) {
           // bot i is also properly aligned!!! that's a hit
@@ -759,34 +719,35 @@ void world_processOutputs(struct World *world) {
                       fmax(fabsf(a->w1), fabsf(a->w2)) *
                       BOOSTSIZEMULT;
 
-          world->agents.agents[j].health -= DMG;
+          a2->health -= DMG;
 
           if (a->health > 2)
             a->health = 2;    // cap health at 2
           a->spikeLength = 0; // retract spike back down
 
-          agent_initevent(&world->agents.agents[i],
+          agent_initevent(a,
               40 * DMG, 1, 1,
               0); // yellow event means bot has spiked other bot. nice!
 
           struct Vector2f v2;
           vector2f_init(&v2, 1, 0);
-          vector2f_rotate(&v2, world->agents.agents[j].angle);
+          vector2f_rotate(&v2, a2->angle);
           float adiff = vector2f_angle_between(&v, &v2);
           if (fabsf(adiff) < M_PI / 2) {
             // this was attack from the back. Retract spike of the other agent
             // (startle!) this is done so that the other agent cant right away
             // "by accident" attack this agent
-            world->agents.agents[j].spikeLength = 0;
+            a2->spikeLength = 0;
           }
 
-          world->agents.agents[j].spiked =
+          a2->spiked =
               1; // set a flag saying that this agent was hit this turn
         }
       }
     }
   }
 }
+
 
 void world_addRandomBots(struct World *world, int32_t num) {
   world->numAgentsAdded += num; // record in report
