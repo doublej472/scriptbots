@@ -35,6 +35,7 @@ void world_flush_staging(struct World *world) {
       // The i-- is very important here, since we need to retry the current iteration
       // because it was replaced with a different agent
       avec_delete(&world->agents, i--);
+      continue;
     }
   }
   // Add agents from staging vector
