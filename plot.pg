@@ -2,14 +2,14 @@
 reset
 #set terminal png
 
-set terminal wxt size 1800,1000
+set terminal pngcairo size 1920,1080
 
 set xlabel "Epoch"
 
 set ylabel "Population"
 
-set yrange [0:1000]
-#set autoscale
+#set yrange [0:1000]
+set autoscale
 
 set title "ScriptBots Pred vs Prey Plotting"
 set key reverse Left inside
