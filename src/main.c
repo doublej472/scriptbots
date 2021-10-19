@@ -236,4 +236,6 @@ void runHeadless(struct Base *base) {
   }
 
   base_saveworld(base);
+  avec_free(&base->world->agents);
+  avec_free(&base->world->agents_staging);
 }

@@ -17,7 +17,7 @@ void renderString(float x, float y, void *font, const char *string, float r,
   glRasterPos2f(x, y);
   int32_t len = (int32_t)strlen(string);
   for (int32_t i = 0; i < len; i++)
-    glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, string[i]);
+    glutBitmapCharacter(font, string[i]);
 }
 
 void drawCircle(float x, float y, float r) {
@@ -110,11 +110,13 @@ void gl_processMouseActiveMotion(int32_t x, int32_t y) {
   GLVIEW.mousey = y;
 }
 
-void gl_processNormalKeys(unsigned char key, int32_t x, int32_t y) {
+void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
     case 27:
       printf("\n\nESC key pressed, shutting down\n");
       base_saveworld(GLVIEW.base);
+      avec_free(&GLVIEW.base->world->agents);
+      avec_free(&GLVIEW.base->world->agents_staging);
       exit(0);
       break;
     case 'r':
@@ -446,24 +448,24 @@ void drawAgent(const struct Agent *agent) {
     sprintf(GLVIEW.buf2, "%i", agent->gencount);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
                  agent->pos.y + BOTRADIUS * 1.8,
-                 GLUT_BITMAP_TIMES_ROMAN_24, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
     // age
     sprintf(GLVIEW.buf2, "%i", agent->age);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
                  agent->pos.y + BOTRADIUS * 1.8 + 12,
-                 GLUT_BITMAP_TIMES_ROMAN_24, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
 
     // health
     sprintf(GLVIEW.buf2, "%.2f", agent->health);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
                  agent->pos.y + BOTRADIUS * 1.8 + 24,
-                 GLUT_BITMAP_TIMES_ROMAN_24, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
 
     // repcounter
     sprintf(GLVIEW.buf2, "%.2f", agent->repcounter);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
                  agent->pos.y + BOTRADIUS * 1.8 + 36,
-                 GLUT_BITMAP_TIMES_ROMAN_24, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
   }
 }
 

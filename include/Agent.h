@@ -32,6 +32,7 @@ struct Agent {
   float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
+  int rep;      // If this agent will reproduce the next world update
   int32_t gencount;           // generation counter
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
   float soundmul; // sound multiplier of this bot. It can scream, or be very

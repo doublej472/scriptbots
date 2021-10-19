@@ -191,7 +191,7 @@ int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agen
       close_agents[num_close_agents].dist2 = d;
       num_close_agents++;
 
-      if (num_close_agents == NUMBOTS_CLOSE) {
+      if (num_close_agents >= NUMBOTS_CLOSE) {
         break;
       }
     }
@@ -307,7 +307,7 @@ void world_update(struct World *world) {
       world_dist_dead_agent(world, a, a->close_agents, a->num_close_agents);
     }
 
-    int rep = 0;
+    a->rep = 0;
 
     // Handle reproduction
     if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH
@@ -318,7 +318,7 @@ void world_update(struct World *world) {
       // the parent splits it health evenly with all of its babies
       a->health -= a->health / (BABIES + 1);
 
-      rep = 1;
+      a->rep = 1;
 
       a->repcounter =
           a->herbivore *
@@ -328,14 +328,14 @@ void world_update(struct World *world) {
     }
 
     agent_process_health(a);
-
-    if (rep) {
-      world_reproduce(world, i, a->MUTRATE1, a->MUTRATE2);
-    }
   }
 
-  // Flush any agents in the staging array, and clean up dead bots
-  world_flush_staging(world);
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
+    if (a->rep) {
+      world_reproduce(world, a, a->MUTRATE1, a->MUTRATE2);
+    }
+  }
 
   // add new agents, if environment isn't closed
   if (!world->closed) {
@@ -344,6 +344,9 @@ void world_update(struct World *world) {
       world_addRandomBots(world, 10);
     }
   }
+
+  // Flush any agents in the staging array, and clean up dead bots
+  world_flush_staging(world);
 }
 
 // Grow food around square
@@ -756,8 +759,7 @@ void world_addRandomBots(struct World *world, int32_t num) {
   for (int32_t i = 0; i < num; i++) {
     struct Agent a;
     agent_init(&a);
-    a.id = world->idcounter;
-    world->idcounter++;
+    a.id = world->idcounter++;
 
     avec_push_back(&world->agents_staging, a);
   }
@@ -766,11 +768,11 @@ void world_addRandomBots(struct World *world, int32_t num) {
 void world_addCarnivore(struct World *world) {
   struct Agent a;
   agent_init(&a);
-  a.id = world->idcounter;
+  a.id = world->idcounter++;
   a.herbivore = randf(0, 0.1);
+
   avec_push_back(&world->agents_staging, a);
 
-  world->idcounter++;
   world->numAgentsAdded++;
 }
 
@@ -803,20 +805,19 @@ void world_addNewByCrossover(struct World *world) {
   world->numAgentsAdded++; // record in report
 }
 
-void world_reproduce(struct World *world, int32_t ai, float MR, float MR2) {
+void world_reproduce(struct World *world, struct Agent *a, float MR, float MR2) {
   if (randf(0, 1) < 0.04)
     MR = MR * randf(1, 10);
   if (randf(0, 1) < 0.04)
     MR2 = MR2 * randf(1, 10);
 
-  agent_initevent(&world->agents.agents[ai], 30, 0, 0.8, 0); // green event means agent reproduced.
+  agent_initevent(a, 30, 0, 0.8, 0); // green event means agent reproduced.
   for (int32_t i = 0; i < BABIES; i++) {
 
     struct Agent a2;
     agent_init(&a2);
-    agent_reproduce(&a2, &world->agents.agents[ai], MR, MR2);
-    a2.id = world->idcounter;
-    world->idcounter++;
+    agent_reproduce(&a2, a, MR, MR2);
+    a2.id = world->idcounter++;
     avec_push_back(&world->agents_staging, a2);
   }
 }
@@ -899,11 +900,12 @@ void world_writeReport(struct World *world) {
 }
 
 void world_reset(struct World *world) {
-  world->agents.size = 0;
-  world->agents_staging.size = 0;
+  avec_free(&world->agents_staging);
   avec_free(&world->agents);
+  avec_init(&world->agents_staging, 16);
   avec_init(&world->agents, 16);
   world_addRandomBots(world, NUMBOTS);
+  world_flush_staging(world);
 }
 
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {

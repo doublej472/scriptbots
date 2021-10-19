@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <stdlib.h>
 #include "include/Base.h"
 
 void base_init(struct Base *base, struct World *world) {
@@ -48,7 +49,7 @@ void base_loadworld(struct Base *base) {
   printf("Fixing world struct...\n");
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->startTime);
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->totalStartTime);
-  for (int i = 0; i < base->world->agents.size; i++) {
+  for (size_t i = 0; i < base->world->agents.size; i++) {
     base->world->agents.agents[i].num_close_agents = 0;
     base->world->agents.agents[i].close_agents = malloc(sizeof(struct Agent_d) * NUMBOTS_CLOSE);
   }

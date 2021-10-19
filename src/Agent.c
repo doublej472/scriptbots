@@ -27,12 +27,14 @@ void agent_init(struct Agent *agent) {
   agent->indicator = 0;
   agent->gencount = 0;
   agent->selectflag = 0;
+  agent->dfood = 0;
   agent->ir = 0;
   agent->ig = 0;
   agent->ib = 0;
   agent->temperature_preference = randf(0, 1);
   agent->hybrid = 0;
   agent->herbivore = randf(0, 1);
+  agent->rep = 0;
   agent->repcounter =
       agent->herbivore * randf(REPRATEH - 0.1, REPRATEH + 0.1) +
       (1 - agent->herbivore) * randf(REPRATEC - 0.1, REPRATEC + 0.1);
@@ -43,11 +45,13 @@ void agent_init(struct Agent *agent) {
   agent->MUTRATE2 = 0.05;
 
   agent->spiked = 0;
-  memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
-  memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
-
   agent->close_agents = malloc(sizeof(struct Agent_d) * NUMBOTS_CLOSE);
   agent->num_close_agents = 0;
+
+  memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
+  memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
+  memset(agent->close_agents, '\0', sizeof(struct Agent_d) * NUMBOTS_CLOSE);
+
   mlpbrain_init(&agent->brain);
 }
 

@@ -31,12 +31,12 @@ void mlpbrain_init(struct MLPBrain *brain) {
 }
 
 void mlpbrain_init_other(struct MLPBrain *brain, const struct MLPBrain *other) {
-  memcpy(brain->boxes, other->boxes, sizeof(struct MLPBox) * BRAINSIZE);
+  memcpy(&brain->boxes, &other->boxes, sizeof(struct MLPBox) * BRAINSIZE);
 }
 
 void mlpbrain_set(struct MLPBrain *target, const struct MLPBrain *source) {
   if (target != source) {
-    memcpy(target->boxes, source->boxes, sizeof(struct MLPBox) * BRAINSIZE);
+    memcpy(&target->boxes, &source->boxes, sizeof(struct MLPBox) * BRAINSIZE);
   }
 }
 

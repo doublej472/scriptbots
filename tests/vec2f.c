@@ -70,7 +70,7 @@ void test_vec2f() {
   assert_eq(v2.y, 0.0f);
 }
 
-int main(int argc, char** argv) {
+int main() {
   printf("Testing vector operations...\n");
   test_vec2f();
   printf("Vector2f tests successful!\n");
