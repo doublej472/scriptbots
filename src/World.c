@@ -571,7 +571,9 @@ void world_setInputsRunBrain(struct World *world) {
     a->in[19] = cap(blood);
     a->in[20] = cap(discomfort);
     a->in[21] = cap(a->touch);
-    a->in[22] = randf(0, 1); // random input for bot
+    if (randf(0,1) > 0.95f) {
+      a->in[22] = randf(0, 1); // random input for bot
+    }
 
     // Copy last ouput and last "plan" to the current inputs
     // PREV_OUT is 23-32
