@@ -42,8 +42,6 @@ struct Agent {
   float indicator;
   float ir, ig, ib; // indicator colors
   int32_t selectflag;   // is this agent selected?
-  float dfood;      // what is change in health of this agent due to
-               // giving/receiving?
 
   float give; // is this agent attempting to give food to other agent?
 
@@ -57,9 +55,6 @@ struct Agent {
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
   struct MLPBrain brain;
-  // Used as a cache to find close agents
-  struct Agent_d *close_agents;
-  int32_t num_close_agents;
 };
 
 struct Agent_d {

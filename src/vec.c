@@ -10,9 +10,6 @@ void avec_init(struct AVec* vec, size_t size) {
 }
 
 void avec_free(struct AVec* vec) {
-  for (size_t i = 0; i < vec->size; i++) {
-    free(avec_get(vec, i)->close_agents);
-  }
   free(vec->agents);
   vec->allocated = 0;
   vec->size = 0;
@@ -21,7 +18,6 @@ void avec_free(struct AVec* vec) {
 // Very simple deletion, where the last agent is moved
 // to the deleted agent, and the vec is shrunk by 1
 void avec_delete(struct AVec *vec, size_t idx) {
-  free(avec_get(vec, idx)->close_agents);
   vec->agents[idx] = vec->agents[vec->size-1];
   vec->size--;
 

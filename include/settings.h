@@ -123,6 +123,9 @@ extern int32_t MAX_SECONDS;
 // when bot is killed, how far is its body distributed?
 #define FOOD_DISTRIBUTION_RADIUS 100
 
+// max number of agents to distribute to
+#define FOOD_DISTRIBUTION_MAX 16
+
 // GEOMETRIC CALCULATION CONSTATNS (DO NOT CHANGE)
 #define PI8 (M_PI / 8 / 2) // pi/8/2
 #define PI38 (3 * PI8)     // 3pi/8/2

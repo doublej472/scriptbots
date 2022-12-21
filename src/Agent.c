@@ -27,7 +27,6 @@ void agent_init(struct Agent *agent) {
   agent->indicator = 0;
   agent->gencount = 0;
   agent->selectflag = 0;
-  agent->dfood = 0;
   agent->ir = 0;
   agent->ig = 0;
   agent->ib = 0;
@@ -45,12 +44,9 @@ void agent_init(struct Agent *agent) {
   agent->MUTRATE2 = 0.05;
 
   agent->spiked = 0;
-  agent->close_agents = malloc(sizeof(struct Agent_d) * NUMBOTS_CLOSE);
-  agent->num_close_agents = 0;
 
   memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
   memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
-  memset(agent->close_agents, '\0', sizeof(struct Agent_d) * NUMBOTS_CLOSE);
 
   mlpbrain_init(&agent->brain);
 }

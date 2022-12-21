@@ -49,10 +49,6 @@ void base_loadworld(struct Base *base) {
   printf("Fixing world struct...\n");
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->startTime);
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->totalStartTime);
-  for (size_t i = 0; i < base->world->agents.size; i++) {
-    base->world->agents.agents[i].num_close_agents = 0;
-    base->world->agents.agents[i].close_agents = malloc(sizeof(struct Agent_d) * NUMBOTS_CLOSE);
-  }
 
   fclose(f);
   printf("Done!\n");
