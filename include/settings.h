@@ -36,11 +36,11 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 1000
+#define NUMBOTS 2000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
-#define NUMBOTS_CLOSE 12
+#define NUMBOTS_CLOSE 64
 // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10
 // for drawing
@@ -124,7 +124,7 @@ extern int32_t MAX_SECONDS;
 #define FOOD_DISTRIBUTION_RADIUS 100
 
 // max number of agents to distribute to
-#define FOOD_DISTRIBUTION_MAX 16
+#define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE
 
 // GEOMETRIC CALCULATION CONSTATNS (DO NOT CHANGE)
 #define PI8 (M_PI / 8 / 2) // pi/8/2

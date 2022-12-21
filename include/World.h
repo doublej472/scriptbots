@@ -7,6 +7,11 @@
 #include "settings.h"
 #include "vec.h"
 
+#define WORLD_GRID_SIZE DIST
+#define WORLD_GRID_HEIGHT ((HEIGHT / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_WIDTH ((WIDTH / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_LENGTH (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT)
+
 struct World {
   int32_t modcounter; // temp not private
   int32_t current_epoch;
@@ -33,13 +38,16 @@ struct World {
   // When agents get added to the world, they go the this AVec first, then
   // they get pushed to the agents array
   struct AVec agents_staging;
+
+  // value represents one past the index of the last element in the current grid position
+  // Grid position calculated like (y*WORLD_GRID_WIDTH + x)
+  size_t agent_grid[WORLD_GRID_LENGTH];
 };
 
 void world_init(struct World *world);
 void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);
-void world_growFood(struct World *world, int32_t x, int32_t y);
 void world_setInputsRunBrain(struct World *world);
 void world_processOutputs(struct World *world);
 void world_addRandomBots(struct World *world, int32_t num);
@@ -49,6 +57,7 @@ void world_reproduce(struct World *world, struct Agent *a, float MR, float MR2);
 void world_writeReport(struct World *world);
 void world_reset(struct World *world);
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y);
+void world_sortGrid(struct World *world);
 int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);
 int32_t world_numAgents(struct World *world);

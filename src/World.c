@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -22,6 +23,18 @@ static void timespec_diff(struct timespec *result, struct timespec *start,
     } else {
         result->tv_sec = stop->tv_sec - start->tv_sec;
         result->tv_nsec = stop->tv_nsec - start->tv_nsec;
+    }
+}
+
+// Grow food around square
+static void world_growFood(struct World *world, int32_t x, int32_t y) {
+  // check if food square is inside the world
+  if ( x >= 0
+    && x < world->FW
+    && y >= 0
+    && y < world->FH
+    && world->food[x][y] < FOODMAX) {
+      world->food[x][y] += FOODGROWTH;
     }
 }
 
@@ -83,6 +96,8 @@ void world_init(struct World *world) {
 
   // Decide if world if closed based on settings.h
   world->closed = CLOSED;
+
+  memset(&world->agent_grid, '\0', sizeof(size_t) * WORLD_GRID_LENGTH);
 
   // Delete the old report to start fresh
   remove("report.csv");
@@ -166,18 +181,28 @@ static void world_update_gui(struct World *world) {
   }
 }
 
-int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agent_d *close_agents) {
-    int32_t num_close_agents = 0;
+static int32_t check_grid_position(struct World *world, struct Agent *a, struct Agent_d *close_agents, size_t x, size_t y, int32_t num_close_agents) {
+  // If this is outside the grid then ignore
+  if (x < 0 || x >= WORLD_GRID_WIDTH ||
+      y < 0 || y >= WORLD_GRID_HEIGHT) {
+    return 0;
+  }
 
-    for (size_t j = 0; j < world->agents.size; j++) {
-      if (num_close_agents >= FOOD_DISTRIBUTION_MAX) {
-        break;
-      }
+  int32_t init_close_agents = num_close_agents;
+  size_t this_grid_index = x + y * WORLD_GRID_WIDTH;
 
-      struct Agent *a2 = &world->agents.agents[j];
+  size_t start = 0;
+    if (this_grid_index != 0) {
+      start = world->agent_grid[this_grid_index-1];
+    }
+
+    for (size_t i = start; i < world->agent_grid[this_grid_index]; i++) {
+      struct Agent *a2 = &world->agents.agents[i];
       if (a == a2) {
         continue;
       }
+
+      // printf("Checking agent at index: %li\n", i);
 
       float d = vector2f_dist2(&a->pos, &a2->pos);
 
@@ -189,11 +214,34 @@ int32_t world_get_close_agents(struct World *world, struct Agent *a, struct Agen
       close_agents[num_close_agents].agent = a2;
       close_agents[num_close_agents].dist2 = d;
       num_close_agents++;
-
-      if (num_close_agents >= NUMBOTS_CLOSE) {
-        break;
-      }
     }
+
+    return num_close_agents - init_close_agents;
+}
+
+int32_t world_get_close_agents(struct World *world, size_t index, struct Agent_d *close_agents) {
+    struct Agent *a = &world->agents.agents[index];
+    int32_t num_close_agents = 0;
+
+    size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
+    size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+
+    // Check 3x3 grid position around our current grid position
+    // Check current grid position first, so we can guarantee we will find close agents
+
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y, num_close_agents);
+
+    // Then check direct borders
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y-1, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y+1, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y, num_close_agents);
+
+    // Then check corners
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y-1, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y+1, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y-1, num_close_agents);
+    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y+1, num_close_agents);
 
     return num_close_agents;
 }
@@ -292,13 +340,15 @@ void world_update(struct World *world) {
 
   world_update_food(world);
 
+  world_sortGrid(world);
+
   // give input to every agent. Sets in[] array. Runs brain
   world_setInputsRunBrain(world);
 
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
 
-  #pragma omp parallel for
+  // #pragma omp parallel for
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
@@ -353,32 +403,17 @@ void world_update(struct World *world) {
   world_flush_staging(world);
 }
 
-// Grow food around square
-void world_growFood(struct World *world, int32_t x, int32_t y) {
-  // check if food square is inside the world
-  if ( x >= 0
-    && x < world->FW
-    && y >= 0
-    && y < world->FH
-    && world->food[x][y] < FOODMAX) {
-      world->food[x][y] += FOODGROWTH;
-    }
-}
-
 void world_setInputsRunBrain(struct World *world) {
-
   // See README.markdown for documentation of input ids
-  #pragma omp parallel
-  {
     #ifdef OPENMP
     srand((rand()) ^ omp_get_thread_num());
     #endif
-    #pragma omp for
+    #pragma omp parallel for schedule(static, 16)
     for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
     struct Agent_d close_agents[NUMBOTS_CLOSE];
-    int num_close_agents = world_get_close_agents(world, a, close_agents);
+    int num_close_agents = world_get_close_agents(world, i, close_agents);
 
     // General settings
     // says that agent was not hit this turn
@@ -647,13 +682,12 @@ void world_setInputsRunBrain(struct World *world) {
     // Now process brain
     agent_tick(a);
   }
-  }
 }
 
 void world_processOutputs(struct World *world) {
   // See README.markdown for documentation of output ids
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(static, 16)
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
@@ -958,4 +992,50 @@ int32_t world_numAgents(struct World *world) {
     exit(1);
   }
   return world->agents.size;
+}
+
+void world_sortGrid(struct World *world) {
+  size_t current_grid_index = 0;
+
+  // printf("\nagents_size: %li\n", world->agents.size);
+
+  for (size_t i = 1; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i-1];
+    struct Agent *a2 = &world->agents.agents[i];
+
+    size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
+    size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+    size_t this_grid_index = this_grid_y * WORLD_GRID_WIDTH + this_grid_x;
+
+    size_t next_grid_x = floor(a2->pos.x / WORLD_GRID_SIZE);
+    size_t next_grid_y = floor(a2->pos.y / WORLD_GRID_SIZE);
+    size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
+
+    // printf("i: %ld\n", i);
+    // printf("this: %ld\n", this_grid_index);
+    // printf("this_x: %f\n", a->pos.x);
+    // printf("this_y: %f\n", a->pos.y);
+    // printf("next: %ld\n", next_grid_index);
+    // printf("next_x: %ld\n", next_grid_x);
+    // printf("next_y: %ld\n", next_grid_y);
+
+    if (next_grid_index < this_grid_index) {
+      struct Agent tmp = *a;
+      world->agents.agents[i-1] = world->agents.agents[i];
+      world->agents.agents[i] = tmp;
+      this_grid_index = next_grid_index;
+    }
+
+    while (this_grid_index > current_grid_index) {
+      world->agent_grid[current_grid_index] = i;
+      current_grid_index++;
+      // printf("%li: %li\n", current_grid_index, i);
+    }
+  }
+
+  while (current_grid_index < WORLD_GRID_LENGTH) {
+      world->agent_grid[current_grid_index] = world->agent_grid[current_grid_index-1];
+      current_grid_index++;
+      // printf("%li: %li\n", current_grid_index, i);
+    }
 }
