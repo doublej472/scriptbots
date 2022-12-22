@@ -197,6 +197,9 @@ static int32_t check_grid_position(struct World *world, struct Agent *a, struct 
     }
 
     for (size_t i = start; i < world->agent_grid[this_grid_index]; i++) {
+      if (num_close_agents >= NUMBOTS_CLOSE) {
+        break;
+      }
       struct Agent *a2 = &world->agents.agents[i];
       if (a == a2) {
         continue;
