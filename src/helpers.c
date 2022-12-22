@@ -5,7 +5,7 @@
 
 // uniform random in [a,b)
 inline float randf(float a, float b) {
-  return ((b - a) * ((float)rand() / RAND_MAX)) + a;
+  return ((b - a) * ((float)rand() / (float)RAND_MAX)) + a;
 }
 
 // uniform random int32_t in [a,b)

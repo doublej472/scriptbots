@@ -6,11 +6,14 @@
 
 #include "settings.h"
 #include "vec.h"
+#include "queue.h"
 
 #define WORLD_GRID_SIZE DIST
 #define WORLD_GRID_HEIGHT ((HEIGHT / WORLD_GRID_SIZE) + 1)
 #define WORLD_GRID_WIDTH ((WIDTH / WORLD_GRID_SIZE) + 1)
 #define WORLD_GRID_LENGTH (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT)
+
+#define QUEUE_BUFFER_SIZE 1000
 
 struct World {
   int32_t modcounter; // temp not private
@@ -33,6 +36,9 @@ struct World {
 
   struct timespec startTime;      // used for tracking fps
   struct timespec totalStartTime; // used for deciding when to quit the simulation
+
+  size_t agent_buffer[QUEUE_BUFFER_SIZE];
+	queue_t agent_queue;
 
   struct AVec agents;
   // When agents get added to the world, they go the this AVec first, then
@@ -61,5 +67,7 @@ void world_sortGrid(struct World *world);
 int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);
 int32_t world_numAgents(struct World *world);
+
+void *agent_input_processor(void *arg);
 
 #endif // WORLD_H

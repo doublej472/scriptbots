@@ -1,41 +1,36 @@
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
-#include "include/settings.h"
 #include "include/World.h"
-#include "include/vec.h"
 #include "include/helpers.h"
+#include "include/settings.h"
+#include "include/vec.h"
 #include "include/vec2f.h"
-#include <stdlib.h>
+#include "include/queue.h"
 #include <stdio.h>
-#include <time.h>
+#include <stdlib.h>
 #include <string.h>
-#ifdef OPENMP
-#include <omp.h>
-#endif
+#include <time.h>
 
 static void timespec_diff(struct timespec *result, struct timespec *start,
                           struct timespec *stop) {
-    if ((stop->tv_nsec - start->tv_nsec) < 0) {
-        result->tv_sec = stop->tv_sec - start->tv_sec - 1;
-        result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
-    } else {
-        result->tv_sec = stop->tv_sec - start->tv_sec;
-        result->tv_nsec = stop->tv_nsec - start->tv_nsec;
-    }
+  if ((stop->tv_nsec - start->tv_nsec) < 0) {
+    result->tv_sec = stop->tv_sec - start->tv_sec - 1;
+    result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
+  } else {
+    result->tv_sec = stop->tv_sec - start->tv_sec;
+    result->tv_nsec = stop->tv_nsec - start->tv_nsec;
+  }
 }
 
 // Grow food around square
 static void world_growFood(struct World *world, int32_t x, int32_t y) {
   // check if food square is inside the world
-  if ( x >= 0
-    && x < world->FW
-    && y >= 0
-    && y < world->FH
-    && world->food[x][y] < FOODMAX) {
-      world->food[x][y] += FOODGROWTH;
-    }
+  if (x >= 0 && x < world->FW && y >= 0 && y < world->FH &&
+      world->food[x][y] < FOODMAX) {
+    world->food[x][y] += FOODGROWTH;
+  }
 }
 
 void world_flush_staging(struct World *world) {
@@ -45,8 +40,8 @@ void world_flush_staging(struct World *world) {
 
     // Cull any dead agents
     if (a->health <= 0) {
-      // The i-- is very important here, since we need to retry the current iteration
-      // because it was replaced with a different agent
+      // The i-- is very important here, since we need to retry the current
+      // iteration because it was replaced with a different agent
       avec_delete(&world->agents, i--);
       continue;
     }
@@ -59,6 +54,10 @@ void world_flush_staging(struct World *world) {
 }
 
 void world_init(struct World *world) {
+  memset(world->agent_buffer, '\0', sizeof(size_t) * QUEUE_BUFFER_SIZE);
+  memset(&world->agent_grid, '\0', sizeof(size_t) * WORLD_GRID_LENGTH);
+  world->agent_queue = QUEUE_INITIALIZER(world->agent_buffer);
+
   world->stopSim = 0;
   world->modcounter = 0;
   world->current_epoch = 0;
@@ -75,8 +74,8 @@ void world_init(struct World *world) {
   avec_init(&world->agents_staging, 16);
 
   // create the bots but with 20% more carnivores, to give them head start
-  world_addRandomBots(world, (int32_t) NUMBOTS * .8);
-  for (int32_t i = 0; i < (int32_t) NUMBOTS * .2; ++i)
+  world_addRandomBots(world, (int32_t)NUMBOTS * .8);
+  for (int32_t i = 0; i < (int32_t)NUMBOTS * .2; ++i)
     world_addCarnivore(world);
 
   // inititalize food layer
@@ -96,8 +95,6 @@ void world_init(struct World *world) {
 
   // Decide if world if closed based on settings.h
   world->closed = CLOSED;
-
-  memset(&world->agent_grid, '\0', sizeof(size_t) * WORLD_GRID_LENGTH);
 
   // Delete the old report to start fresh
   remove("report.csv");
@@ -163,28 +160,31 @@ static void world_update_gui(struct World *world) {
   timespec_diff(&ts_delta, &world->startTime, &endTime);
   timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
 
-  float deltat = (float) ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
-  float totaldeltat = (float) ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
+  float deltat = (float)ts_delta.tv_sec + (ts_delta.tv_nsec / 1000000000.0f);
+  float totaldeltat =
+      (float)ts_totaldelta.tv_sec + (ts_totaldelta.tv_nsec / 1000000000.0f);
 
   printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
          "%.1f - Time: %.2f sec     \r",
-         world->current_epoch, world->modcounter / 100, (int32_t) world->agents.size,
-         (int32_t) reportInterval / deltat,
+         world->current_epoch, world->modcounter / 100,
+         (int32_t)world->agents.size, (int32_t)reportInterval / deltat,
          totaldeltat);
 
   world->startTime = endTime;
 
   // Check if simulation needs to end
 
-  if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
+  if (world->current_epoch >= MAX_EPOCHS ||
+      (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
     world->stopSim = 1;
   }
 }
 
-static int32_t check_grid_position(struct World *world, struct Agent *a, struct Agent_d *close_agents, size_t x, size_t y, int32_t num_close_agents) {
+static int32_t check_grid_position(struct World *world, struct Agent *a,
+                                   struct Agent_d *close_agents, size_t x,
+                                   size_t y, int32_t num_close_agents) {
   // If this is outside the grid then ignore
-  if (x < 0 || x >= WORLD_GRID_WIDTH ||
-      y < 0 || y >= WORLD_GRID_HEIGHT) {
+  if (x < 0 || x >= WORLD_GRID_WIDTH || y < 0 || y >= WORLD_GRID_HEIGHT) {
     return 0;
   }
 
@@ -192,61 +192,76 @@ static int32_t check_grid_position(struct World *world, struct Agent *a, struct 
   size_t this_grid_index = x + y * WORLD_GRID_WIDTH;
 
   size_t start = 0;
-    if (this_grid_index != 0) {
-      start = world->agent_grid[this_grid_index-1];
+  if (this_grid_index != 0) {
+    start = world->agent_grid[this_grid_index - 1];
+  }
+
+  for (size_t i = start; i < world->agent_grid[this_grid_index]; i++) {
+    if (num_close_agents >= NUMBOTS_CLOSE) {
+      break;
+    }
+    struct Agent *a2 = &world->agents.agents[i];
+    if (a == a2) {
+      continue;
     }
 
-    for (size_t i = start; i < world->agent_grid[this_grid_index]; i++) {
-      if (num_close_agents >= NUMBOTS_CLOSE) {
-        break;
-      }
-      struct Agent *a2 = &world->agents.agents[i];
-      if (a == a2) {
-        continue;
-      }
+    // printf("Checking agent at index: %li\n", i);
 
-      // printf("Checking agent at index: %li\n", i);
+    float d = vector2f_dist2(&a->pos, &a2->pos);
 
-      float d = vector2f_dist2(&a->pos, &a2->pos);
-
-      // If we are too far away, don't even consider this agent
-      if (d > DIST*DIST) {
-        continue;
-      }
-
-      close_agents[num_close_agents].agent = a2;
-      close_agents[num_close_agents].dist2 = d;
-      num_close_agents++;
+    // If we are too far away, don't even consider this agent
+    if (d > DIST * DIST) {
+      continue;
     }
 
-    return num_close_agents - init_close_agents;
+    close_agents[num_close_agents].agent = a2;
+    close_agents[num_close_agents].dist2 = d;
+    num_close_agents++;
+  }
+
+  return num_close_agents - init_close_agents;
 }
 
-int32_t world_get_close_agents(struct World *world, size_t index, struct Agent_d *close_agents) {
-    struct Agent *a = &world->agents.agents[index];
-    int32_t num_close_agents = 0;
+int32_t world_get_close_agents(struct World *world, size_t index,
+                               struct Agent_d *close_agents) {
+  struct Agent *a = &world->agents.agents[index];
+  int32_t num_close_agents = 0;
 
-    size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
-    size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+  size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
+  size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
 
-    // Check 3x3 grid position around our current grid position
-    // Check current grid position first, so we can guarantee we will find close agents
+  // Check 3x3 grid position around our current grid position
+  // Check current grid position first, so we can guarantee we will find close
+  // agents
 
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y, num_close_agents);
+  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
+                                          this_grid_y, num_close_agents);
 
-    // Then check direct borders
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y-1, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x, this_grid_y+1, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y, num_close_agents);
+  // Then check direct borders
+  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
+                                          this_grid_y - 1, num_close_agents);
+  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
+                                          this_grid_y + 1, num_close_agents);
+  num_close_agents += check_grid_position(
+      world, a, close_agents, this_grid_x - 1, this_grid_y, num_close_agents);
+  num_close_agents += check_grid_position(
+      world, a, close_agents, this_grid_x + 1, this_grid_y, num_close_agents);
 
-    // Then check corners
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y-1, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x-1, this_grid_y+1, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y-1, num_close_agents);
-    num_close_agents += check_grid_position(world, a, close_agents, this_grid_x+1, this_grid_y+1, num_close_agents);
+  // Then check corners
+  num_close_agents +=
+      check_grid_position(world, a, close_agents, this_grid_x - 1,
+                          this_grid_y - 1, num_close_agents);
+  num_close_agents +=
+      check_grid_position(world, a, close_agents, this_grid_x - 1,
+                          this_grid_y + 1, num_close_agents);
+  num_close_agents +=
+      check_grid_position(world, a, close_agents, this_grid_x + 1,
+                          this_grid_y - 1, num_close_agents);
+  num_close_agents +=
+      check_grid_position(world, a, close_agents, this_grid_x + 1,
+                          this_grid_y + 1, num_close_agents);
 
-    return num_close_agents;
+  return num_close_agents;
 }
 
 void world_dist_dead_agent(struct World *world, struct Agent *a) {
@@ -264,7 +279,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a) {
     float d = vector2f_dist2(&a->pos, &a2->pos);
 
     // If we are too far away, don't even consider this agent
-    if (d > FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
+    if (d > FOOD_DISTRIBUTION_RADIUS * FOOD_DISTRIBUTION_RADIUS) {
       continue;
     }
 
@@ -292,7 +307,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a) {
       if (a2->herbivore < .1 && a2->health > 0) {
 
         float d = dist_agents[j].dist2;
-        if (d < FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
+        if (d < FOOD_DISTRIBUTION_RADIUS * FOOD_DISTRIBUTION_RADIUS) {
           // add to agent's health
           /*  percent_carnivore = 1-agents[j].herbivore
                   coefficient = 5
@@ -302,14 +317,12 @@ void world_dist_dead_agent(struct World *world, struct Agent *a) {
                   -----------------------------------
                   num_to_dist_body ^ 1.25
           */
-          a2->health += 5 * (1 - a2->herbivore) *
-                              (1 - a2->herbivore) /
-                              pow(num_to_dist_body, 1.25) * agemult;
+          a2->health += 5 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+                        pow(num_to_dist_body, 1.25) * agemult;
 
           // make this bot reproduce sooner
-          a2->repcounter -= 6 * (1 - a2->herbivore) *
-                                  (1 - a2->herbivore) /
-                                  pow(num_to_dist_body, 1.25) * agemult;
+          a2->repcounter -= 6 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+                            pow(num_to_dist_body, 1.25) * agemult;
 
           if (a2->health > 2)
             a2->health = 2; // cap it!
@@ -321,8 +334,7 @@ void world_dist_dead_agent(struct World *world, struct Agent *a) {
   } else {
     // if no agents are around to eat it, it becomes regular food
     world->food[(int32_t)a->pos.x / CZ][(int32_t)a->pos.y / CZ] =
-        FOOD_DEAD *
-        FOODMAX; // since it was dying it is not much food
+        FOOD_DEAD * FOODMAX; // since it was dying it is not much food
   }
 }
 
@@ -343,6 +355,7 @@ void world_update(struct World *world) {
 
   world_update_food(world);
 
+  // sort agents into grid
   world_sortGrid(world);
 
   // give input to every agent. Sets in[] array. Runs brain
@@ -351,7 +364,6 @@ void world_update(struct World *world) {
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
 
-  // #pragma omp parallel for
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
@@ -367,8 +379,8 @@ void world_update(struct World *world) {
     a->rep = 0;
 
     // Handle reproduction
-    if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH
-        && randf(0, 1) < 0.1) {
+    if (world->modcounter % 15 == 0 && a->repcounter < 0 &&
+        a->health > REP_MIN_HEALTH && randf(0, 1) < 0.1) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
@@ -378,10 +390,8 @@ void world_update(struct World *world) {
       a->rep = 1;
 
       a->repcounter =
-          a->herbivore *
-              randf(REPRATEH - 0.1, REPRATEH + 0.1) +
-          (1 - a->herbivore) *
-              randf(REPRATEC - 0.1, REPRATEC + 0.1);
+          a->herbivore * randf(REPRATEH - 0.1, REPRATEH + 0.1) +
+          (1 - a->herbivore) * randf(REPRATEC - 0.1, REPRATEC + 0.1);
     }
 
     agent_process_health(a);
@@ -407,290 +417,29 @@ void world_update(struct World *world) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
+  
+  // printf("world_setInputsRunBrain\n");
+
+  // printf("%f\n", world->agents.agents[0].pos.x);
+
   // See README.markdown for documentation of input ids
-    #ifdef OPENMP
-    srand((rand()) ^ omp_get_thread_num());
-    #endif
-    #pragma omp parallel for schedule(static, 16)
-    for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i];
+  for (size_t i = 0; i < world->agents.size; i++) {
+    queue_enqueue(&world->agent_queue, i);
+  }
 
-    struct Agent_d close_agents[NUMBOTS_CLOSE];
-    int num_close_agents = world_get_close_agents(world, i, close_agents);
-
-    // General settings
-    // says that agent was not hit this turn
-    a->spiked = 0;
-
-    // process indicator used in drawing
-    if (a->indicator > 0)
-      a->indicator--;
-
-    // Update agents age
-    if (!world->modcounter % 100)
-      a->age++;
-
-    // FOOD
-    int32_t cx = (int32_t)a->pos.x / CZ;
-    int32_t cy = (int32_t)a->pos.y / CZ;
-    a->in[4] = world->food[cx][cy] / FOODMAX;
-
-    // SOUND SMELL EYES
-    float p1 = 0;
-    float r1 = 0;
-    float g1 = 0;
-    float b1 = 0;
-    float p2 = 0;
-    float r2 = 0;
-    float g2 = 0;
-    float b2 = 0;
-    float p3 = 0;
-    float r3 = 0;
-    float g3 = 0;
-    float b3 = 0;
-    float soaccum = 0;
-    float smaccum = 0;
-    float hearaccum = 0;
-
-    // BLOOD ESTIMATOR
-    float blood = 0;
-
-    // AMOUNT OF HEALTH GAINED FROM BEING IN GROUP
-    float health_gain = 0;
-
-    // SMELL SOUND EYES
-    for (int j = 0; j < num_close_agents; j++) {
-
-      struct Agent *a2 = close_agents[j].agent;
-
-      // standard distance formula (more fine grain)
-      float d = close_agents[j].dist2;
-
-      if (d < DIST*DIST) {
-        // Get the real distance now
-        d = sqrt(d);
-
-        // smell
-        smaccum += 0.3 * (DIST - d) / DIST;
-
-        // hearing. (listening to other agents shouting)
-        hearaccum += a2->soundmul * (DIST - d) / DIST;
-
-        // more fine-tuned closeness
-        if (d < DIST_GROUPING) {
-          // grouping health bonus for each agent near by
-          // health gain is most when two bots are just at threshold, is less
-          // when they are ontop each other
-          float ratio = (1 - (DIST_GROUPING - d) / DIST_GROUPING);
-          health_gain += GAIN_GROUPING * ratio;
-          agent_initevent(a, 5 * ratio, .5, .5, .5); // visualize it
-
-          // sound (number of agents nearby)
-          soaccum += 0.4 * (DIST - d) / DIST *
-                     (fmax(fabsf(a2->w1), fabsf(a2->w2)));
-        }
-
-        // current angle between bots
-        float ang = vector2f_angle_between(&a->pos, &a2->pos);
-
-        // left and right eyes
-        float leyeangle = a->angle - PI8;
-        float reyeangle = a->angle + PI8;
-        float backangle = a->angle + M_PI;
-        float forwangle = a->angle;
-        if (leyeangle < -M_PI)
-          leyeangle += 2 * M_PI;
-        if (reyeangle > M_PI)
-          reyeangle -= 2 * M_PI;
-        if (backangle > M_PI)
-          backangle -= 2 * M_PI;
-        float diff1 = leyeangle - ang;
-        if (fabsf(diff1) > M_PI)
-          diff1 = 2 * M_PI - fabsf(diff1);
-        diff1 = fabsf(diff1);
-        float diff2 = reyeangle - ang;
-        if (fabsf(diff2) > M_PI)
-          diff2 = 2 * M_PI - fabsf(diff2);
-        diff2 = fabsf(diff2);
-        float diff3 = backangle - ang;
-        if (fabsf(diff3) > M_PI)
-          diff3 = 2 * M_PI - fabsf(diff3);
-        diff3 = fabsf(diff3);
-        float diff4 = forwangle - ang;
-        if (fabsf(forwangle) > M_PI)
-          diff4 = 2 * M_PI - fabsf(forwangle);
-        diff4 = fabsf(diff4);
-
-        if (diff1 < PI38) {
-          // we see this agent with left eye. Accumulate info
-          float mul1 = EYE_SENSITIVITY *
-                       ((PI38 - diff1) / PI38) *
-                       ((DIST - d) / DIST);
-          // float mul1= 100*((DIST-d)/DIST);
-          p1 += mul1 * (d / DIST);
-          r1 += mul1 * a2->red;
-          g1 += mul1 * a2->gre;
-          b1 += mul1 * a2->blu;
-        }
-
-        if (diff2 < PI38) {
-          // we see this agent with left eye. Accumulate info
-          float mul2 = EYE_SENSITIVITY *
-                       ((PI38 - diff2) / PI38) *
-                       ((DIST - d) / DIST);
-          // float mul2= 100*((DIST-d)/DIST);
-          p2 += mul2 * (d / DIST);
-          r2 += mul2 * a2->red;
-          g2 += mul2 * a2->gre;
-          b2 += mul2 * a2->blu;
-        }
-
-        if (diff3 < PI38) {
-          // we see this agent with back eye. Accumulate info
-          float mul3 = EYE_SENSITIVITY *
-                       ((PI38 - diff3) / PI38) *
-                       ((DIST - d) / DIST);
-          // float mul2= 100*((DIST-d)/DIST);
-          p3 += mul3 * (d / DIST);
-          r3 += mul3 * a2->red;
-          g3 += mul3 * a2->gre;
-          b3 += mul3 * a2->blu;
-        }
-
-        if (diff4 < PI38) {
-          float mul4 = BLOOD_SENSITIVITY *
-                       ((PI38 - diff4) / PI38) *
-                       ((DIST - d) / DIST);
-          // if we can see an agent close with both eyes in front of us
-          blood +=
-              mul4 * (1 - a2->health / 2); // remember: health is in [0 2]
-          // agents with high life dont bleed. low life makes them bleed more
-        }
-
-        // Process health sharing
-        if (d < FOOD_SHARING_DISTANCE) {
-          if (a->give > 0.5) {
-            // initiate transfer
-            if (a2->health < 2) {
-              a->health -= FOODTRANSFER;
-            }
-          }
-
-          if (a2->give > 0.5) {
-            if (a->health < 2) {
-              a->health += FOODTRANSFER;
-            }
-          }
-        }
-
-        // Process collisions
-        if (d < BOTRADIUS) {
-          // these two are in collision and agent i has extended spike and is
-          // going decent fast!
-          struct Vector2f v;
-          vector2f_init(&v, 1, 0);
-          vector2f_rotate(&v, a->angle);
-          struct Vector2f tmp;
-          vector2f_sub(&tmp, &a2->pos, &a->pos);
-          float diff = vector2f_angle_between(&v, &tmp);
-          if (fabsf(diff) < M_PI / 8) {
-            // bot i is also properly aligned!!! that's a hit
-            float DMG = SPIKEMULT * a->spikeLength *
-                        fmax(fabsf(a->w1), fabsf(a->w2)) *
-                        BOOSTSIZEMULT;
-
-            a2->health -= DMG;
-
-            if (a->health > 2)
-              a->health = 2;    // cap health at 2
-            a->spikeLength = 0; // retract spike back down
-
-            agent_initevent(a,
-                40 * DMG, 1, 1,
-                0); // yellow event means bot has spiked other bot. nice!
-
-            struct Vector2f v2;
-            vector2f_init(&v2, 1, 0);
-            vector2f_rotate(&v2, a2->angle);
-            float adiff = vector2f_angle_between(&v, &v2);
-            if (fabsf(adiff) < M_PI / 2) {
-              // this was attack from the back. Retract spike of the other agent
-              // (startle!) this is done so that the other agent cant right away
-              // "by accident" attack this agent
-              a2->spikeLength = 0;
-            }
-
-            a2->spiked =
-                1; // set a flag saying that this agent was hit this turn
-          }
-        }
-      }
+  while (1) {
+    pthread_mutex_lock(&world->agent_queue.mutex);
+    if (world->agent_queue.size == 0) {
+      pthread_mutex_unlock(&world->agent_queue.mutex);
+      break;
     }
-
-    // APPLY HEALTH GAIN
-    if (health_gain > GAIN_GROUPING) // cap at conf value
-      a->health += GAIN_GROUPING;
-    else
-      a->health += health_gain;
-
-    if (a->health > 2) // limit the amount of health
-      a->health = 2;
-
-    // TOUCH (wall)
-    if (a->pos.x < 2 || a->pos.x > WIDTH - 3 || a->pos.y < 2 ||
-        a->pos.y > HEIGHT - 3)
-      // they are very close to the wall (1 or 2 pixels)
-      a->touch = 1;
-    else
-      a->touch = 0;
-
-    // temperature varies from 0 to 1 across screen.
-    // it is 0 at equator (in middle), and 1 on edges. Agents can sense
-    // discomfort
-    float dd = 2.0 * fabs(a->pos.x / WIDTH - 0.5);
-    float discomfort = fabsf(dd - a->temperature_preference);
-
-    a->in[0] = cap(p1);
-    a->in[1] = cap(r1);
-    a->in[2] = cap(g1);
-    a->in[3] = cap(b1);
-    a->in[5] = cap(p2);
-    a->in[6] = cap(r2);
-    a->in[7] = cap(g2);
-    a->in[8] = cap(b2);
-    a->in[9] = cap(soaccum); // SOUND (amount of other agents nearby)
-    a->in[10] = cap(smaccum);
-    a->in[11] = cap(a->health / 2); // divide by 2 since health is in [0,2]
-    a->in[12] = cap(p3);
-    a->in[13] = cap(r3);
-    a->in[14] = cap(g3);
-    a->in[15] = cap(b3);
-    a->in[16] = fabs(sin(world->modcounter / a->clockf1));
-    a->in[17] = fabs(sin(world->modcounter / a->clockf2));
-    a->in[18] = cap(hearaccum); // HEARING (other agents shouting)
-    a->in[19] = cap(blood);
-    a->in[20] = cap(discomfort);
-    a->in[21] = cap(a->touch);
-    if (randf(0,1) > 0.95f) {
-      a->in[22] = randf(0, 1); // random input for bot
-    }
-
-    // Copy last ouput and last "plan" to the current inputs
-    // PREV_OUT is 23-32
-    // PREV_PLAN is 33-42
-    for (int i = 0; i < OUTPUTSIZE; i++) {
-      a->in[i + INPUTSIZE-OUTPUTSIZE-1] = a->out[i];
-    }
-
-    // Now process brain
-    agent_tick(a);
+    pthread_mutex_unlock(&world->agent_queue.mutex);
   }
 }
 
 void world_processOutputs(struct World *world) {
   // See README.markdown for documentation of output ids
 
-#pragma omp parallel for schedule(static, 16)
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
 
@@ -769,8 +518,7 @@ void world_processOutputs(struct World *world) {
     if (f > 0 && a->health < 2) {
       // agent eats the food
       float itk = fmin(f, FOODINTAKE);
-      float speedmul =
-          (1 - (fabsf(a->w1) + fabsf(a->w2)) / 2) * 0.6 + 0.4;
+      float speedmul = (1 - (fabsf(a->w1) + fabsf(a->w2)) / 2) * 0.6 + 0.4;
       itk = itk * a->herbivore *
             speedmul; // herbivores gain more from ground food
       a->health += itk;
@@ -781,12 +529,11 @@ void world_processOutputs(struct World *world) {
     // NOTE: herbivore cant attack. TODO: hmmmmm
     // fot now ok: I want herbivores to run away from carnivores, not kill
     // them back
-    if (a->herbivore > 0.8 || a->spikeLength < 0.2 ||
-        a->w1 < 0.5 || a->w2 < 0.5)
+    if (a->herbivore > 0.8 || a->spikeLength < 0.2 || a->w1 < 0.5 ||
+        a->w2 < 0.5)
       continue;
   }
 }
-
 
 void world_addRandomBots(struct World *world, int32_t num) {
   world->numAgentsAdded += num; // record in report
@@ -816,10 +563,12 @@ void world_addNewByCrossover(struct World *world) {
   size_t i1 = randi(0, world->agents.size);
   size_t i2 = randi(0, world->agents.size);
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].age > world->agents.agents[i1].age && randf(0, 1) < 0.1) {
+    if (world->agents.agents[i].age > world->agents.agents[i1].age &&
+        randf(0, 1) < 0.1) {
       i1 = i;
     }
-    if (world->agents.agents[i].age > world->agents.agents[i2].age && randf(0, 1) < 0.1 && i != i1) {
+    if (world->agents.agents[i].age > world->agents.agents[i2].age &&
+        randf(0, 1) < 0.1 && i != i1) {
       i2 = i;
     }
   }
@@ -840,7 +589,8 @@ void world_addNewByCrossover(struct World *world) {
   world->numAgentsAdded++; // record in report
 }
 
-void world_reproduce(struct World *world, struct Agent *a, float MR, float MR2) {
+void world_reproduce(struct World *world, struct Agent *a, float MR,
+                     float MR2) {
   if (randf(0, 1) < 0.04)
     MR = MR * randf(1, 10);
   if (randf(0, 1) < 0.04)
@@ -874,9 +624,11 @@ void world_writeReport(struct World *world) {
     else
       numcarn++;
 
-    if (world->agents.agents[i].herbivore > 0.5 && world->agents.agents[i].gencount > topherb)
+    if (world->agents.agents[i].herbivore > 0.5 &&
+        world->agents.agents[i].gencount > topherb)
       topherb = world->agents.agents[i].gencount;
-    if (world->agents.agents[i].herbivore < 0.5 && world->agents.agents[i].gencount > topcarn)
+    if (world->agents.agents[i].herbivore < 0.5 &&
+        world->agents.agents[i].gencount > topcarn)
       topcarn = world->agents.agents[i].gencount;
 
     // Average Age:
@@ -889,12 +641,11 @@ void world_writeReport(struct World *world) {
   double total_mean_std_dev;
 
   // loop through every box in brain (there are BRAINSIZE of these)
-  for (int32_t i = 0; i < BRAINSIZE; i++)
-  {
-    double box_sum = 0;
+  for (int32_t i = 0; i < BRAINSIZE; i++) {
+    // double box_sum = 0;
     double box_weights[world->agents.size];
-    double box_mean;
-    double box_square_sum = 0;
+    // double box_mean;
+    // double box_square_sum = 0;
 
     // loop through every agent to get the weight
     for (size_t a = 0; a < world->agents.size; a++) {
@@ -904,20 +655,20 @@ void world_writeReport(struct World *world) {
         box_weight_sum += world->agents.agents[a].brain.boxes[i].w[b];
       }
       // Add this sum to total stats:
-      box_sum += box_weight_sum;
+      // box_sum += box_weight_sum;
       box_weights[a] = box_weight_sum;
     }
 
     // Computer the mean of the box_weight_sum for this box
-    box_mean = box_sum / BRAINSIZE;
+    // box_mean = box_sum / BRAINSIZE;
     // cout << "BOX MEAN = " << box_mean << endl;
 
     // Now calculate the population standard deviation for this box:
     // Compute diff of each weight sum from mean and square the result, then add
     // it:
-    for (size_t c = 0; c < world->agents.size; c++) {
-      box_square_sum += pow(box_weights[c] - box_mean, 2);
-    }
+    // for (size_t c = 0; c < world->agents.size; c++) {
+    //   box_square_sum += pow(box_weights[c] - box_mean, 2);
+    // }
   }
 
   total_mean_std_dev =
@@ -926,7 +677,8 @@ void world_writeReport(struct World *world) {
   FILE *fp = fopen("report.csv", "a");
 
   fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn,
-          topherb, topcarn, (int32_t) total_mean_std_dev, avg_age, world->numAgentsAdded);
+          topherb, topcarn, (int32_t)total_mean_std_dev, avg_age,
+          world->numAgentsAdded);
 
   fclose(fp);
 
@@ -943,14 +695,16 @@ void world_reset(struct World *world) {
   world_flush_staging(world);
 }
 
-void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {
+void world_processMouse(struct World *world, int32_t button, int32_t state,
+                        int32_t x, int32_t y) {
   if (state == 0) {
     float mind = 1e10;
     size_t mini = -1;
     float d;
 
     for (size_t i = 0; i < world->agents.size; i++) {
-      d = pow(x - world->agents.agents[i].pos.x, 2) + pow(y - world->agents.agents[i].pos.y, 2);
+      d = pow(x - world->agents.agents[i].pos.x, 2) +
+          pow(y - world->agents.agents[i].pos.y, 2);
       if (d < mind) {
         mind = d;
         mini = i;
@@ -961,7 +715,8 @@ void world_processMouse(struct World *world, int32_t button, int32_t state, int3
       if (i != mini) {
         world->agents.agents[i].selectflag = 0;
       } else {
-        world->agents.agents[i].selectflag = world->agents.agents[mini].selectflag ? 0 : 1;
+        world->agents.agents[i].selectflag =
+            world->agents.agents[mini].selectflag ? 0 : 1;
       }
     }
 
@@ -998,47 +753,339 @@ int32_t world_numAgents(struct World *world) {
 }
 
 void world_sortGrid(struct World *world) {
-  size_t current_grid_index = 0;
-
   // printf("\nagents_size: %li\n", world->agents.size);
-
   for (size_t i = 1; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i-1];
-    struct Agent *a2 = &world->agents.agents[i];
+    struct Agent key_agent = world->agents.agents[i];
+    // memcpy(&key_agent, &, sizeof(struct Agent));
 
-    size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
-    size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
-    size_t this_grid_index = this_grid_y * WORLD_GRID_WIDTH + this_grid_x;
+    size_t key_grid_x = floor(key_agent.pos.x / WORLD_GRID_SIZE);
+    size_t key_grid_y = floor(key_agent.pos.y / WORLD_GRID_SIZE);
+    size_t key_grid_index = key_grid_y * WORLD_GRID_WIDTH + key_grid_x;
 
-    size_t next_grid_x = floor(a2->pos.x / WORLD_GRID_SIZE);
-    size_t next_grid_y = floor(a2->pos.y / WORLD_GRID_SIZE);
-    size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
+    long j = i - 1;
+    while (j>=0) {
+      struct Agent *a2 = &world->agents.agents[j];
 
-    // printf("i: %ld\n", i);
-    // printf("this: %ld\n", this_grid_index);
-    // printf("this_x: %f\n", a->pos.x);
-    // printf("this_y: %f\n", a->pos.y);
-    // printf("next: %ld\n", next_grid_index);
-    // printf("next_x: %ld\n", next_grid_x);
-    // printf("next_y: %ld\n", next_grid_y);
+      size_t next_grid_x = floor(a2->pos.x / WORLD_GRID_SIZE);
+      size_t next_grid_y = floor(a2->pos.y / WORLD_GRID_SIZE);
+      size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
 
-    if (next_grid_index < this_grid_index) {
-      struct Agent tmp = *a;
-      world->agents.agents[i-1] = world->agents.agents[i];
-      world->agents.agents[i] = tmp;
-      this_grid_index = next_grid_index;
+      if (next_grid_index <= key_grid_index) { 
+        break;
+      }
+
+      world->agents.agents[j+1] = world->agents.agents[j];
+      j--;
     }
 
-    while (this_grid_index > current_grid_index) {
-      world->agent_grid[current_grid_index] = i;
-      current_grid_index++;
-      // printf("%li: %li\n", current_grid_index, i);
+    world->agents.agents[j+1] = key_agent;
+  }
+
+  // Construct grid
+  size_t current_grid_index = 0;
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
+
+    size_t grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
+    size_t grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+    size_t grid_index = grid_y * WORLD_GRID_WIDTH + grid_x;
+
+    while (grid_index > current_grid_index) {
+      world->agent_grid[current_grid_index++] = i;
     }
   }
 
   while (current_grid_index < WORLD_GRID_LENGTH) {
-      world->agent_grid[current_grid_index] = world->agent_grid[current_grid_index-1];
-      current_grid_index++;
-      // printf("%li: %li\n", current_grid_index, i);
+    world->agent_grid[current_grid_index] =
+        world->agent_grid[current_grid_index - 1];
+    current_grid_index++;
+    // printf("%li: %li\n", current_grid_index, i);
+  }
+}
+
+void *agent_input_processor(void *arg) {
+  struct World *world = (struct World*) arg;
+
+  while (world->agent_queue.closed == 0) {
+    size_t i = queue_dequeue(&world->agent_queue);
+
+    struct Agent *a = &world->agents.agents[i];
+
+    // printf("&world->agents.size: %zu\n", world->agents.size);
+    // for (size_t j = 0; j < world->agents.size; j++) {
+    //   printf("agent %zu: %i\n", j, a->pos.x);
+    // }
+
+    // printf("thread: %zu\n", pthread_self());
+    // printf("world: %zu\n", world->agents.size);
+    // printf("index: %zu\n", i);
+    // printf("sizeof: %zu\n", sizeof(struct Agent));
+    // printf("pointer: %p\n", (void*) &world->agents.agents[i]);
+    // printf("agent: %i\n", a->id);
+
+    struct Agent_d close_agents[NUMBOTS_CLOSE];
+    int num_close_agents = world_get_close_agents(world, i, close_agents);
+
+    // General settings
+    // says that agent was not hit this turn
+    a->spiked = 0;
+
+    // process indicator used in drawing
+    if (a->indicator > 0)
+      a->indicator--;
+
+    // Update agents age
+    if (!world->modcounter % 100)
+      a->age++;
+
+    // FOOD
+    int32_t cx = (int32_t)a->pos.x / CZ;
+    int32_t cy = (int32_t)a->pos.y / CZ;
+    a->in[4] = world->food[cx][cy] / FOODMAX;
+
+    // SOUND SMELL EYES
+    float p1 = 0;
+    float r1 = 0;
+    float g1 = 0;
+    float b1 = 0;
+    float p2 = 0;
+    float r2 = 0;
+    float g2 = 0;
+    float b2 = 0;
+    float p3 = 0;
+    float r3 = 0;
+    float g3 = 0;
+    float b3 = 0;
+    float soaccum = 0;
+    float smaccum = 0;
+    float hearaccum = 0;
+
+    // BLOOD ESTIMATOR
+    float blood = 0;
+
+    // AMOUNT OF HEALTH GAINED FROM BEING IN GROUP
+    float health_gain = 0;
+
+    // SMELL SOUND EYES
+    for (int j = 0; j < num_close_agents; j++) {
+
+      struct Agent *a2 = close_agents[j].agent;
+
+      // standard distance formula (more fine grain)
+      float d = close_agents[j].dist2;
+
+      if (d < DIST * DIST) {
+        // Get the real distance now
+        d = sqrt(d);
+
+        // smell
+        smaccum += 0.3 * (DIST - d) / DIST;
+
+        // hearing. (listening to other agents shouting)
+        hearaccum += a2->soundmul * (DIST - d) / DIST;
+
+        // more fine-tuned closeness
+        if (d < DIST_GROUPING) {
+          // grouping health bonus for each agent near by
+          // health gain is most when two bots are just at threshold, is less
+          // when they are ontop each other
+          float ratio = (1 - (DIST_GROUPING - d) / DIST_GROUPING);
+          health_gain += GAIN_GROUPING * ratio;
+          agent_initevent(a, 5 * ratio, .5, .5, .5); // visualize it
+
+          // sound (number of agents nearby)
+          soaccum +=
+              0.4 * (DIST - d) / DIST * (fmax(fabsf(a2->w1), fabsf(a2->w2)));
+        }
+
+        // current angle between bots
+        float ang = vector2f_angle_between(&a->pos, &a2->pos);
+
+        // left and right eyes
+        float leyeangle = a->angle - PI8;
+        float reyeangle = a->angle + PI8;
+        float backangle = a->angle + M_PI;
+        float forwangle = a->angle;
+        if (leyeangle < -M_PI)
+          leyeangle += 2 * M_PI;
+        if (reyeangle > M_PI)
+          reyeangle -= 2 * M_PI;
+        if (backangle > M_PI)
+          backangle -= 2 * M_PI;
+        float diff1 = leyeangle - ang;
+        if (fabsf(diff1) > M_PI)
+          diff1 = 2 * M_PI - fabsf(diff1);
+        diff1 = fabsf(diff1);
+        float diff2 = reyeangle - ang;
+        if (fabsf(diff2) > M_PI)
+          diff2 = 2 * M_PI - fabsf(diff2);
+        diff2 = fabsf(diff2);
+        float diff3 = backangle - ang;
+        if (fabsf(diff3) > M_PI)
+          diff3 = 2 * M_PI - fabsf(diff3);
+        diff3 = fabsf(diff3);
+        float diff4 = forwangle - ang;
+        if (fabsf(forwangle) > M_PI)
+          diff4 = 2 * M_PI - fabsf(forwangle);
+        diff4 = fabsf(diff4);
+
+        if (diff1 < PI38) {
+          // we see this agent with left eye. Accumulate info
+          float mul1 =
+              EYE_SENSITIVITY * ((PI38 - diff1) / PI38) * ((DIST - d) / DIST);
+          // float mul1= 100*((DIST-d)/DIST);
+          p1 += mul1 * (d / DIST);
+          r1 += mul1 * a2->red;
+          g1 += mul1 * a2->gre;
+          b1 += mul1 * a2->blu;
+        }
+
+        if (diff2 < PI38) {
+          // we see this agent with left eye. Accumulate info
+          float mul2 =
+              EYE_SENSITIVITY * ((PI38 - diff2) / PI38) * ((DIST - d) / DIST);
+          // float mul2= 100*((DIST-d)/DIST);
+          p2 += mul2 * (d / DIST);
+          r2 += mul2 * a2->red;
+          g2 += mul2 * a2->gre;
+          b2 += mul2 * a2->blu;
+        }
+
+        if (diff3 < PI38) {
+          // we see this agent with back eye. Accumulate info
+          float mul3 =
+              EYE_SENSITIVITY * ((PI38 - diff3) / PI38) * ((DIST - d) / DIST);
+          // float mul2= 100*((DIST-d)/DIST);
+          p3 += mul3 * (d / DIST);
+          r3 += mul3 * a2->red;
+          g3 += mul3 * a2->gre;
+          b3 += mul3 * a2->blu;
+        }
+
+        if (diff4 < PI38) {
+          float mul4 =
+              BLOOD_SENSITIVITY * ((PI38 - diff4) / PI38) * ((DIST - d) / DIST);
+          // if we can see an agent close with both eyes in front of us
+          blood += mul4 * (1 - a2->health / 2); // remember: health is in [0 2]
+          // agents with high life dont bleed. low life makes them bleed more
+        }
+
+        // Process health sharing
+        if (d < FOOD_SHARING_DISTANCE) {
+          if (a->give > 0.5) {
+            // initiate transfer
+            if (a2->health < 2) {
+              a->health -= FOODTRANSFER;
+            }
+          }
+
+          if (a2->give > 0.5) {
+            if (a->health < 2) {
+              a->health += FOODTRANSFER;
+            }
+          }
+        }
+
+        // Process collisions
+        if (d < BOTRADIUS) {
+          // these two are in collision and agent i has extended spike and is
+          // going decent fast!
+          struct Vector2f v;
+          vector2f_init(&v, 1, 0);
+          vector2f_rotate(&v, a->angle);
+          struct Vector2f tmp;
+          vector2f_sub(&tmp, &a2->pos, &a->pos);
+          float diff = vector2f_angle_between(&v, &tmp);
+          if (fabsf(diff) < M_PI / 8) {
+            // bot i is also properly aligned!!! that's a hit
+            float DMG = SPIKEMULT * a->spikeLength *
+                        fmax(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
+
+            a2->health -= DMG;
+
+            if (a->health > 2)
+              a->health = 2;    // cap health at 2
+            a->spikeLength = 0; // retract spike back down
+
+            agent_initevent(
+                a, 40 * DMG, 1, 1,
+                0); // yellow event means bot has spiked other bot. nice!
+
+            struct Vector2f v2;
+            vector2f_init(&v2, 1, 0);
+            vector2f_rotate(&v2, a2->angle);
+            float adiff = vector2f_angle_between(&v, &v2);
+            if (fabsf(adiff) < M_PI / 2) {
+              // this was attack from the back. Retract spike of the other agent
+              // (startle!) this is done so that the other agent cant right away
+              // "by accident" attack this agent
+              a2->spikeLength = 0;
+            }
+
+            a2->spiked =
+                1; // set a flag saying that this agent was hit this turn
+          }
+        }
+      }
     }
+
+    // APPLY HEALTH GAIN
+    if (health_gain > GAIN_GROUPING) // cap at conf value
+      a->health += GAIN_GROUPING;
+    else
+      a->health += health_gain;
+
+    if (a->health > 2) // limit the amount of health
+      a->health = 2;
+
+    // TOUCH (wall)
+    if (a->pos.x < 2 || a->pos.x > WIDTH - 3 || a->pos.y < 2 ||
+        a->pos.y > HEIGHT - 3)
+      // they are very close to the wall (1 or 2 pixels)
+      a->touch = 1;
+    else
+      a->touch = 0;
+
+    // temperature varies from 0 to 1 across screen.
+    // it is 0 at equator (in middle), and 1 on edges. Agents can sense
+    // discomfort
+    float dd = 2.0 * fabs(a->pos.x / WIDTH - 0.5);
+    float discomfort = fabsf(dd - a->temperature_preference);
+
+    a->in[0] = cap(p1);
+    a->in[1] = cap(r1);
+    a->in[2] = cap(g1);
+    a->in[3] = cap(b1);
+    a->in[5] = cap(p2);
+    a->in[6] = cap(r2);
+    a->in[7] = cap(g2);
+    a->in[8] = cap(b2);
+    a->in[9] = cap(soaccum); // SOUND (amount of other agents nearby)
+    a->in[10] = cap(smaccum);
+    a->in[11] = cap(a->health / 2); // divide by 2 since health is in [0,2]
+    a->in[12] = cap(p3);
+    a->in[13] = cap(r3);
+    a->in[14] = cap(g3);
+    a->in[15] = cap(b3);
+    a->in[16] = fabs(sin(world->modcounter / a->clockf1));
+    a->in[17] = fabs(sin(world->modcounter / a->clockf2));
+    a->in[18] = cap(hearaccum); // HEARING (other agents shouting)
+    a->in[19] = cap(blood);
+    a->in[20] = cap(discomfort);
+    a->in[21] = cap(a->touch);
+    if (randf(0, 1) > 0.95f) {
+      a->in[22] = randf(0, 1); // random input for bot
+    }
+
+    // Copy last ouput and last "plan" to the current inputs
+    // PREV_OUT is 23-32
+    // PREV_PLAN is 33-42
+    for (int i = 0; i < OUTPUTSIZE; i++) {
+      a->in[i + INPUTSIZE - OUTPUTSIZE - 1] = a->out[i];
+    }
+
+    // Now process brain
+    agent_tick(a);
+  }
+  return 0;
 }

@@ -12,16 +12,11 @@
 
 #include "config.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
 #include <GL/glut.h>
 #include "include/GLView.h"
 #endif
-
 
 #include "include/Base.h"
 #include "include/World.h"
@@ -57,9 +52,8 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = 1;
 #endif
-#ifdef OPENMP
-  NUM_THREADS = get_nprocs();
-#endif
+NUM_THREADS = get_nprocs();
+
   int32_t loadWorldFromFile = 0;
 
   // Retrieve command line arguments
@@ -94,15 +88,10 @@ int main(int argc, char **argv) {
     }
   }
 
-  #ifdef OPENMP
-  // Set the number of threads now, just once, here:
-  omp_set_num_threads(NUM_THREADS);
-  #endif
-
   struct Base base;
-  struct World world;
-  world_init(&world);
-  base_init(&base, &world);
+  struct World *world = malloc(sizeof(struct World));
+  world_init(world);
+  base_init(&base, world);
 
   printf("-------------------------------------------------------------------------------\n");
   printf("ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics\n");
@@ -113,8 +102,8 @@ int main(int argc, char **argv) {
 #else
   printf("   OpenGL and GLUT NOT found!\n");
 #endif
-#ifdef OPENMP
-  printf("   OpenMP found!\n");
+
+  printf("   Threading details:\n");
   printf("      %li processors available\n", get_nprocs());
   printf("      Using %i threads\n", NUM_THREADS);
   printf("   Termination:\n");
@@ -122,9 +111,7 @@ int main(int argc, char **argv) {
     printf("      Stopping at %i epochs\n", MAX_EPOCHS);
   else
     printf("      Press any key to save and end simulation\n\n");
-#else
-  printf("   OpenMP NOT found!\n");
-#endif
+
   if (WIDTH % CZ != 0 || HEIGHT % CZ != 0) {
     printf("   WARNING: The cell size variable CZ should divide evenly "
            "into WIDTH");
@@ -149,6 +136,13 @@ int main(int argc, char **argv) {
             "-------------\n");
   }
 
+  pthread_t *threads = malloc(sizeof(pthread_t) * NUM_THREADS);
+
+  for (int i = 0; i < NUM_THREADS; i++) {
+    // printf("Creating thread\n");
+    pthread_create(&threads[i], NULL, agent_input_processor, world);
+  }
+
   // Load file if needed
   if (loadWorldFromFile) {
     base_loadworld(&base);
@@ -165,6 +159,14 @@ int main(int argc, char **argv) {
   } else {
     runWithGraphics(argc, argv, &base);
   }
+
+  world->agent_queue.closed = 1;
+
+  for (int i = 0; i < NUM_THREADS; i++) {
+    pthread_join(threads[i], NULL);
+  }
+
+  free(world);
 
   return 0;
 }

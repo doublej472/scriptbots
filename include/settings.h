@@ -40,7 +40,7 @@ extern int32_t MAX_SECONDS;
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
-#define NUMBOTS_CLOSE 64
+#define NUMBOTS_CLOSE 24
 // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10
 // for drawing
