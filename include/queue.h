@@ -19,23 +19,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
-#define QUEUE_INITIALIZER(buffer) (queue_t){ buffer, sizeof(buffer) / sizeof(buffer[0]), 0, 0, 0, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER }
+#define QUEUE_BUFFER_SIZE 1000
 
-typedef struct queue
-{
-	size_t *buffer;
-	int capacity;
-	int size;
-	int in;
-	int out;
+struct AgentQueueItem {
+    size_t start;
+    size_t end;
+};
+
+struct AgentQueue {
+	struct AgentQueueItem buffer[QUEUE_BUFFER_SIZE];
+	size_t size;
+	size_t in;
+	size_t out;
     int closed;
 	pthread_mutex_t mutex;
-	pthread_cond_t cond_full;
-	pthread_cond_t cond_empty;
-} queue_t;
+	pthread_cond_t cond_item_added;
+	pthread_cond_t cond_item_removed;
 
-void queue_enqueue(queue_t *queue, size_t value);
-size_t queue_dequeue(queue_t *queue);
-int queue_size(queue_t *queue);
+	size_t num_work_items;
+	pthread_cond_t cond_work_done;
+};
+
+void queue_init(struct AgentQueue *queue);
+void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value);
+struct AgentQueueItem queue_dequeue(struct AgentQueue *queue);
+size_t queue_size(struct AgentQueue *queue);
+void queue_workdone(struct AgentQueue *queue);
+void queue_close(struct AgentQueue *queue);
 
 #endif

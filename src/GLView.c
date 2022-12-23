@@ -7,6 +7,7 @@
 #include "include/GLView.h"
 #include "include/Base.h"
 #include "include/World.h"
+#include "include/queue.h"
 
 void renderString(float x, float y, void *font, const char *string, float r,
                   float g, float b) {
@@ -114,6 +115,7 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
     case 27:
       printf("\n\nESC key pressed, shutting down\n");
+      queue_close(GLVIEW.base->world->agent_queue);
       base_saveworld(GLVIEW.base);
       avec_free(&GLVIEW.base->world->agents);
       avec_free(&GLVIEW.base->world->agents_staging);

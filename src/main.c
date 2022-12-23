@@ -22,7 +22,7 @@
 #include "include/World.h"
 #include "include/helpers.h"
 #include "include/settings.h"
-
+#include "include/queue.h"
 
 // ---------------------------------------------------------------------------
 // Global Vars:
@@ -160,7 +160,7 @@ NUM_THREADS = get_nprocs();
     runWithGraphics(argc, argv, &base);
   }
 
-  world->agent_queue.closed = 1;
+  queue_close(&world->agent_queue);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);

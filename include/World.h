@@ -13,8 +13,6 @@
 #define WORLD_GRID_WIDTH ((WIDTH / WORLD_GRID_SIZE) + 1)
 #define WORLD_GRID_LENGTH (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT)
 
-#define QUEUE_BUFFER_SIZE 1000
-
 struct World {
   int32_t modcounter; // temp not private
   int32_t current_epoch;
@@ -37,8 +35,7 @@ struct World {
   struct timespec startTime;      // used for tracking fps
   struct timespec totalStartTime; // used for deciding when to quit the simulation
 
-  size_t agent_buffer[QUEUE_BUFFER_SIZE];
-	queue_t agent_queue;
+	struct AgentQueue agent_queue;
 
   struct AVec agents;
   // When agents get added to the world, they go the this AVec first, then
