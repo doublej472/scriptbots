@@ -1,15 +1,32 @@
 #include "include/helpers.h"
 #include <math.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
+
+#if HAS_CXX11_THREAD_LOCAL
+#define ATTRIBUTE_TLS thread_local
+#elif defined(__GNUC__)
+#define ATTRIBUTE_TLS __thread
+#elif defined(_MSC_VER)
+#define ATTRIBUTE_TLS __declspec(thread)
+#else // !C++11 && !__GNUC__ && !_MSC_VER
+#error "Define a thread local storage qualifier for your compiler/platform!"
+#endif
+
+ATTRIBUTE_TLS unsigned int rand_state;
+
+void init_thread_random() { rand_state = time(0); }
 
 // uniform random in [a,b)
 inline float randf(float a, float b) {
-  return ((b - a) * ((float)rand() / (float)RAND_MAX)) + a;
+  return ((b - a) * ((float)rand_r(&rand_state) / (float)RAND_MAX)) + a;
 }
 
 // uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) { return (rand() % (b - a)) + a; }
+inline int32_t randi(int32_t a, int32_t b) {
+  return (rand_r(&rand_state) % (b - a)) + a;
+}
 
 // normalvariate random N(mu, sigma)
 double randn(double mu, double sigma) {
@@ -18,8 +35,8 @@ double randn(double mu, double sigma) {
   double polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
-      var1 = 2.0 * (((double)rand()) / ((double)(RAND_MAX))) - 1.0;
-      var2 = 2.0 * (((double)rand()) / ((double)(RAND_MAX))) - 1.0;
+      var1 = 2.0 * (((double)rand_r(&rand_state)) / ((double)(RAND_MAX))) - 1.0;
+      var2 = 2.0 * (((double)rand_r(&rand_state)) / ((double)(RAND_MAX))) - 1.0;
       rsquared = var1 * var1 + var2 * var2;
     } while (rsquared >= 1.0 || rsquared == 0.0);
     polar = sqrt(-2.0 * log(rsquared) / rsquared);

@@ -35,6 +35,10 @@ void base_loadworld(struct Base *base) {
   avec_free(&base->world->agents);
   avec_free(&base->world->agents_staging);
 
+  struct AgentQueue old_agent_queue;
+  memcpy(&old_agent_queue, &base->world->agent_queue,
+         sizeof(struct AgentQueue));
+
   fread(base->world, sizeof(struct World), 1, f);
 
   long size = 0l;
@@ -43,11 +47,32 @@ void base_loadworld(struct Base *base) {
   avec_init(&base->world->agents, size);
   avec_init(&base->world->agents_staging, 16);
   fread(base->world->agents.agents, sizeof(struct Agent), size, f);
+
   base->world->agents.size = size;
 
   printf("Fixing world struct...\n");
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->startTime);
   clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->totalStartTime);
+
+  memcpy(&base->world->agent_queue, &old_agent_queue,
+         sizeof(struct AgentQueue));
+
+  // Wait until we have no agents being worked on
+  pthread_mutex_lock(&base->world->agent_queue.mutex);
+  while (base->world->agent_queue.num_work_items != 0 ||
+         base->world->agent_queue.size != 0) {
+    pthread_cond_wait(&base->world->agent_queue.cond_work_done,
+                      &base->world->agent_queue.mutex);
+  }
+
+  base->world->agent_queue.size = 0;
+  base->world->agent_queue.in = 0;
+  base->world->agent_queue.out = 0;
+  base->world->agent_queue.num_work_items = 0;
+  pthread_mutex_unlock(&base->world->agent_queue.mutex);
+
+  world_flush_staging(base->world);
+  world_sortGrid(base->world);
 
   fclose(f);
   printf("Done!\n");

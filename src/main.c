@@ -45,7 +45,7 @@ void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
-  srand(time(0));
+  init_thread_random();
   VERBOSE = 0; // Run in verbose mode
 #ifdef OPENGL
   HEADLESS = 0;

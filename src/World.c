@@ -811,6 +811,8 @@ void world_sortGrid(struct World *world) {
 void *agent_input_processor(void *arg) {
   struct World *world = (struct World *)arg;
 
+  init_thread_random();
+
   while (world->agent_queue.closed == 0) {
     struct AgentQueueItem aqi = queue_dequeue(&world->agent_queue);
 

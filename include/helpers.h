@@ -2,6 +2,8 @@
 #define HELPERS_H
 #include <stdint.h>
 
+void init_thread_random();
+
 // uniform random in [a,b)
 float randf(float a, float b);
 

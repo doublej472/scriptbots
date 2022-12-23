@@ -117,7 +117,7 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
   case 27:
     printf("\n\nESC key pressed, shutting down\n");
-    queue_close(GLVIEW.base->world->agent_queue);
+    queue_close(&GLVIEW.base->world->agent_queue);
     base_saveworld(GLVIEW.base);
     avec_free(&GLVIEW.base->world->agents);
     avec_free(&GLVIEW.base->world->agents_staging);
@@ -312,23 +312,6 @@ void drawAgent(const struct Agent *agent) {
     glPopMatrix();
   }
 
-  // draw giving/receiving
-  if (agent->dfood != 0) {
-    glBegin(GL_POLYGON);
-    float mag = cap(fabsf(agent->dfood) / FOODTRANSFER / 3);
-    if (agent->dfood > 0)
-      glColor3f(0, mag, 0); // draw boost as green outline
-    else
-      glColor3f(mag, 0, 0);
-    for (int32_t k = 0; k < 17; k++) {
-      n = k * (M_PI / 8);
-      glVertex3f(agent->pos.x + rp * sin(n), agent->pos.y + rp * cos(n), 0);
-      n = (k + 1) * (M_PI / 8);
-      glVertex3f(agent->pos.x + rp * sin(n), agent->pos.y + rp * cos(n), 0);
-    }
-    glEnd();
-  }
-
   // draw indicator of this agent->.. used for various events
   if (agent->indicator > 0) {
     glBegin(GL_POLYGON);
@@ -432,20 +415,6 @@ void drawAgent(const struct Agent *agent) {
   glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 24, 0);
   glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 34, 0);
   glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 34, 0);
-
-  // draw giving/receiving
-  if (agent->dfood != 0) {
-
-    float mag = cap(fabsf(agent->dfood) / FOODTRANSFER / 3);
-    if (agent->dfood > 0)
-      glColor3f(0, mag, 0); // draw boost as green outline
-    else
-      glColor3f(mag, 0, 0);
-    glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 36, 0);
-    glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 36, 0);
-    glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 46, 0);
-    glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 46, 0);
-  }
 
   glEnd();
 
