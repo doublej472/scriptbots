@@ -2,7 +2,7 @@
 
 #include "include/queue.h"
 
-void queue_init(struct AgentQueue *queue) {
+void queue_init(struct Queue *queue) {
   pthread_condattr_t monoattr;
   pthread_condattr_init(&monoattr);
   pthread_condattr_setclock(&monoattr, CLOCK_MONOTONIC);
@@ -19,7 +19,7 @@ void queue_init(struct AgentQueue *queue) {
   pthread_cond_init(&queue->cond_work_done, &monoattr);
 }
 
-void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value) {
+void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   pthread_mutex_lock(&(queue->mutex));
   while (queue->size == QUEUE_BUFFER_SIZE) {
     struct timespec ts;
@@ -41,7 +41,7 @@ void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value) {
   pthread_cond_signal(&(queue->cond_item_added));
 }
 
-struct AgentQueueItem queue_dequeue(struct AgentQueue *queue) {
+struct QueueItem queue_dequeue(struct Queue *queue) {
   pthread_mutex_lock(&(queue->mutex));
   while (queue->size == 0) {
     struct timespec ts;
@@ -54,7 +54,7 @@ struct AgentQueueItem queue_dequeue(struct AgentQueue *queue) {
       pthread_exit(0);
     }
   }
-  struct AgentQueueItem value = queue->buffer[queue->out];
+  struct QueueItem value = queue->buffer[queue->out];
   --queue->size;
   ++queue->out;
   queue->out %= QUEUE_BUFFER_SIZE;
@@ -63,7 +63,7 @@ struct AgentQueueItem queue_dequeue(struct AgentQueue *queue) {
   return value;
 }
 
-void queue_workdone(struct AgentQueue *queue) {
+void queue_workdone(struct Queue *queue) {
   pthread_mutex_lock(&(queue->mutex));
   --queue->num_work_items;
   size_t workdone = queue->num_work_items;
@@ -74,13 +74,13 @@ void queue_workdone(struct AgentQueue *queue) {
   }
 }
 
-void queue_close(struct AgentQueue *queue) {
+void queue_close(struct Queue *queue) {
   pthread_mutex_lock(&(queue->mutex));
   queue->closed = 1;
   pthread_mutex_unlock(&(queue->mutex));
 }
 
-size_t queue_size(struct AgentQueue *queue) {
+size_t queue_size(struct Queue *queue) {
   pthread_mutex_lock(&(queue->mutex));
   size_t size = queue->size;
   pthread_mutex_unlock(&(queue->mutex));

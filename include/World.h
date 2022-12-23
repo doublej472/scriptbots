@@ -13,6 +13,12 @@
 #define WORLD_GRID_WIDTH ((WIDTH / WORLD_GRID_SIZE) + 1)
 #define WORLD_GRID_LENGTH (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT)
 
+struct AgentQueueItem {
+  struct World *world;
+  size_t start;
+  size_t end;
+};
+
 struct World {
   int32_t modcounter; // temp not private
   int32_t current_epoch;
@@ -36,7 +42,7 @@ struct World {
   struct timespec
       totalStartTime; // used for deciding when to quit the simulation
 
-  struct AgentQueue agent_queue;
+  struct Queue queue;
 
   struct AVec agents;
   // When agents get added to the world, they go the this AVec first, then
@@ -67,6 +73,7 @@ int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);
 int32_t world_numAgents(struct World *world);
 
-void *agent_input_processor(void *arg);
+void agent_input_processor(void *arg);
+void agent_output_processor(void *arg);
 
 #endif // WORLD_H

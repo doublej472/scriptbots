@@ -21,13 +21,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define QUEUE_BUFFER_SIZE 1000
 
-struct AgentQueueItem {
-  size_t start;
-  size_t end;
+struct QueueItem {
+  void (*function)(void *);
+  void *data;
 };
 
-struct AgentQueue {
-  struct AgentQueueItem buffer[QUEUE_BUFFER_SIZE];
+struct Queue {
+  struct QueueItem buffer[QUEUE_BUFFER_SIZE];
   size_t size;
   size_t in;
   size_t out;
@@ -40,11 +40,11 @@ struct AgentQueue {
   pthread_cond_t cond_work_done;
 };
 
-void queue_init(struct AgentQueue *queue);
-void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value);
-struct AgentQueueItem queue_dequeue(struct AgentQueue *queue);
-size_t queue_size(struct AgentQueue *queue);
-void queue_workdone(struct AgentQueue *queue);
-void queue_close(struct AgentQueue *queue);
+void queue_init(struct Queue *queue);
+void queue_enqueue(struct Queue *queue, struct QueueItem value);
+struct QueueItem queue_dequeue(struct Queue *queue);
+size_t queue_size(struct Queue *queue);
+void queue_workdone(struct Queue *queue);
+void queue_close(struct Queue *queue);
 
 #endif

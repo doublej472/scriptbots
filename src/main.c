@@ -43,6 +43,19 @@ int32_t kbhit();
 void runHeadless(struct Base *base);
 void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 
+void *worker_thread(void *arg) {
+  struct Base *base = (struct Base *)arg;
+
+  init_thread_random();
+
+  while (1) {
+    struct QueueItem qi = queue_dequeue(&base->world->queue);
+    qi.function(qi.data);
+    queue_workdone(&base->world->queue);
+    free(qi.data);
+  }
+}
+
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
   init_thread_random();
@@ -143,7 +156,7 @@ int main(int argc, char **argv) {
 
   for (int i = 0; i < NUM_THREADS; i++) {
     // printf("Creating thread\n");
-    pthread_create(&threads[i], NULL, agent_input_processor, world);
+    pthread_create(&threads[i], NULL, worker_thread, &base);
   }
 
   // Load file if needed
@@ -163,7 +176,7 @@ int main(int argc, char **argv) {
     runWithGraphics(argc, argv, &base);
   }
 
-  queue_close(&world->agent_queue);
+  queue_close(&world->queue);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);
