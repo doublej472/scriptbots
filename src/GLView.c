@@ -117,7 +117,7 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
   case 27:
     printf("\n\nESC key pressed, shutting down\n");
-    queue_close(&GLVIEW.base->world->agent_queue);
+    queue_close(&GLVIEW.base->world->queue);
     base_saveworld(GLVIEW.base);
     avec_free(&GLVIEW.base->world->agents);
     avec_free(&GLVIEW.base->world->agents_staging);

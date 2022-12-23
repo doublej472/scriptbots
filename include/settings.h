@@ -11,7 +11,7 @@ extern int32_t NUM_THREADS;
 extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
-#define INPUTSIZE 42
+#define INPUTSIZE 38
 #define OUTPUTSIZE 18
 #define BRAINSIZE 200
 #define CONNS 4

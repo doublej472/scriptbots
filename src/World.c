@@ -866,10 +866,6 @@ void agent_input_processor(void *arg) {
     float r2 = 0;
     float g2 = 0;
     float b2 = 0;
-    float p3 = 0;
-    float r3 = 0;
-    float g3 = 0;
-    float b3 = 0;
     float soaccum = 0;
     float smaccum = 0;
     float hearaccum = 0;
@@ -934,10 +930,6 @@ void agent_input_processor(void *arg) {
         if (fabsf(diff2) > M_PI)
           diff2 = 2 * M_PI - fabsf(diff2);
         diff2 = fabsf(diff2);
-        float diff3 = backangle - ang;
-        if (fabsf(diff3) > M_PI)
-          diff3 = 2 * M_PI - fabsf(diff3);
-        diff3 = fabsf(diff3);
         float diff4 = forwangle - ang;
         if (fabsf(forwangle) > M_PI)
           diff4 = 2 * M_PI - fabsf(forwangle);
@@ -963,17 +955,6 @@ void agent_input_processor(void *arg) {
           r2 += mul2 * a2->red;
           g2 += mul2 * a2->gre;
           b2 += mul2 * a2->blu;
-        }
-
-        if (diff3 < PI38) {
-          // we see this agent with back eye. Accumulate info
-          float mul3 =
-              EYE_SENSITIVITY * ((PI38 - diff3) / PI38) * ((DIST - d) / DIST);
-          // float mul2= 100*((DIST-d)/DIST);
-          p3 += mul3 * (d / DIST);
-          r3 += mul3 * a2->red;
-          g3 += mul3 * a2->gre;
-          b3 += mul3 * a2->blu;
         }
 
         if (diff4 < PI38) {
@@ -1077,23 +1058,19 @@ void agent_input_processor(void *arg) {
     a->in[9] = cap(soaccum); // SOUND (amount of other agents nearby)
     a->in[10] = cap(smaccum);
     a->in[11] = cap(a->health / 2); // divide by 2 since health is in [0,2]
-    a->in[12] = cap(p3);
-    a->in[13] = cap(r3);
-    a->in[14] = cap(g3);
-    a->in[15] = cap(b3);
-    a->in[16] = fabs(sin(world->modcounter / a->clockf1));
-    a->in[17] = fabs(sin(world->modcounter / a->clockf2));
-    a->in[18] = cap(hearaccum); // HEARING (other agents shouting)
-    a->in[19] = cap(blood);
-    a->in[20] = cap(discomfort);
-    a->in[21] = cap(a->touch);
+    a->in[12] = fabs(sin(world->modcounter / a->clockf1));
+    a->in[13] = fabs(sin(world->modcounter / a->clockf2));
+    a->in[14] = cap(hearaccum); // HEARING (other agents shouting)
+    a->in[15] = cap(blood);
+    a->in[16] = cap(discomfort);
+    a->in[17] = cap(a->touch);
     if (randf(0, 1) > 0.95f) {
-      a->in[22] = randf(0, 1); // random input for bot
+      a->in[18] = randf(0, 1); // random input for bot
     }
 
     // Copy last ouput and last "plan" to the current inputs
-    // PREV_OUT is 23-32
-    // PREV_PLAN is 33-42
+    // PREV_OUT is 19-28
+    // PREV_PLAN is 29-38
     for (int i = 0; i < OUTPUTSIZE; i++) {
       a->in[i + INPUTSIZE - OUTPUTSIZE - 1] = a->out[i];
     }
