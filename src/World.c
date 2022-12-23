@@ -291,17 +291,17 @@ void world_dist_dead_agent(struct World *world, size_t i) {
       num_to_dist_body++;
 
       // young killed agents should give very little resources
-      // at age 5, they mature and give full. This can also help prevent
+      // at age 2, they mature and give full. This can also help prevent
       // agents eating their young right away
       float agemult = 1.0;
-      if (a->age < 5) {
-        agemult = a->age * 0.2;
+      if (a->age < 2) {
+        agemult = a->age * 0.5;
       }
-      a2->health += 5 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+      a2->health += 9 * (1 - a2->herbivore) /
                     pow(num_to_dist_body, 1.25) * agemult;
 
       // make this bot reproduce sooner
-      a2->repcounter -= 6 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+      a2->repcounter -= 11 * (1 - a2->herbivore) /
                         pow(num_to_dist_body, 1.25) * agemult;
 
       if (a2->health > 2)
