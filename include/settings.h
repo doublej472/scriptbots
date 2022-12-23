@@ -1,8 +1,8 @@
 // see README.markdown -> BRAIN MAPPING for explanation of input and output size
 #ifndef SETTINGS_H
 #define SETTINGS_H
-#include <stdint.h>
 #include <math.h> // for the math consts below
+#include <stdint.h>
 
 // Global variables
 extern int32_t VERBOSE;
@@ -21,7 +21,7 @@ extern int32_t MAX_SECONDS;
 // const int32_t HEIGHT = 1500;
 #define WIDTH 4000
 #define HEIGHT 2500
- // computer window width and height
+// computer window width and height
 #define WWIDTH 1400
 #define WHEIGHT 1000
 
@@ -89,7 +89,7 @@ extern int32_t MAX_SECONDS;
 // loss of health from old age
 #define GAIN_GROUPING 0.00003
 // addition of health for each bot near it, as a ratio of closeness
-             // (thermal sharing)
+// (thermal sharing)
 
 // FOOD SETTINGS -----------------------------------------------
 #define FOOD_MODEL_RAND 1
@@ -99,7 +99,7 @@ extern int32_t MAX_SECONDS;
 // what kind of food appearance is to be used
 #define FOODGROWTH 0.0005
 // how quickly does food grow on a square. only
-                                 // used with FOOD_MODEL_GROW
+// used with FOOD_MODEL_GROW
 #define FOODINTAKE 0.00225
 // how much does every agent consume?
 #define FOODWASTE 0.001
@@ -108,9 +108,10 @@ extern int32_t MAX_SECONDS;
 // how much food per cell can there be at max?
 #define FOODADDFREQ 8
 // how often does random square get to full food?
-                           // (the lower the more often food is added)
+// (the lower the more often food is added)
 #define FOOD_DEAD .1
-// what percent of FOOD MAX does a dead agent create that is not eaten by carnivores?
+// what percent of FOOD MAX does a dead agent create that is not eaten by
+// carnivores?
 #define FOOD_MEAT_VALUE 0.75
 // percentage that health is transferred to another agent when eaten
 

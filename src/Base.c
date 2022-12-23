@@ -1,12 +1,10 @@
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
 #include "include/Base.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-void base_init(struct Base *base, struct World *world) {
-  base->world = world;
-}
+void base_init(struct Base *base, struct World *world) { base->world = world; }
 
 void base_saveworld(struct Base *base) {
   world_flush_staging(base->world);
@@ -23,7 +21,8 @@ void base_saveworld(struct Base *base) {
 
   printf("Writing %ld agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
-  fwrite(base->world->agents.agents, sizeof(struct Agent), base->world->agents.size, f);
+  fwrite(base->world->agents.agents, sizeof(struct Agent),
+         base->world->agents.size, f);
 
   fclose(f);
   printf("Done!\n");

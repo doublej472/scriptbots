@@ -3,7 +3,7 @@
 #include "include/queue.h"
 
 void queue_init(struct AgentQueue *queue) {
-pthread_condattr_t monoattr;
+  pthread_condattr_t monoattr;
   pthread_condattr_init(&monoattr);
   pthread_condattr_setclock(&monoattr, CLOCK_MONOTONIC);
 
@@ -19,73 +19,70 @@ pthread_condattr_t monoattr;
   pthread_cond_init(&queue->cond_work_done, &monoattr);
 }
 
-void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value)
-{
-	pthread_mutex_lock(&(queue->mutex));
-	while (queue->size == QUEUE_BUFFER_SIZE) {
-		struct timespec ts;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		ts.tv_sec += 1;
+void queue_enqueue(struct AgentQueue *queue, struct AgentQueueItem value) {
+  pthread_mutex_lock(&(queue->mutex));
+  while (queue->size == QUEUE_BUFFER_SIZE) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    ts.tv_sec += 1;
 
-		pthread_cond_timedwait(&(queue->cond_item_removed), &(queue->mutex), &ts);
-		if (queue->closed != 0) {
-			pthread_mutex_unlock(&(queue->mutex));
-			pthread_exit(0);
-		}
-	}
-	queue->buffer[queue->in] = value;
-	++queue->size;
-	++queue->in;
-	queue->in %= QUEUE_BUFFER_SIZE;
-	++queue->num_work_items;
-	pthread_mutex_unlock(&(queue->mutex));
-	pthread_cond_signal(&(queue->cond_item_added));
+    pthread_cond_timedwait(&(queue->cond_item_removed), &(queue->mutex), &ts);
+    if (queue->closed != 0) {
+      pthread_mutex_unlock(&(queue->mutex));
+      pthread_exit(0);
+    }
+  }
+  queue->buffer[queue->in] = value;
+  ++queue->size;
+  ++queue->in;
+  queue->in %= QUEUE_BUFFER_SIZE;
+  ++queue->num_work_items;
+  pthread_mutex_unlock(&(queue->mutex));
+  pthread_cond_signal(&(queue->cond_item_added));
 }
 
-struct AgentQueueItem queue_dequeue(struct AgentQueue *queue)
-{
-	pthread_mutex_lock(&(queue->mutex));
-	while (queue->size == 0) {
-		struct timespec ts;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		ts.tv_sec += 1;
+struct AgentQueueItem queue_dequeue(struct AgentQueue *queue) {
+  pthread_mutex_lock(&(queue->mutex));
+  while (queue->size == 0) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    ts.tv_sec += 1;
 
-		pthread_cond_timedwait(&(queue->cond_item_added), &(queue->mutex), &ts);
-		if (queue->closed != 0) {
-			pthread_mutex_unlock(&(queue->mutex));
-			pthread_exit(0);
-		}
-	}
-	struct AgentQueueItem value = queue->buffer[queue->out];
-	--queue->size;
-	++queue->out;
-	queue->out %= QUEUE_BUFFER_SIZE;
-	pthread_mutex_unlock(&(queue->mutex));
-	pthread_cond_broadcast(&(queue->cond_item_removed));
-	return value;
+    pthread_cond_timedwait(&(queue->cond_item_added), &(queue->mutex), &ts);
+    if (queue->closed != 0) {
+      pthread_mutex_unlock(&(queue->mutex));
+      pthread_exit(0);
+    }
+  }
+  struct AgentQueueItem value = queue->buffer[queue->out];
+  --queue->size;
+  ++queue->out;
+  queue->out %= QUEUE_BUFFER_SIZE;
+  pthread_mutex_unlock(&(queue->mutex));
+  pthread_cond_broadcast(&(queue->cond_item_removed));
+  return value;
 }
 
 void queue_workdone(struct AgentQueue *queue) {
-	pthread_mutex_lock(&(queue->mutex));
-	--queue->num_work_items;
-	size_t workdone = queue->num_work_items;
-	size_t size = queue->size;
-	pthread_mutex_unlock(&(queue->mutex));
-	if (workdone == 0 && size == 0) {
-		pthread_cond_broadcast(&(queue->cond_work_done));
-	}
+  pthread_mutex_lock(&(queue->mutex));
+  --queue->num_work_items;
+  size_t workdone = queue->num_work_items;
+  size_t size = queue->size;
+  pthread_mutex_unlock(&(queue->mutex));
+  if (workdone == 0 && size == 0) {
+    pthread_cond_broadcast(&(queue->cond_work_done));
+  }
 }
 
 void queue_close(struct AgentQueue *queue) {
-	pthread_mutex_lock(&(queue->mutex));
-	queue->closed = 1;
-	pthread_mutex_unlock(&(queue->mutex));
+  pthread_mutex_lock(&(queue->mutex));
+  queue->closed = 1;
+  pthread_mutex_unlock(&(queue->mutex));
 }
 
-size_t queue_size(struct AgentQueue *queue)
-{
-	pthread_mutex_lock(&(queue->mutex));
-	size_t size = queue->size;
-	pthread_mutex_unlock(&(queue->mutex));
-	return size;
+size_t queue_size(struct AgentQueue *queue) {
+  pthread_mutex_lock(&(queue->mutex));
+  size_t size = queue->size;
+  pthread_mutex_unlock(&(queue->mutex));
+  return size;
 }

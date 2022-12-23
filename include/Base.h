@@ -1,7 +1,7 @@
 #ifndef BASE_H
 #define BASE_H
-#include <stdint.h>
 #include "World.h"
+#include <stdint.h>
 
 struct SerializedWorld {
   struct World world;

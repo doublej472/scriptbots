@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <time.h>
 
+#include "queue.h"
 #include "settings.h"
 #include "vec.h"
-#include "queue.h"
 
 #define WORLD_GRID_SIZE DIST
 #define WORLD_GRID_HEIGHT ((HEIGHT / WORLD_GRID_SIZE) + 1)
@@ -18,8 +18,8 @@ struct World {
   int32_t current_epoch;
   int32_t idcounter;
   int32_t stopSim;
-  int32_t numAgentsAdded; // counts how many agents have been artifically added per
-                      // reporting iteration
+  int32_t numAgentsAdded; // counts how many agents have been artifically added
+                          // per reporting iteration
 
   // food
   int32_t FW;
@@ -28,22 +28,23 @@ struct World {
   int32_t fy;
   float food[WIDTH / CZ][HEIGHT / CZ];
   // if environment is closed, then no random bots are added per time interval
-  int32_t closed; 
+  int32_t closed;
 
   int32_t touch;
 
-  struct timespec startTime;      // used for tracking fps
-  struct timespec totalStartTime; // used for deciding when to quit the simulation
+  struct timespec startTime; // used for tracking fps
+  struct timespec
+      totalStartTime; // used for deciding when to quit the simulation
 
-	struct AgentQueue agent_queue;
+  struct AgentQueue agent_queue;
 
   struct AVec agents;
   // When agents get added to the world, they go the this AVec first, then
   // they get pushed to the agents array
   struct AVec agents_staging;
 
-  // value represents one past the index of the last element in the current grid position
-  // Grid position calculated like (y*WORLD_GRID_WIDTH + x)
+  // value represents one past the index of the last element in the current grid
+  // position Grid position calculated like (y*WORLD_GRID_WIDTH + x)
   size_t agent_grid[WORLD_GRID_LENGTH];
 };
 
@@ -59,7 +60,8 @@ void world_addNewByCrossover(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a, float MR, float MR2);
 void world_writeReport(struct World *world);
 void world_reset(struct World *world);
-void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y);
+void world_processMouse(struct World *world, int32_t button, int32_t state,
+                        int32_t x, int32_t y);
 void world_sortGrid(struct World *world);
 int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);

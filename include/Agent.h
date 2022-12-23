@@ -26,22 +26,21 @@ struct Agent {
   float spikeLength;
   int32_t age;
 
-
-  float in[INPUTSIZE]; // input: 2 eyes, sensors for R,G,B,proximity each,
+  float in[INPUTSIZE];   // input: 2 eyes, sensors for R,G,B,proximity each,
                          // then Sound, Smell, Health
   float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
-  int rep;      // If this agent will reproduce the next world update
-  int32_t gencount;           // generation counter
+  int rep;                // If this agent will reproduce the next world update
+  int32_t gencount;       // generation counter
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
   float soundmul; // sound multiplier of this bot. It can scream, or be very
                   // sneaky. This is actually always set to output 8
 
   // variables for drawing purposes
   float indicator;
-  float ir, ig, ib; // indicator colors
-  int32_t selectflag;   // is this agent selected?
+  float ir, ig, ib;   // indicator colors
+  int32_t selectflag; // is this agent selected?
 
   float give; // is this agent attempting to give food to other agent?
 
@@ -58,16 +57,19 @@ struct Agent {
 };
 
 struct Agent_d {
-  struct Agent* agent;
+  struct Agent *agent;
   float dist2;
 };
 
 void agent_init(struct Agent *agent);
 void agent_print(struct Agent *agent);
-void agent_initevent(struct Agent *agent, float size, float r, float g, float b);
+void agent_initevent(struct Agent *agent, float size, float r, float g,
+                     float b);
 void agent_tick(struct Agent *agent);
-void agent_reproduce(struct Agent *child, struct Agent *parent, float MR, float MR2);
-void agent_crossover(struct Agent *target, const struct Agent *agent1, const struct Agent *agent2);
+void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
+                     float MR2);
+void agent_crossover(struct Agent *target, const struct Agent *agent1,
+                     const struct Agent *agent2);
 void agent_process_health(struct Agent *agent);
 
 #endif // AGENT_H

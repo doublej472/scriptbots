@@ -22,22 +22,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define QUEUE_BUFFER_SIZE 1000
 
 struct AgentQueueItem {
-    size_t start;
-    size_t end;
+  size_t start;
+  size_t end;
 };
 
 struct AgentQueue {
-	struct AgentQueueItem buffer[QUEUE_BUFFER_SIZE];
-	size_t size;
-	size_t in;
-	size_t out;
-    int closed;
-	pthread_mutex_t mutex;
-	pthread_cond_t cond_item_added;
-	pthread_cond_t cond_item_removed;
+  struct AgentQueueItem buffer[QUEUE_BUFFER_SIZE];
+  size_t size;
+  size_t in;
+  size_t out;
+  int closed;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond_item_added;
+  pthread_cond_t cond_item_removed;
 
-	size_t num_work_items;
-	pthread_cond_t cond_work_done;
+  size_t num_work_items;
+  pthread_cond_t cond_work_done;
 };
 
 void queue_init(struct AgentQueue *queue);

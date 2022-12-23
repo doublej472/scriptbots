@@ -4,8 +4,8 @@
 #include "include/helpers.h"
 #include "include/settings.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 void agent_init(struct Agent *agent) {
   vector2f_init(&agent->pos, randf(0, WIDTH), randf(0, HEIGHT));
@@ -56,7 +56,8 @@ void agent_print(struct Agent *agent) {
   printf("\ttemp pref=%f\n\n", agent->temperature_preference);
 }
 
-void agent_initevent(struct Agent *agent, float size, float r, float g, float b) {
+void agent_initevent(struct Agent *agent, float size, float r, float g,
+                     float b) {
   agent->indicator = size;
   agent->ir = r;
   agent->ig = g;
@@ -67,13 +68,14 @@ void agent_tick(struct Agent *agent) {
   mlpbrain_tick(&agent->brain, agent->in, agent->out);
 }
 
-void agent_reproduce(struct Agent *child, struct Agent *parent, float MR, float MR2) {
+void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
+                     float MR2) {
 
   // spawn the baby somewhere closeby behind agent
   // we want to spawn behind so that agents dont accidentally eat their young
   // right away
   struct Vector2f fb;
-  vector2f_init(&fb, randf(BOTRADIUS, BOTRADIUS*3), 0);
+  vector2f_init(&fb, randf(BOTRADIUS, BOTRADIUS * 3), 0);
 
   vector2f_rotate(&fb, -child->angle);
   vector2f_add(&child->pos, &parent->pos, &fb);
@@ -113,7 +115,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR, float 
   if (child->clockf2 < 2)
     child->clockf2 = 2;
 
-  child->temperature_preference = cap(randn(parent->temperature_preference, 0.005));
+  child->temperature_preference =
+      cap(randn(parent->temperature_preference, 0.005));
   //    child->temperature_preference= parent->temperature_preference;
 
   // mutate brain here
@@ -121,7 +124,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR, float 
   mlpbrain_mutate(&child->brain, MR, MR2);
 }
 
-void agent_crossover(struct Agent *target, const struct Agent *agent1, const struct Agent *agent2) {
+void agent_crossover(struct Agent *target, const struct Agent *agent1,
+                     const struct Agent *agent2) {
   target->hybrid = 1; // set this non-default flag
   target->gencount = agent1->gencount;
   if (agent2->gencount < target->gencount)
@@ -134,40 +138,39 @@ void agent_crossover(struct Agent *target, const struct Agent *agent1, const str
   target->MUTRATE1 = randf(0, 1) < 0.5 ? agent1->MUTRATE1 : agent2->MUTRATE1;
   target->MUTRATE2 = randf(0, 1) < 0.5 ? agent1->MUTRATE2 : agent2->MUTRATE2;
   target->temperature_preference = randf(0, 1) < 0.5
-                                    ? agent1->temperature_preference
-                                    : agent2->temperature_preference;
+                                       ? agent1->temperature_preference
+                                       : agent2->temperature_preference;
 
   mlpbrain_crossover(&target->brain, &agent1->brain, &agent2->brain);
 }
 
 void agent_process_health(struct Agent *agent) {
-    // process bots health
-    float healthloss = LOSS_BASE; // base amount of health lost every turn for
-                                  // being alive
+  // process bots health
+  float healthloss = LOSS_BASE; // base amount of health lost every turn for
+                                // being alive
 
-    // remove health based on wheel speed
-    if (agent->boost) { // is using boost
-      healthloss += LOSS_SPEED * BOTSPEED *
-                    (fabsf(agent->w1) + fabsf(agent->w2)) *
-                    BOOSTSIZEMULT * agent->boost;
-    } else { // no boost
-      healthloss += LOSS_SPEED * BOTSPEED *
-                    (fabsf(agent->w1) + fabsf(agent->w2));
-    }
+  // remove health based on wheel speed
+  if (agent->boost) { // is using boost
+    healthloss += LOSS_SPEED * BOTSPEED *
+                  (fabsf(agent->w1) + fabsf(agent->w2)) * BOOSTSIZEMULT *
+                  agent->boost;
+  } else { // no boost
+    healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));
+  }
 
-    // shouting costs energy.
-    healthloss += LOSS_SHOUTING * agent->soundmul;
+  // shouting costs energy.
+  healthloss += LOSS_SHOUTING * agent->soundmul;
 
-    // process temperature preferences
-    // calculate temperature at the agents spot. (based on distance from
-    // equator)
-    float dd = 2.0 * fabs(agent->pos.x / WIDTH - 0.5);
-    float discomfort = fabsf(dd - agent->temperature_preference);
-    discomfort = discomfort * discomfort;
-    if (discomfort < 0.08)
-      discomfort = 0;
-    healthloss += LOSS_TEMP * discomfort;
+  // process temperature preferences
+  // calculate temperature at the agents spot. (based on distance from
+  // equator)
+  float dd = 2.0 * fabs(agent->pos.x / WIDTH - 0.5);
+  float discomfort = fabsf(dd - agent->temperature_preference);
+  discomfort = discomfort * discomfort;
+  if (discomfort < 0.08)
+    discomfort = 0;
+  healthloss += LOSS_TEMP * discomfort;
 
-    // apply the health changes
-    agent->health -= healthloss;
+  // apply the health changes
+  agent->health -= healthloss;
 }

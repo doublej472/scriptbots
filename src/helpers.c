@@ -14,12 +14,12 @@ inline int32_t randi(int32_t a, int32_t b) { return (rand() % (b - a)) + a; }
 // normalvariate random N(mu, sigma)
 double randn(double mu, double sigma) {
   static int32_t deviateAvailable = 0; //	flag
-  static float storedDeviate;           //	deviate from previous calculation
+  static float storedDeviate;          //	deviate from previous calculation
   double polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
-      var1 = 2.0 * ( ((double) rand()) / ((double) (RAND_MAX))) - 1.0;
-      var2 = 2.0 * ( ((double) rand()) / ((double) (RAND_MAX))) - 1.0;
+      var1 = 2.0 * (((double)rand()) / ((double)(RAND_MAX))) - 1.0;
+      var2 = 2.0 * (((double)rand()) / ((double)(RAND_MAX))) - 1.0;
       rsquared = var1 * var1 + var2 * var2;
     } while (rsquared >= 1.0 || rsquared == 0.0);
     polar = sqrt(-2.0 * log(rsquared) / rsquared);
@@ -51,16 +51,14 @@ inline float cap(float a) {
 // // Fast exp(), not accurate
 // inline float fast_exp(float x) {
 //   x = fast_exp_iter(1.0f + x / 1024);
-  
+
 //   return x;
 // }
 
 // https://www.musicdsp.org/en/latest/Other/222-fast-exp-approximations.html
 inline float fast_exp(float x) {
-    return (24+x*(24+x*(12+x*(4+x))))*0.041666666f;
+  return (24 + x * (24 + x * (12 + x * (4 + x)))) * 0.041666666f;
 }
 
 // Get number of processors in the system
-inline long get_nprocs() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
+inline long get_nprocs() { return sysconf(_SC_NPROCESSORS_ONLN); }

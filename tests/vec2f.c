@@ -1,10 +1,10 @@
 #include "include/vec2f.h"
-#include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-void _assert_eq(const char* file, int line, float f1, float f2) {
+void _assert_eq(const char *file, int line, float f1, float f2) {
   if (f1 - f2 < 0.00001f) {
     return;
   } else {
@@ -62,10 +62,10 @@ void test_vec2f() {
   v2.x = 0.0f;
   v2.y = 1.0f;
 
-  assert_eq(vector2f_angle(&v1), (3*M_PI)/4);
-  assert_eq(vector2f_angle_between(&v1, &v2), M_PI/4);
+  assert_eq(vector2f_angle(&v1), (3 * M_PI) / 4);
+  assert_eq(vector2f_angle_between(&v1, &v2), M_PI / 4);
 
-  vector2f_rotate(&v2, M_PI/2);
+  vector2f_rotate(&v2, M_PI / 2);
   assert_eq(v2.x, -1.0f);
   assert_eq(v2.y, 0.0f);
 }

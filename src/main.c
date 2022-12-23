@@ -1,9 +1,9 @@
-#include <time.h>
 #include <getopt.h>
-#include <stdio.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // For detecting keyboard:
 #include <fcntl.h>
@@ -14,15 +14,15 @@
 
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
-#include <GL/glut.h>
 #include "include/GLView.h"
+#include <GL/glut.h>
 #endif
 
 #include "include/Base.h"
 #include "include/World.h"
 #include "include/helpers.h"
-#include "include/settings.h"
 #include "include/queue.h"
+#include "include/settings.h"
 
 // ---------------------------------------------------------------------------
 // Global Vars:
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 #else
   HEADLESS = 1;
 #endif
-NUM_THREADS = get_nprocs();
+  NUM_THREADS = get_nprocs();
 
   int32_t loadWorldFromFile = 0;
 
@@ -93,9 +93,12 @@ NUM_THREADS = get_nprocs();
   world_init(world);
   base_init(&base, world);
 
-  printf("-------------------------------------------------------------------------------\n");
-  printf("ScriptBots - Evolutionary Artificial Life Simulation of Predator-Prey Dynamics\n");
-  printf("   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins\n\n");
+  printf("---------------------------------------------------------------------"
+         "----------\n");
+  printf("ScriptBots - Evolutionary Artificial Life Simulation of "
+         "Predator-Prey Dynamics\n");
+  printf(
+      "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins\n\n");
   printf("Environment:");
 #ifdef OPENGL
   printf("   OpenGL and GLUT found!\n");
@@ -120,7 +123,7 @@ NUM_THREADS = get_nprocs();
   if (HEADLESS) {
     printf("   Headless Mode - No graphics\n");
     printf("------------------------------------------------------------------"
-            "-------------\n");
+           "-------------\n");
   } else {
     printf("\nInstructions:\n");
     printf("   p= pause, d= toggle drawing (for faster computation), f= draw "
@@ -133,7 +136,7 @@ NUM_THREADS = get_nprocs();
     printf("   GREEN: agent just reproduced\n");
     printf("   GREY: bot is getting group health bonus\n");
     printf("------------------------------------------------------------------"
-            "-------------\n");
+           "-------------\n");
   }
 
   pthread_t *threads = malloc(sizeof(pthread_t) * NUM_THREADS);
@@ -150,7 +153,7 @@ NUM_THREADS = get_nprocs();
     // check if epoch is greater than passed parameter
     if (base.world->current_epoch > MAX_EPOCHS)
       printf("\nWarning: the loaded file has an epoch later than the specefied "
-              "end time parameter\n");
+             "end time parameter\n");
   }
 
   // Decide if to graphics or not

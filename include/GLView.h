@@ -1,7 +1,7 @@
 #ifndef GLVIEW_H
 #define GLVIEW_H
-#include <stdint.h>
 #include "Base.h"
+#include <stdint.h>
 
 struct GLView {
   struct Base *base;

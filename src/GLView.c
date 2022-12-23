@@ -1,11 +1,11 @@
 #include "config.h"
-#include <time.h>
 #include <GL/glut.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
-#include "include/GLView.h"
 #include "include/Base.h"
+#include "include/GLView.h"
 #include "include/World.h"
 #include "include/queue.h"
 
@@ -65,8 +65,10 @@ void gl_processMouse(int32_t button, int32_t state, int32_t x, int32_t y) {
 
   // have world deal with it. First translate to world coordinates though
   if (button == 0) {
-    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2) / GLVIEW.scalemult) - GLVIEW.xtranslate;
-    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2) / GLVIEW.scalemult) - GLVIEW.ytranslate;
+    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2) / GLVIEW.scalemult) -
+                 GLVIEW.xtranslate;
+    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2) / GLVIEW.scalemult) -
+                 GLVIEW.ytranslate;
     world_processMouse(GLVIEW.base->world, button, state, wx, wy);
   }
 
@@ -113,71 +115,71 @@ void gl_processMouseActiveMotion(int32_t x, int32_t y) {
 
 void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
-    case 27:
-      printf("\n\nESC key pressed, shutting down\n");
-      queue_close(GLVIEW.base->world->agent_queue);
-      base_saveworld(GLVIEW.base);
-      avec_free(&GLVIEW.base->world->agents);
-      avec_free(&GLVIEW.base->world->agents_staging);
-      exit(0);
-      break;
-    case 'r':
-      world_reset(GLVIEW.base->world);
-      printf("Agents reset\n");
-      break;
-    case 'p':
-      GLVIEW.paused = !GLVIEW.paused;
-      break;
-    case 'd':
-      GLVIEW.draw = !GLVIEW.draw;
-      break;
-    case '=':
-    case '+':
-      GLVIEW.skipdraw++;
-      break;
-    case '-':
-      GLVIEW.skipdraw--;
-      break;
-    case 'f':
-      GLVIEW.drawfood = !GLVIEW.drawfood;
-      break;
-    case 'a':
-      for (int32_t i = 0; i < 10; i++) {
-        world_addNewByCrossover(GLVIEW.base->world);
-      }
-      break;
-    case 'q':
-      for (int32_t i = 0; i < 10; i++) {
-        world_addCarnivore(GLVIEW.base->world);
-      }
-      break;
-    case 'c':
-      GLVIEW.base->world->closed = GLVIEW.base->world->closed ? 0 : 1;
-      printf("Environemt closed now= %i\n", GLVIEW.base->world->closed);
-      break;
-    case 'z':
-      GLVIEW.xtranslate = -WIDTH / 2;
-      GLVIEW.ytranslate = -HEIGHT / 2;
-      GLVIEW.scalemult = 0.4; // 1.0;
-      break;
-    case 't':
-      GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
-      break;
-    // C-l
-    case 12:
-      base_loadworld(GLVIEW.base);
-      break;
-    // C-s
-    case 19:
-      base_saveworld(GLVIEW.base);
-      break;
-    // C-f
-    case 6:
-      glview_toggleFullscreen();
-      printf("Toggling full screen\n");
-      break;
-    default:
-      printf("Unknown key pressed: %i\n", key);
+  case 27:
+    printf("\n\nESC key pressed, shutting down\n");
+    queue_close(GLVIEW.base->world->agent_queue);
+    base_saveworld(GLVIEW.base);
+    avec_free(&GLVIEW.base->world->agents);
+    avec_free(&GLVIEW.base->world->agents_staging);
+    exit(0);
+    break;
+  case 'r':
+    world_reset(GLVIEW.base->world);
+    printf("Agents reset\n");
+    break;
+  case 'p':
+    GLVIEW.paused = !GLVIEW.paused;
+    break;
+  case 'd':
+    GLVIEW.draw = !GLVIEW.draw;
+    break;
+  case '=':
+  case '+':
+    GLVIEW.skipdraw++;
+    break;
+  case '-':
+    GLVIEW.skipdraw--;
+    break;
+  case 'f':
+    GLVIEW.drawfood = !GLVIEW.drawfood;
+    break;
+  case 'a':
+    for (int32_t i = 0; i < 10; i++) {
+      world_addNewByCrossover(GLVIEW.base->world);
+    }
+    break;
+  case 'q':
+    for (int32_t i = 0; i < 10; i++) {
+      world_addCarnivore(GLVIEW.base->world);
+    }
+    break;
+  case 'c':
+    GLVIEW.base->world->closed = GLVIEW.base->world->closed ? 0 : 1;
+    printf("Environemt closed now= %i\n", GLVIEW.base->world->closed);
+    break;
+  case 'z':
+    GLVIEW.xtranslate = -WIDTH / 2;
+    GLVIEW.ytranslate = -HEIGHT / 2;
+    GLVIEW.scalemult = 0.4; // 1.0;
+    break;
+  case 't':
+    GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
+    break;
+  // C-l
+  case 12:
+    base_loadworld(GLVIEW.base);
+    break;
+  // C-s
+  case 19:
+    base_saveworld(GLVIEW.base);
+    break;
+  // C-f
+  case 6:
+    glview_toggleFullscreen();
+    printf("Toggling full screen\n");
+    break;
+  default:
+    printf("Unknown key pressed: %i\n", key);
   }
 }
 
@@ -192,7 +194,8 @@ void gl_handleIdle() {
   if ((currentTime - GLVIEW.lastUpdate) >= 1000) {
     int32_t num_herbs = world_numHerbivores(GLVIEW.base->world);
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
-    sprintf(GLVIEW.buf, "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
+    sprintf(GLVIEW.buf,
+            "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
             GLVIEW.frames, world_numAgents(GLVIEW.base->world), num_carns,
             num_herbs, GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
@@ -235,8 +238,9 @@ void drawAgent(const struct Agent *agent) {
   float asx = (agent->pos.x + GLVIEW.xtranslate) * (GLVIEW.scalemult);
   float asy = (agent->pos.y + GLVIEW.ytranslate) * (GLVIEW.scalemult);
 
-  if ((agent->selectflag == 0) && (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
-                                  asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
+  if ((agent->selectflag == 0) &&
+      (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
+       asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
     return;
   }
 
@@ -344,21 +348,20 @@ void drawAgent(const struct Agent *agent) {
     glVertex3f(agent->pos.x, agent->pos.y, 0);
     glVertex3f(
         agent->pos.x + (BOTRADIUS * 4) * cos(agent->angle + j * M_PI / 8),
-        agent->pos.y + (BOTRADIUS * 4) * sin(agent->angle + j * M_PI / 8),
-        0);
+        agent->pos.y + (BOTRADIUS * 4) * sin(agent->angle + j * M_PI / 8), 0);
   }
   // and eye to the back
   glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x + (BOTRADIUS * 1.5) *
-                               cos(agent->angle + M_PI + 3 * M_PI / 16),
-             agent->pos.y + (BOTRADIUS * 1.5) *
-                               sin(agent->angle + M_PI + 3 * M_PI / 16),
+  glVertex3f(agent->pos.x +
+                 (BOTRADIUS * 1.5) * cos(agent->angle + M_PI + 3 * M_PI / 16),
+             agent->pos.y +
+                 (BOTRADIUS * 1.5) * sin(agent->angle + M_PI + 3 * M_PI / 16),
              0);
   glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x + (BOTRADIUS * 1.5) *
-                               cos(agent->angle + M_PI - 3 * M_PI / 16),
-             agent->pos.y + (BOTRADIUS * 1.5) *
-                               sin(agent->angle + M_PI - 3 * M_PI / 16),
+  glVertex3f(agent->pos.x +
+                 (BOTRADIUS * 1.5) * cos(agent->angle + M_PI - 3 * M_PI / 16),
+             agent->pos.y +
+                 (BOTRADIUS * 1.5) * sin(agent->angle + M_PI - 3 * M_PI / 16),
              0);
   glEnd();
 
@@ -384,7 +387,8 @@ void drawAgent(const struct Agent *agent) {
   glColor3f(0.5, 0, 0);
   glVertex3f(agent->pos.x, agent->pos.y, 0);
   glVertex3f(agent->pos.x + (3 * r * agent->spikeLength) * cos(agent->angle),
-             agent->pos.y + (3 * r * agent->spikeLength) * sin(agent->angle), 0);
+             agent->pos.y + (3 * r * agent->spikeLength) * sin(agent->angle),
+             0);
   glEnd();
 
   // and health
@@ -400,9 +404,10 @@ void drawAgent(const struct Agent *agent) {
 
   // health
   glColor3f(0, 0.8, 0);
-  glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 20 * (2 - agent->health), 0);
-  glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 20 * (2 - agent->health),
+  glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 20 * (2 - agent->health),
              0);
+  glVertex3f(agent->pos.x + xo + 5,
+             agent->pos.y + yo + 20 * (2 - agent->health), 0);
   glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 40, 0);
   glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 40, 0);
 
@@ -448,26 +453,25 @@ void drawAgent(const struct Agent *agent) {
   if (GLVIEW.scalemult > .7) {
     // generation count
     sprintf(GLVIEW.buf2, "%i", agent->gencount);
-    renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8,
+    renderString(agent->pos.x - BOTRADIUS * 1.5, agent->pos.y + BOTRADIUS * 1.8,
                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
     // age
     sprintf(GLVIEW.buf2, "%i", agent->age);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 12,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 agent->pos.y + BOTRADIUS * 1.8 + 12, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
 
     // health
     sprintf(GLVIEW.buf2, "%.2f", agent->health);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 24,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 agent->pos.y + BOTRADIUS * 1.8 + 24, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
 
     // repcounter
     sprintf(GLVIEW.buf2, "%.2f", agent->repcounter);
     renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 36,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+                 agent->pos.y + BOTRADIUS * 1.8 + 36, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
   }
 }
 

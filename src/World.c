@@ -1,8 +1,8 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
-#include <pthread.h>
+#include <time.h>
 
 #include "include/World.h"
 #include "include/helpers.h"
@@ -10,7 +10,6 @@
 #include "include/settings.h"
 #include "include/vec.h"
 #include "include/vec2f.h"
-
 
 static void timespec_diff(struct timespec *result, struct timespec *start,
                           struct timespec *stop) {
@@ -428,13 +427,16 @@ void world_setInputsRunBrain(struct World *world) {
       max = world->agents.size;
     }
     struct AgentQueueItem queueItem = {i, max};
-    // printf("Handing out work item %li - %li\n", queueItem.start, queueItem.end);
+    // printf("Handing out work item %li - %li\n", queueItem.start,
+    // queueItem.end);
     queue_enqueue(&world->agent_queue, queueItem);
   }
 
   pthread_mutex_lock(&world->agent_queue.mutex);
-  while (world->agent_queue.num_work_items != 0 || world->agent_queue.size != 0) {
-      pthread_cond_wait(&world->agent_queue.cond_work_done, &world->agent_queue.mutex);
+  while (world->agent_queue.num_work_items != 0 ||
+         world->agent_queue.size != 0) {
+    pthread_cond_wait(&world->agent_queue.cond_work_done,
+                      &world->agent_queue.mutex);
   }
 
   pthread_mutex_unlock(&world->agent_queue.mutex);
