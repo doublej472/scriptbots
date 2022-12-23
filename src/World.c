@@ -288,54 +288,30 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     }
 
     if (a2->herbivore < .1 && a2->health > 0) {
-      dist_agents[num_to_dist_body].agent = &world->agents.agents[j];
-      dist_agents[num_to_dist_body].dist2 = d;
       num_to_dist_body++;
-    }
-  }
 
-  // young killed agents should give very little resources
-  // at age 5, they mature and give full. This can also help prevent
-  // agents eating their young right away
-  float agemult = 1.0;
-  if (a->age < 5) {
-    agemult = a->age * 0.2;
-  }
+      // young killed agents should give very little resources
+      // at age 5, they mature and give full. This can also help prevent
+      // agents eating their young right away
+      float agemult = 1.0;
+      if (a->age < 5) {
+        agemult = a->age * 0.2;
+      }
+      a2->health += 5 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+                    pow(num_to_dist_body, 1.25) * agemult;
 
-  if (num_to_dist_body > 0) {
-    // distribute its food evenly
-    for (int j = 0; j < num_to_dist_body; j++) {
-      struct Agent *a2 = dist_agents[j].agent;
-
-      // only carnivores get food. not same agent as dying
-      if (a2->herbivore < .1 && a2->health > 0) {
-
-        float d = dist_agents[j].dist2;
-        if (d < FOOD_DISTRIBUTION_RADIUS * FOOD_DISTRIBUTION_RADIUS) {
-          // add to agent's health
-          /*  percent_carnivore = 1-agents[j].herbivore
-                  coefficient = 5
-                  num_to_dist_body = # of other agents within vicinity
-                  agemult = 1 if agent is older than 4
-                  health += percent_carnivore ^ 2 * agemult * 5
-                  -----------------------------------
-                  num_to_dist_body ^ 1.25
-          */
-          a2->health += 5 * (1 - a2->herbivore) * (1 - a2->herbivore) /
+      // make this bot reproduce sooner
+      a2->repcounter -= 6 * (1 - a2->herbivore) * (1 - a2->herbivore) /
                         pow(num_to_dist_body, 1.25) * agemult;
 
-          // make this bot reproduce sooner
-          a2->repcounter -= 6 * (1 - a2->herbivore) * (1 - a2->herbivore) /
-                            pow(num_to_dist_body, 1.25) * agemult;
+      if (a2->health > 2)
+        a2->health = 2; // cap it!
 
-          if (a2->health > 2)
-            a2->health = 2; // cap it!
-
-          agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
-        }
-      }
+      agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
     }
-  } else {
+  }
+
+  if (num_to_dist_body == 0) {
     // if no agents are around to eat it, it becomes regular food
     world->food[(int32_t)a->pos.x / CZ][(int32_t)a->pos.y / CZ] =
         FOOD_DEAD * FOODMAX; // since it was dying it is not much food
