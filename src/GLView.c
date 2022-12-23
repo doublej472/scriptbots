@@ -119,6 +119,12 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
     printf("\n\nESC key pressed, shutting down\n");
     queue_close(&GLVIEW.base->world->queue);
     base_saveworld(GLVIEW.base);
+    for (int i = 0; i < GLVIEW.base->world->agents.size; i++) {
+      free(GLVIEW.base->world->agents.agents[i].brain);
+    }
+    for (int i = 0; i < GLVIEW.base->world->agents_staging.size; i++) {
+      free(GLVIEW.base->world->agents_staging.agents[i].brain);
+    }
     avec_free(&GLVIEW.base->world->agents);
     avec_free(&GLVIEW.base->world->agents_staging);
     exit(0);
@@ -296,7 +302,7 @@ void drawAgent(const struct Agent *agent) {
     float offx = 0;
     ss = 8;
     for (int32_t j = 0; j < BRAINSIZE; j++) {
-      col = agent->brain.boxes[j].out;
+      col = agent->brain->boxes[j].out;
       glColor3f(col, col, col);
       glVertex3f(offx + 0 + ss * j, yy, 0.0f);
       glVertex3f(offx + xx + ss * j, yy, 0.0f);

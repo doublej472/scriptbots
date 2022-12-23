@@ -102,9 +102,9 @@ int main(int argc, char **argv) {
   }
 
   struct Base base;
-  struct World *world = malloc(sizeof(struct World));
-  world_init(world);
-  base_init(&base, world);
+  struct World world;
+  world_init(&world);
+  base_init(&base, &world);
 
   printf("---------------------------------------------------------------------"
          "----------\n");
@@ -176,13 +176,13 @@ int main(int argc, char **argv) {
     runWithGraphics(argc, argv, &base);
   }
 
-  queue_close(&world->queue);
+  queue_close(&world.queue);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);
   }
 
-  free(world);
+  free(threads);
 
   return 0;
 }
@@ -254,6 +254,12 @@ void runHeadless(struct Base *base) {
   }
 
   base_saveworld(base);
+  for (int i = 0; i < base->world->agents.size; i++) {
+    free(base->world->agents.agents[i].brain);
+  }
+  for (int i = 0; i < base->world->agents_staging.size; i++) {
+    free(base->world->agents_staging.agents[i].brain);
+  }
   avec_free(&base->world->agents);
   avec_free(&base->world->agents_staging);
 }

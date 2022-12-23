@@ -48,7 +48,9 @@ void agent_init(struct Agent *agent) {
   memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
   memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
 
-  mlpbrain_init(&agent->brain);
+  agent->brain = malloc(sizeof(struct MLPBrain));
+
+  mlpbrain_init(agent->brain);
 }
 
 void agent_print(struct Agent *agent) {
@@ -65,7 +67,7 @@ void agent_initevent(struct Agent *agent, float size, float r, float g,
 }
 
 void agent_tick(struct Agent *agent) {
-  mlpbrain_tick(&agent->brain, agent->in, agent->out);
+  mlpbrain_tick(agent->brain, agent->in, agent->out);
 }
 
 void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
@@ -120,8 +122,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
   //    child->temperature_preference= parent->temperature_preference;
 
   // mutate brain here
-  child->brain = parent->brain;
-  mlpbrain_mutate(&child->brain, MR, MR2);
+  memcpy(child->brain, parent->brain, sizeof(struct MLPBrain));
+  mlpbrain_mutate(child->brain, MR, MR2);
 }
 
 void agent_crossover(struct Agent *target, const struct Agent *agent1,
@@ -141,7 +143,8 @@ void agent_crossover(struct Agent *target, const struct Agent *agent1,
                                        ? agent1->temperature_preference
                                        : agent2->temperature_preference;
 
-  mlpbrain_crossover(&target->brain, &agent1->brain, &agent2->brain);
+  target->brain = malloc(sizeof(struct MLPBrain));
+  mlpbrain_crossover(target->brain, agent1->brain, agent2->brain);
 }
 
 void agent_process_health(struct Agent *agent) {

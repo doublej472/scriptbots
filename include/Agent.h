@@ -53,7 +53,7 @@ struct Agent {
   float
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
-  struct MLPBrain brain;
+  struct MLPBrain *brain;
 };
 
 struct Agent_d {

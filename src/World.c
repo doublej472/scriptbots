@@ -40,6 +40,7 @@ void world_flush_staging(struct World *world) {
     if (a->health <= 0) {
       // The i-- is very important here, since we need to retry the current
       // iteration because it was replaced with a different agent
+      free(a->brain);
       avec_delete(&world->agents, i--);
       continue;
     }
@@ -344,8 +345,8 @@ void world_update(struct World *world) {
   world_processOutputs(world);
 
   // Some things need to be done single threaded
-  for(int i = 0; i < world->agents.size; i++) {
-    struct Agent* a = &world->agents.agents[i];
+  for (int i = 0; i < world->agents.size; i++) {
+    struct Agent *a = &world->agents.agents[i];
     if (a->health <= 0 && a->spiked) {
       // Distribute dead agents to nearby carnivores
       world_dist_dead_agent(world, i);
@@ -533,7 +534,7 @@ void world_writeReport(struct World *world) {
       double box_weight_sum = 0;
 
       for (int32_t b = 0; b < CONNS; b++) {
-        box_weight_sum += world->agents.agents[a].brain.boxes[i].w[b];
+        box_weight_sum += world->agents.agents[a].brain->boxes[i].w[b];
       }
       // Add this sum to total stats:
       // box_sum += box_weight_sum;
