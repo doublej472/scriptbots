@@ -71,7 +71,7 @@ extern int32_t MAX_SECONDS;
 // number of babies per agent when they reproduce
 #define REPRATEH 7
 // reproduction rate for herbivors
-#define REPRATEC 7
+#define REPRATEC 3
 // reproduction rate for carnivors
 #define REP_MIN_HEALTH .75
 // health level required of agent before it can reproduce

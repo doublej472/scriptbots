@@ -271,7 +271,6 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   int num_close_agents = world_get_close_agents(world, i, close_agents);
 
   int num_to_dist_body = 0;
-  struct Agent_d dist_agents[FOOD_DISTRIBUTION_MAX] = {};
   struct Agent *a = &world->agents.agents[i];
 
   for (size_t j = 0; j < num_close_agents; j++) {
@@ -343,6 +342,19 @@ void world_update(struct World *world) {
 
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
+
+  // Some things need to be done single threaded
+  for(int i = 0; i < world->agents.size; i++) {
+    struct Agent* a = &world->agents.agents[i];
+    if (a->health <= 0 && a->spiked) {
+      // Distribute dead agents to nearby carnivores
+      world_dist_dead_agent(world, i);
+    }
+
+    if (a->rep) {
+      world_reproduce(world, a, a->MUTRATE1, a->MUTRATE2);
+    }
+  }
 
   // add new agents, if environment isn't closed
   if (!world->closed) {
@@ -762,11 +774,6 @@ void agent_output_processor(void *arg) {
       world->food[cx][cy] -= fmin(f, FOODWASTE);
     }
 
-    if (a->health <= 0 && a->spiked) {
-      // Distribute dead agents to nearby carnivores
-      world_dist_dead_agent(world, i);
-    }
-
     a->rep = 0;
 
     // Handle reproduction
@@ -786,9 +793,6 @@ void agent_output_processor(void *arg) {
     }
 
     agent_process_health(a);
-    if (a->rep) {
-      world_reproduce(world, a, a->MUTRATE1, a->MUTRATE2);
-    }
   }
 }
 
@@ -969,13 +973,10 @@ void agent_input_processor(void *arg) {
           float diff = vector2f_angle_between(&v, &tmp);
           if (fabsf(diff) < M_PI / 8) {
             // bot i is also properly aligned!!! that's a hit
-            float DMG = SPIKEMULT * a->spikeLength *
+            float DMG = SPIKEMULT * a->spikeLength * (1 - a->herbivore) *
                         fmax(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
 
             a2->health -= DMG;
-
-            if (a->health > 2)
-              a->health = 2;    // cap health at 2
             a->spikeLength = 0; // retract spike back down
 
             agent_initevent(
