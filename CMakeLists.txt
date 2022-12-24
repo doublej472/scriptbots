@@ -4,7 +4,14 @@ project(scriptbots)
 option(USE_OPENGL "Compile with OpenGL gui" YES)
 option(BUILD_TESTS "Compile tests" NO)
 option(USE_LTO "Compile with LTO optimizations" NO)
-option(MARCH_NATIVE "compile with -march=native" NO)
+option(MARCH_NATIVE "Compile with -march=native" NO)
+
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	option(GRAPHITE "Compile with graphite optimizations" NO)
+	option(IPAPTA "Compile with ipa-pta optimizations" NO)
+	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" NO)
+	option(FASTMATH "Compile with fast math optimizations (UNSAFE)" NO)
+endif()
 
 add_executable(scriptbots
 	src/vec2f.c
@@ -17,6 +24,26 @@ add_executable(scriptbots
 	src/helpers.c
 	src/World.c
 )
+
+if (FASTMATH)
+	target_link_options(scriptbots PRIVATE -fno-math-errno -fno-trapping-math)
+	target_compile_options(scriptbots PRIVATE -fno-math-errno -fno-trapping-math)
+endif()
+
+if (DEVIRTLTO)
+	target_link_options(scriptbots PRIVATE -fdevirtualize-at-ltrans)
+	target_compile_options(scriptbots PRIVATE -fdevirtualize-at-ltrans)
+endif()
+
+if (IPAPTA)
+	target_link_options(scriptbots PRIVATE -fipa-pta)
+	target_compile_options(scriptbots PRIVATE -fipa-pta)
+endif()
+
+if (GRAPHITE)
+	target_link_options(scriptbots PRIVATE -fgraphite-identity -floop-nest-optimize)
+	target_compile_options(scriptbots PRIVATE -fgraphite-identity -floop-nest-optimize)
+endif()
 
 if (MARCH_NATIVE)
 	target_link_options(scriptbots PRIVATE -march=native)
