@@ -196,7 +196,7 @@ void gl_handleIdle() {
   // show FPS
   int32_t currentTime = glutGet(GLUT_ELAPSED_TIME);
   GLVIEW.frames++;
-  if ((currentTime - GLVIEW.lastUpdate) >= 1000) {
+  if ((currentTime - GLVIEW.lastUpdate) >= 250) {
     int32_t num_herbs = world_numHerbivores(GLVIEW.base->world);
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf,
@@ -298,19 +298,21 @@ void drawAgent(const struct Agent *agent) {
     yy += ss * 2;
 
     // draw brain. Eventually move this to brain class?
-    float offx = 0;
+    int cols = 40;
     ss = 8;
+
     for (int32_t j = 0; j < BRAINSIZE; j++) {
       col = agent->brain->boxes[j].out;
+
+      int offx = (j % cols);
+      int offy = (j / cols);
+
       glColor3f(col, col, col);
-      glVertex3f(offx + 0 + ss * j, yy, 0.0f);
-      glVertex3f(offx + xx + ss * j, yy, 0.0f);
-      glVertex3f(offx + xx + ss * j, yy + ss, 0.0f);
-      glVertex3f(offx + ss * j, yy + ss, 0.0f);
-      if ((j + 1) % 40 == 0) {
-        yy += ss;
-        offx -= ss * 40;
-      }
+
+      glVertex3f(ss * offx, yy +ss * offy, 0.0f);
+      glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
+      glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
+      glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
     }
 
     glEnd();
