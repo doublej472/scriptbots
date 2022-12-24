@@ -271,7 +271,9 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   struct Agent_d close_agents[NUMBOTS_CLOSE];
   int num_close_agents = world_get_close_agents(world, i, close_agents);
 
+  struct Agent* dist_agents[FOOD_DISTRIBUTION_MAX];
   int num_to_dist_body = 0;
+
   struct Agent *a = &world->agents.agents[i];
 
   for (size_t j = 0; j < num_close_agents; j++) {
@@ -288,27 +290,30 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     }
 
     if (a2->herbivore < .1 && a2->health > 0) {
-      num_to_dist_body++;
-
-      // young killed agents should give very little resources
-      // at age 3, they mature and give full. This can also help prevent
-      // agents eating their young right away
-      float agemult = 1.0;
-      if (a->age < 3) {
-        agemult = a->age * 0.33333;
-      }
-      a2->health += 10 * pow(1 - a2->herbivore, 2) /
-                    pow(num_to_dist_body, 1.06) * agemult;
-
-      // make this bot reproduce sooner
-      a2->repcounter -=
-          7 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.06) * agemult;
-
-      if (a2->health > 2)
-        a2->health = 2; // cap it!
-
-      agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
+      dist_agents[num_to_dist_body++] = a2;
     }
+  }
+
+  for (size_t j = 0; j < num_to_dist_body; j++) {
+    struct Agent *a2 = dist_agents[j];
+    // young killed agents should give very little resources
+    // at age 5, they mature and give full. This can also help prevent
+    // agents eating their young right away
+    float agemult = 1.0;
+    if (a->age < 5) {
+      agemult = a->age * (1.0/5.0);
+    }
+    a2->health += 10 * pow(1 - a2->herbivore, 2) /
+                  pow(num_to_dist_body, 1.03) * agemult;
+
+    // make this bot reproduce sooner
+    a2->repcounter -=
+        9 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.03) * agemult;
+
+    if (a2->health > 2)
+      a2->health = 2; // cap it!
+
+    agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
   }
 
   if (num_to_dist_body == 0) {
