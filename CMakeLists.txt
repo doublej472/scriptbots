@@ -75,5 +75,6 @@ if (USE_OPENGL)
 	endif()
 endif()
 
+target_compile_options(scriptbots PRIVATE -Wall)
 target_link_options(scriptbots PRIVATE -lm -pthread)
 target_include_directories(scriptbots PRIVATE ./include)

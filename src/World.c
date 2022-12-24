@@ -78,12 +78,10 @@ void world_init(struct World *world) {
     world_addCarnivore(world);
 
   // inititalize food layer
-  double rand1; // store temp random float to save randf() call
-
   for (int32_t x = 0; x < world->FW; x++) {
     for (int32_t y = 0; y < world->FH; y++) {
 
-      rand1 = randf(0, 1);
+      float rand1 = randf(0, 1);
       if (rand1 > .5) {
         world->food[x][y] = rand1 * FOODMAX;
       } else {
@@ -277,38 +275,51 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   struct Agent *a = &world->agents.agents[i];
 
   for (size_t j = 0; j < num_close_agents; j++) {
+    if (num_to_dist_body >= FOOD_DISTRIBUTION_MAX) {
+      break;
+    }
     struct Agent *a2 = close_agents[j].agent;
+    float d = close_agents[j].dist2;
+
+    // Dont distribute to ourselves
     if (a == a2) {
       continue;
     }
-
-    float d = vector2f_dist2(&a->pos, &a2->pos);
 
     // If we are too far away, don't even consider this agent
     if (d > FOOD_DISTRIBUTION_RADIUS * FOOD_DISTRIBUTION_RADIUS) {
       continue;
     }
 
+    // Only distribute to alive agents that are > 90% carnivores
     if (a2->herbivore < .1 && a2->health > 0) {
       dist_agents[num_to_dist_body++] = a2;
     }
   }
 
+  // if (num_to_dist_body > 0) {
+  //   printf("start dist: %d, a: %d\n", a->id, a->age);
+  // }
+
   for (size_t j = 0; j < num_to_dist_body; j++) {
     struct Agent *a2 = dist_agents[j];
     // young killed agents should give very little resources
-    // at age 5, they mature and give full. This can also help prevent
+    // at age 3, they mature and give full. This can also help prevent
     // agents eating their young right away
     float agemult = 1.0;
-    if (a->age < 5) {
-      agemult = a->age * (1.0 / 5.0);
+    if (a->age < 3) {
+      agemult = (float)a->age * (1.0 / 3.0);
     }
-    a2->health +=
-        10 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.03) * agemult;
 
-    // make this bot reproduce sooner
-    a2->repcounter -=
-        9 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.03) * agemult;
+    // Reward hunting in groups
+    float health_add = 2.0f * ((1.0f - a2->herbivore) * agemult) /
+                       (float)pow(num_to_dist_body, 0.8);
+    float rep_sub = 1.5f * health_add;
+
+    // printf("n: %d, h+: %f, r-: %f\n", num_to_dist_body, health_add, rep_sub);
+
+    a2->health += health_add;
+    a2->repcounter -= rep_sub;
 
     if (a2->health > 2)
       a2->health = 2; // cap it!
@@ -352,7 +363,7 @@ void world_update(struct World *world) {
   // Some things need to be done single threaded
   for (int i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
-    if (a->health <= 0 && a->spiked) {
+    if (a->health <= 0 && a->spiked == 1) {
       // Distribute dead agents to nearby carnivores
       world_dist_dead_agent(world, i);
     }
@@ -779,12 +790,12 @@ void agent_output_processor(void *arg) {
     if (f > 0 && a->health < 2) {
       // agent eats the food
       float itk = fmin(f, FOODINTAKE);
-      float speedmul = (1 - (fabsf(a->w1) + fabsf(a->w2)) / 2) * 0.6 + 0.4;
-      itk = itk * a->herbivore *
-            speedmul; // herbivores gain more from ground food
+      float speedmul =
+          (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * +0.8f;
+      itk = itk * a->herbivore * speedmul;
       a->health += itk;
       a->repcounter -= 3 * itk;
-      world->food[cx][cy] -= fmin(f, FOODWASTE);
+      world->food[cx][cy] -= fmin(f, itk);
     }
 
     a->rep = 0;
@@ -975,7 +986,7 @@ void agent_input_processor(void *arg) {
         }
 
         // Process collisions
-        if (d < BOTRADIUS) {
+        if (d < BOTRADIUS * 2) {
           // these two are in collision and agent i has extended spike and is
           // going decent fast!
           struct Vector2f v;
@@ -984,7 +995,7 @@ void agent_input_processor(void *arg) {
           struct Vector2f tmp;
           vector2f_sub(&tmp, &a2->pos, &a->pos);
           float diff = vector2f_angle_between(&v, &tmp);
-          if (fabsf(diff) < M_PI / 8) {
+          if (fabsf(diff) < M_PI / 3) {
             // bot i is also properly aligned!!! that's a hit
             float DMG = SPIKEMULT * a->spikeLength * (1 - a->herbivore) *
                         fmax(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
