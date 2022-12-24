@@ -1,11 +1,15 @@
+#include <pthread.h>
 #include <time.h>
 
 #include "queue.h"
 
 void queue_init(struct Queue *queue) {
-  pthread_condattr_t monoattr;
-  pthread_condattr_init(&monoattr);
-  pthread_condattr_setclock(&monoattr, CLOCK_MONOTONIC);
+  pthread_condattr_t cattr;
+  pthread_condattr_init(&cattr);
+  pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC);
+
+  pthread_mutexattr_t mattr;
+  pthread_mutexattr_init(&mattr);
 
   queue->size = 0;
   queue->in = 0;
@@ -13,10 +17,10 @@ void queue_init(struct Queue *queue) {
   queue->closed = 0;
   queue->num_work_items = 0;
 
-  pthread_mutex_init(&queue->mutex, NULL);
-  pthread_cond_init(&queue->cond_item_added, &monoattr);
-  pthread_cond_init(&queue->cond_item_removed, &monoattr);
-  pthread_cond_init(&queue->cond_work_done, &monoattr);
+  pthread_mutex_init(&queue->mutex, &mattr);
+  pthread_cond_init(&queue->cond_item_added, &cattr);
+  pthread_cond_init(&queue->cond_item_removed, &cattr);
+  pthread_cond_init(&queue->cond_work_done, &cattr);
 }
 
 void queue_enqueue(struct Queue *queue, struct QueueItem value) {

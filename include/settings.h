@@ -48,7 +48,7 @@ extern int32_t MAX_SECONDS;
 // how fast they can move
 #define SPIKESPEED 0.02
 // how quickly can attack spike go up?
-#define SPIKEMULT 3
+#define SPIKEMULT 2
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2
 // how much boost do agents get? when boost neuron is on
@@ -67,11 +67,11 @@ extern int32_t MAX_SECONDS;
 // at what age do they start lossing health for being old?
 
 // REPRODUCTION ----------------------------------------------
-#define BABIES 3
+#define BABIES 2
 // number of babies per agent when they reproduce
 #define REPRATEH 7
 // reproduction rate for herbivors
-#define REPRATEC 7
+#define REPRATEC 6
 // reproduction rate for carnivors
 #define REP_MIN_HEALTH .75
 // health level required of agent before it can reproduce

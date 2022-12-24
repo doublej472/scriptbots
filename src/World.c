@@ -271,7 +271,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   struct Agent_d close_agents[NUMBOTS_CLOSE];
   int num_close_agents = world_get_close_agents(world, i, close_agents);
 
-  struct Agent* dist_agents[FOOD_DISTRIBUTION_MAX];
+  struct Agent *dist_agents[FOOD_DISTRIBUTION_MAX];
   int num_to_dist_body = 0;
 
   struct Agent *a = &world->agents.agents[i];
@@ -301,10 +301,10 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     // agents eating their young right away
     float agemult = 1.0;
     if (a->age < 5) {
-      agemult = a->age * (1.0/5.0);
+      agemult = a->age * (1.0 / 5.0);
     }
-    a2->health += 10 * pow(1 - a2->herbivore, 2) /
-                  pow(num_to_dist_body, 1.03) * agemult;
+    a2->health +=
+        10 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.03) * agemult;
 
     // make this bot reproduce sooner
     a2->repcounter -=
@@ -367,6 +367,13 @@ void world_update(struct World *world) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
     if (world->agents.size < NUMBOTS_MIN) {
       world_addRandomBots(world, 10);
+    }
+    if (world->modcounter % 1000 == 0) {
+      if (world_numCarnivores(world) < 5) {
+        for (int i = 0; i < 50; i++) {
+          world_addCarnivore(world);
+        }
+      }
     }
   }
 
