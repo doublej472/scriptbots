@@ -1,13 +1,12 @@
-#include "config.h"
 #include <GL/glut.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-#include "include/Base.h"
-#include "include/GLView.h"
-#include "include/World.h"
-#include "include/queue.h"
+#include "Base.h"
+#include "GLView.h"
+#include "World.h"
+#include "queue.h"
 
 void renderString(float x, float y, void *font, const char *string, float r,
                   float g, float b) {

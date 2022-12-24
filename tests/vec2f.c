@@ -1,4 +1,4 @@
-#include "include/vec2f.h"
+#include "vec2f.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>

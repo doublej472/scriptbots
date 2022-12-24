@@ -19,8 +19,8 @@ extern int32_t MAX_SECONDS;
 // WORLD / WINDOW SETTINGS -------------------------------------
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH 4000
-#define HEIGHT 2500
+#define WIDTH 6000
+#define HEIGHT 4500
 // computer window width and height
 #define WWIDTH 1400
 #define WHEIGHT 1000
@@ -36,19 +36,19 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 2000
+#define NUMBOTS 3000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
-#define NUMBOTS_CLOSE 24
+#define NUMBOTS_CLOSE 32
 // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10
 // for drawing
 #define BOTSPEED 0.1
 // how fast they can move
-#define SPIKESPEED 0.01
+#define SPIKESPEED 0.02
 // how quickly can attack spike go up?
-#define SPIKEMULT 2
+#define SPIKEMULT 3
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2
 // how much boost do agents get? when boost neuron is on
@@ -67,11 +67,11 @@ extern int32_t MAX_SECONDS;
 // at what age do they start lossing health for being old?
 
 // REPRODUCTION ----------------------------------------------
-#define BABIES 2
+#define BABIES 3
 // number of babies per agent when they reproduce
 #define REPRATEH 7
 // reproduction rate for herbivors
-#define REPRATEC 3
+#define REPRATEC 7
 // reproduction rate for carnivors
 #define REP_MIN_HEALTH .75
 // health level required of agent before it can reproduce
@@ -106,7 +106,7 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.5
 // how much food per cell can there be at max?
-#define FOODADDFREQ 8
+#define FOODADDFREQ 5
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD .1
@@ -122,7 +122,7 @@ extern int32_t MAX_SECONDS;
 #define FOOD_SHARING_DISTANCE 40
 
 // when bot is killed, how far is its body distributed?
-#define FOOD_DISTRIBUTION_RADIUS 100
+#define FOOD_DISTRIBUTION_RADIUS DIST
 
 // max number of agents to distribute to
 #define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE

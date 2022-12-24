@@ -1,6 +1,6 @@
 #include <math.h>
 
-#include "include/vec2f.h"
+#include "vec2f.h"
 
 void vector2f_init(struct Vector2f *vec, float x, float y) {
   vec->x = x;

@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.24)
+project(scriptbots)
+
+option(USE_OPENGL "Compile with OpenGL gui" YES)
+option(BUILD_TESTS "Compile tests" NO)
+
+add_executable(scriptbots
+	src/vec2f.c
+	src/queue.c
+	src/vec.c
+	src/Base.c
+	src/Agent.c
+	src/main.c
+	src/MLPBrain.c
+	src/helpers.c
+	src/World.c
+)
+
+if (BUILD_TESTS)
+	add_executable(test_vec2f
+		src/vec2f.c
+		tests/vec2f.c
+	)
+	target_link_options(test_vec2f PRIVATE -lm)
+	target_include_directories(test_vec2f PRIVATE ./include)
+endif()
+
+if (USE_OPENGL)
+	find_package(OpenGL COMPONENTS OpenGL)
+	find_package(GLUT)
+
+	if(OPENGL_FOUND AND GLUT_FOUND)
+		add_dependencies(scriptbots OpenGL::OpenGL GLUT::GLUT)
+		target_link_libraries(scriptbots OpenGL::OpenGL GLUT::GLUT)
+		target_sources(scriptbots PRIVATE src/GLView.c)
+		add_compile_definitions(OPENGL)
+	endif()
+endif()
+
+target_link_options(scriptbots PRIVATE -lm -pthread)
+target_include_directories(scriptbots PRIVATE ./include)

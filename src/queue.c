@@ -1,6 +1,6 @@
 #include <time.h>
 
-#include "include/queue.h"
+#include "queue.h"
 
 void queue_init(struct Queue *queue) {
   pthread_condattr_t monoattr;

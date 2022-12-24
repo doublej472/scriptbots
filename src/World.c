@@ -4,12 +4,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "include/World.h"
-#include "include/helpers.h"
-#include "include/queue.h"
-#include "include/settings.h"
-#include "include/vec.h"
-#include "include/vec2f.h"
+#include "World.h"
+#include "helpers.h"
+#include "queue.h"
+#include "settings.h"
+#include "vec.h"
+#include "vec2f.h"
 
 static void timespec_diff(struct timespec *result, struct timespec *start,
                           struct timespec *stop) {
@@ -291,18 +291,18 @@ void world_dist_dead_agent(struct World *world, size_t i) {
       num_to_dist_body++;
 
       // young killed agents should give very little resources
-      // at age 2, they mature and give full. This can also help prevent
+      // at age 3, they mature and give full. This can also help prevent
       // agents eating their young right away
       float agemult = 1.0;
-      if (a->age < 2) {
-        agemult = a->age * 0.5;
+      if (a->age < 3) {
+        agemult = a->age * 0.33333;
       }
-      a2->health += 9 * (1 - a2->herbivore) /
-                    pow(num_to_dist_body, 1.25) * agemult;
+      a2->health += 10 * pow(1 - a2->herbivore, 2) /
+                    pow(num_to_dist_body, 1.06) * agemult;
 
       // make this bot reproduce sooner
-      a2->repcounter -= 11 * (1 - a2->herbivore) /
-                        pow(num_to_dist_body, 1.25) * agemult;
+      a2->repcounter -=
+          7 * pow(1 - a2->herbivore, 2) / pow(num_to_dist_body, 1.06) * agemult;
 
       if (a2->health > 2)
         a2->health = 2; // cap it!

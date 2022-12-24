@@ -1,5 +1,5 @@
-#include "include/MLPBrain.h"
-#include "include/helpers.h"
+#include "MLPBrain.h"
+#include "helpers.h"
 #include <stdlib.h>
 #include <string.h>
 

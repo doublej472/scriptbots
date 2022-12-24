@@ -1,7 +1,7 @@
 #ifndef VEC_H
 #define VEC_H
 
-#include "include/Agent.h"
+#include "Agent.h"
 
 struct AVec {
   struct Agent *agents;

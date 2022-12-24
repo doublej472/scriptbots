@@ -1,5 +1,5 @@
-#include "include/vec.h"
-#include "include/Agent.h"
+#include "vec.h"
+#include "Agent.h"
 
 #include <stdlib.h>
 

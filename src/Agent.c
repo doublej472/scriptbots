@@ -1,8 +1,8 @@
-#include "include/Agent.h"
+#include "Agent.h"
 
-#include "include/MLPBrain.h"
-#include "include/helpers.h"
-#include "include/settings.h"
+#include "MLPBrain.h"
+#include "helpers.h"
+#include "settings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

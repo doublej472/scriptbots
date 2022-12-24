@@ -10,19 +10,17 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "config.h"
-
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
-#include "include/GLView.h"
+#include "GLView.h"
 #include <GL/glut.h>
 #endif
 
-#include "include/Base.h"
-#include "include/World.h"
-#include "include/helpers.h"
-#include "include/queue.h"
-#include "include/settings.h"
+#include "Base.h"
+#include "World.h"
+#include "helpers.h"
+#include "queue.h"
+#include "settings.h"
 
 // ---------------------------------------------------------------------------
 // Global Vars:
