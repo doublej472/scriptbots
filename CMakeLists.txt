@@ -3,6 +3,8 @@ project(scriptbots)
 
 option(USE_OPENGL "Compile with OpenGL gui" YES)
 option(BUILD_TESTS "Compile tests" NO)
+option(USE_LTO "Compile with LTO optimizations" NO)
+option(MARCH_NATIVE "compile with -march=native" NO)
 
 add_executable(scriptbots
 	src/vec2f.c
@@ -16,6 +18,11 @@ add_executable(scriptbots
 	src/World.c
 )
 
+if (MARCH_NATIVE)
+	target_link_options(scriptbots PRIVATE -march=native)
+	target_compile_options(scriptbots PRIVATE -march=native)
+endif()
+
 if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
@@ -23,6 +30,10 @@ if (BUILD_TESTS)
 	)
 	target_link_options(test_vec2f PRIVATE -lm)
 	target_include_directories(test_vec2f PRIVATE ./include)
+endif()
+
+if (USE_LTO)
+	set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 if (USE_OPENGL)

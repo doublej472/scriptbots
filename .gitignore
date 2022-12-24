@@ -9,3 +9,5 @@ build-clang/
 *.dat
 .vscode/
 b/
+CMakeCache.txt
+CMakeFiles/
