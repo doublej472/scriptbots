@@ -10,6 +10,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#ifdef TRAP_NAN
+#include <fenv.h>
+#endif
+
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
 #include "GLView.h"
@@ -56,6 +60,9 @@ void *worker_thread(void *arg) {
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
+#ifdef TRAP_NAN
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#endif
   init_thread_random();
   VERBOSE = 0; // Run in verbose mode
 #ifdef OPENGL
@@ -108,13 +115,13 @@ int main(int argc, char **argv) {
          "----------\n");
   printf("ScriptBots - Evolutionary Artificial Life Simulation of "
          "Predator-Prey Dynamics\n");
-  printf(
-      "   Version 5 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins\n\n");
-  printf("Environment:");
+  printf("   Version 6 - by Andrej Karpathy, Dave Coleman, Gregory Hopkins, "
+         "Jonathan Frederick\n\n");
+  printf("Environment:\n");
 #ifdef OPENGL
-  printf("   OpenGL and GLUT found!\n");
+  printf("   OpenGL and GLUT supported!\n");
 #else
-  printf("   OpenGL and GLUT NOT found!\n");
+  printf("   OpenGL and GLUT NOT supported!\n");
 #endif
 
   printf("   Threading details:\n");

@@ -130,7 +130,7 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate,
 
     // Modify connectivity of brain
     if (randf(0, 1) < mutaterate * 3) {
-      for (int i = 0; i < randf(1,16); i++) {
+      for (int i = 0; i < randf(1, 16); i++) {
         int32_t rc = randi(0, CONNS);
         int32_t ri = randi(0, BRAINSIZE);
         boxes[j].id[rc] = ri;

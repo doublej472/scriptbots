@@ -788,12 +788,13 @@ void agent_output_processor(void *arg) {
     int32_t cy = (int32_t)a->pos.y / CZ;
     float f = world->food[cx][cy];
 
-    if (f > 0 && a->health < 2) {
+    if (f > 0 && a->health < 2 && a->herbivore > 0.1f) {
       // agent eats the food
       float itk = fmin(f, FOODINTAKE);
       float speedmul =
-          (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) + 0.8f;
-      itk = itk * a->herbivore * speedmul;
+          (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * 0.5f +
+          0.5f;
+      itk = itk * speedmul * a->herbivore * a->herbivore;
       a->health += itk;
       a->repcounter -= 3 * itk;
       world->food[cx][cy] -= fmin(f, itk);

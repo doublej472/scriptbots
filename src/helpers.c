@@ -73,18 +73,18 @@ inline float cap(float a) {
 // }
 
 // https://www.musicdsp.org/en/latest/Other/222-fast-exp-approximations.html
-// inline float fast_exp(float x) {
-//  return (24 + x * (24 + x * (12 + x * (4 + x)))) * 0.041666666f;
-//}
-
-inline float fast_exp(float a) {
-  union {
-    float f;
-    int x;
-  } u;
-  u.x = (int)(12102203 * a + 1064866805);
-  return u.f;
+inline float fast_exp(float x) {
+  return (24 + x * (24 + x * (12 + x * (4 + x)))) * 0.041666666f;
 }
+
+// inline float fast_exp(float a) {
+//   union {
+//     float f;
+//     int x;
+//   } u;
+//   u.x = (int)(12102203 * a + 1064866805);
+//   return u.f;
+// }
 
 // Get number of processors in the system
 inline long get_nprocs() { return sysconf(_SC_NPROCESSORS_ONLN); }

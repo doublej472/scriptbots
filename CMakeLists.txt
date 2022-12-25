@@ -5,6 +5,8 @@ option(USE_OPENGL "Compile with OpenGL gui" YES)
 option(BUILD_TESTS "Compile tests" NO)
 option(USE_LTO "Compile with LTO optimizations" NO)
 option(MARCH_NATIVE "Compile with -march=native" NO)
+option(ASAN "Compile with address sanitation enabled" NO)
+option(TRAP_NAN "Make program exit on math errors" NO)
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	option(GRAPHITE "Compile with graphite optimizations" NO)
@@ -24,6 +26,15 @@ add_executable(scriptbots
 	src/helpers.c
 	src/World.c
 )
+
+if (TRAP_NAN)
+	add_compile_definitions(TRAP_NAN)
+endif()
+
+if (ASAN)
+	target_link_options(scriptbots PRIVATE -fsanitize=address)
+	target_compile_options(scriptbots PRIVATE -fsanitize=address)
+endif()
 
 if (FASTMATH)
 	target_link_options(scriptbots PRIVATE -fno-math-errno -fno-trapping-math)

@@ -309,7 +309,7 @@ void drawAgent(const struct Agent *agent) {
 
       glColor3f(col, col, col);
 
-      glVertex3f(ss * offx, yy +ss * offy, 0.0f);
+      glVertex3f(ss * offx, yy + ss * offy, 0.0f);
       glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
       glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
       glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
