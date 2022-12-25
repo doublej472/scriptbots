@@ -241,6 +241,7 @@ void runWithGraphics(int32_t argc, char **argv, struct Base *base) {
   glutReshapeFunc(gl_changeSize);
 
   glutKeyboardFunc(gl_processNormalKeys);
+  glutSpecialFunc(gl_processSpecialKeys);
   glutMouseFunc(gl_processMouse);
   glutMotionFunc(gl_processMouseActiveMotion);
 

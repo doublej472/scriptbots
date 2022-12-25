@@ -378,10 +378,10 @@ void world_update(struct World *world) {
   // add new agents, if environment isn't closed
   if (!world->closed) {
     // make sure environment is always populated with at least NUMBOTS_MIN bots
-    if (world->agents.size < NUMBOTS_MIN) {
-      world_addRandomBots(world, 10);
-    }
     if (world->modcounter % 1000 == 0) {
+      if (world->agents.size < NUMBOTS_MIN) {
+        world_addRandomBots(world, 50);
+      }
       if (world_numCarnivores(world) < 5) {
         for (int i = 0; i < 50; i++) {
           world_addCarnivore(world);

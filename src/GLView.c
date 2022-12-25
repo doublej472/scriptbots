@@ -106,10 +106,39 @@ void gl_processMouseActiveMotion(int32_t x, int32_t y) {
     GLVIEW.ytranslate += (y - GLVIEW.mousey) / GLVIEW.scalemult;
   }
 
-  // printf("%f %f %f \n", scalemult, xtranslate, ytranslate);
+  // printf("%f %f %f \n", GLVIEW.scalemult, GLVIEW.xtranslate,
+  // GLVIEW.ytranslate);
 
   GLVIEW.mousex = x;
   GLVIEW.mousey = y;
+}
+
+void gl_processSpecialKeys(int key, int x, int y) {
+  switch (key) {
+  case GLUT_KEY_PAGE_UP:
+    GLVIEW.scalemult += GLVIEW.scalemult * 0.05;
+    break;
+  case GLUT_KEY_PAGE_DOWN:
+    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05;
+    if (GLVIEW.scalemult < 0.01) {
+      GLVIEW.scalemult = 0.01;
+    }
+    break;
+  case GLUT_KEY_UP:
+    GLVIEW.ytranslate += 5.0f / GLVIEW.scalemult;
+    break;
+  case GLUT_KEY_DOWN:
+    GLVIEW.ytranslate -= 5.0f / GLVIEW.scalemult;
+    break;
+  case GLUT_KEY_RIGHT:
+    GLVIEW.xtranslate -= 5.0f / GLVIEW.scalemult;
+    break;
+  case GLUT_KEY_LEFT:
+    GLVIEW.xtranslate += 5.0f / GLVIEW.scalemult;
+    break;
+  default:
+    printf("Unknown special key pressed: %i\n", key);
+  }
 }
 
 void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
