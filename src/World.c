@@ -60,7 +60,6 @@ void world_init(struct World *world) {
   world->stopSim = 0;
   world->modcounter = 0;
   world->current_epoch = 0;
-  world->idcounter = 0;
   world->numAgentsAdded = 0;
   world->FW = WIDTH / CZ;
   world->FH = HEIGHT / CZ;
@@ -298,25 +297,27 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   }
 
   // if (num_to_dist_body > 0) {
-  //   printf("start dist: %d, a: %d\n", a->id, a->age);
+  //   printf("start dist: age: %d\n", a->age);
   // }
 
   for (size_t j = 0; j < num_to_dist_body; j++) {
     struct Agent *a2 = dist_agents[j];
     // young killed agents should give very little resources
-    // at age 3, they mature and give full. This can also help prevent
+    // at age 1, they mature and give full. This can also help prevent
     // agents eating their young right away
-    float agemult = 1.0;
-    if (a->age < 3) {
-      agemult = (float)a->age * (1.0 / 3.0);
+    float agemult = 1.0f;
+    if (a->age < 1) {
+      agemult = ((float)a->age + 0.2f) / 4.0f;
     }
 
+    float health_add =
+        1.5f * ((1.0f - a2->herbivore) * agemult) / (float)num_to_dist_body;
     // Reward hunting in groups
-    float health_add = 2.0f * ((1.0f - a2->herbivore) * agemult) /
-                       (float)pow(num_to_dist_body, 0.8);
-    float rep_sub = 1.5f * health_add;
+    health_add += 0.5f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
+    float rep_sub = 3.5f * health_add;
 
-    // printf("n: %d, h+: %f, r-: %f\n", num_to_dist_body, health_add, rep_sub);
+    // printf("n: %d, carn: %f, h+: %f, r-: %f\n", num_to_dist_body, 1.0f -
+    // a2->herbivore, health_add, rep_sub);
 
     a2->health += health_add;
     a2->repcounter -= rep_sub;
@@ -324,7 +325,8 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     if (a2->health > 2)
       a2->health = 2; // cap it!
 
-    agent_initevent(a2, 30, 1, 1, 1); // white means they ate! nice
+    agent_initevent(a2, health_add * 50.0f, 1, 0,
+                    0); // red means they ate! nice
   }
 
   if (num_to_dist_body == 0) {
@@ -446,7 +448,6 @@ void world_addRandomBots(struct World *world, int32_t num) {
   for (int32_t i = 0; i < num; i++) {
     struct Agent a;
     agent_init(&a);
-    a.id = world->idcounter++;
 
     avec_push_back(&world->agents_staging, a);
   }
@@ -455,7 +456,6 @@ void world_addRandomBots(struct World *world, int32_t num) {
 void world_addCarnivore(struct World *world) {
   struct Agent a;
   agent_init(&a);
-  a.id = world->idcounter++;
   a.herbivore = randf(0, 0.1);
 
   avec_push_back(&world->agents_staging, a);
@@ -487,8 +487,6 @@ void world_addNewByCrossover(struct World *world) {
   agent_crossover(&anew, a1, a2);
 
   // maybe do mutation here? I dont know. So far its only crossover
-  anew.id = world->idcounter;
-  world->idcounter++;
   avec_push_back(&world->agents_staging, anew);
 
   world->numAgentsAdded++; // record in report
@@ -507,7 +505,6 @@ void world_reproduce(struct World *world, struct Agent *a, float MR,
     struct Agent a2;
     agent_init(&a2);
     agent_reproduce(&a2, a, MR, MR2);
-    a2.id = world->idcounter++;
     avec_push_back(&world->agents_staging, a2);
   }
 }
@@ -544,37 +541,6 @@ void world_writeReport(struct World *world) {
   // Compute Standard Devitation of every weight in every agents brain
   double total_std_dev = 0;
   double total_mean_std_dev;
-
-  // loop through every box in brain (there are BRAINSIZE of these)
-  for (int32_t i = 0; i < BRAINSIZE; i++) {
-    // double box_sum = 0;
-    double box_weights[world->agents.size];
-    // double box_mean;
-    // double box_square_sum = 0;
-
-    // loop through every agent to get the weight
-    for (size_t a = 0; a < world->agents.size; a++) {
-      double box_weight_sum = 0;
-
-      for (int32_t b = 0; b < CONNS; b++) {
-        box_weight_sum += world->agents.agents[a].brain->boxes[i].w[b];
-      }
-      // Add this sum to total stats:
-      // box_sum += box_weight_sum;
-      box_weights[a] = box_weight_sum;
-    }
-
-    // Computer the mean of the box_weight_sum for this box
-    // box_mean = box_sum / BRAINSIZE;
-    // cout << "BOX MEAN = " << box_mean << endl;
-
-    // Now calculate the population standard deviation for this box:
-    // Compute diff of each weight sum from mean and square the result, then add
-    // it:
-    // for (size_t c = 0; c < world->agents.size; c++) {
-    //   box_square_sum += pow(box_weights[c] - box_mean, 2);
-    // }
-  }
 
   total_mean_std_dev =
       total_std_dev - 200; // reduce by 200 for graph readability
@@ -773,14 +739,14 @@ void agent_output_processor(void *arg) {
               if (a->pos.y>=HEIGHT) a->pos.y= a->pos.y-HEIGHT;*/
 
     // have peetree dish borders
-    if (a->pos.x < 0)
-      a->pos.x = 0;
-    if (a->pos.x >= WIDTH)
-      a->pos.x = WIDTH - 1;
-    if (a->pos.y < 0)
-      a->pos.y = 0;
-    if (a->pos.y >= HEIGHT)
-      a->pos.y = HEIGHT - 1;
+    if (a->pos.x - BOTRADIUS < 0)
+      a->pos.x = BOTRADIUS;
+    if (a->pos.x + BOTRADIUS > WIDTH)
+      a->pos.x = WIDTH - BOTRADIUS;
+    if (a->pos.y - BOTRADIUS < 0)
+      a->pos.y = BOTRADIUS;
+    if (a->pos.y + BOTRADIUS > HEIGHT)
+      a->pos.y = HEIGHT - BOTRADIUS;
 
     // process food intake
 
@@ -839,7 +805,6 @@ void agent_input_processor(void *arg) {
     // printf("index: %zu\n", i);
     // printf("sizeof: %zu\n", sizeof(struct Agent));
     // printf("pointer: %p\n", (void*) &world->agents.agents[i]);
-    // printf("agent: %i\n", a->id);
 
     struct Agent_d close_agents[NUMBOTS_CLOSE];
     int num_close_agents = world_get_close_agents(world, i, close_agents);
@@ -855,7 +820,7 @@ void agent_input_processor(void *arg) {
       a->indicator--;
 
     // Update agents age
-    if (!world->modcounter % 100)
+    if (world->modcounter % 100 == 0)
       a->age++;
 
     // FOOD
@@ -997,7 +962,7 @@ void agent_input_processor(void *arg) {
           struct Vector2f tmp;
           vector2f_sub(&tmp, &a2->pos, &a->pos);
           float diff = vector2f_angle_between(&v, &tmp);
-          if (fabsf(diff) < M_PI / 3) {
+          if (fabsf(diff) < M_PI / 6) {
             // bot i is also properly aligned!!! that's a hit
             float DMG = SPIKEMULT * a->spikeLength * (1 - a->herbivore) *
                         fmax(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
@@ -1006,7 +971,7 @@ void agent_input_processor(void *arg) {
             a->spikeLength = 0; // retract spike back down
 
             agent_initevent(
-                a, 40 * DMG, 1, 1,
+                a, 10 * DMG, 1, 1,
                 0); // yellow event means bot has spiked other bot. nice!
 
             struct Vector2f v2;

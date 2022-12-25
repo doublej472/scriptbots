@@ -38,8 +38,6 @@ void agent_init(struct Agent *agent) {
       agent->herbivore * randf(REPRATEH - 0.1, REPRATEH + 0.1) +
       (1 - agent->herbivore) * randf(REPRATEC - 0.1, REPRATEC + 0.1);
 
-  agent->id = 0;
-
   agent->MUTRATE1 = 0.003;
   agent->MUTRATE2 = 0.05;
 
@@ -60,10 +58,13 @@ void agent_print(struct Agent *agent) {
 
 void agent_initevent(struct Agent *agent, float size, float r, float g,
                      float b) {
-  agent->indicator = size;
-  agent->ir = r;
-  agent->ig = g;
-  agent->ib = b;
+  // Don't overwrite more important events
+  if (size > agent->indicator) {
+    agent->indicator = size;
+    agent->ir = r;
+    agent->ig = g;
+    agent->ib = b;
+  }
 }
 
 void agent_tick(struct Agent *agent) {
@@ -151,6 +152,9 @@ void agent_process_health(struct Agent *agent) {
   // process bots health
   float healthloss = LOSS_BASE; // base amount of health lost every turn for
                                 // being alive
+  if (agent->age > 500) {
+    healthloss += (LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
+  }
 
   // remove health based on wheel speed
   if (agent->boost) { // is using boost

@@ -6,15 +6,12 @@
 #include "settings.h"
 
 struct MLPBox {
-  float w[CONNS];    // weight of each connecting box
-  int32_t id[CONNS]; // id in boxes[] of the connecting box
-  float kp;          // damper
-  float gw;          // global w
+  float w[CONNS];     // weight of each connecting box
+  uint32_t id[CONNS]; // id in boxes[] of the connecting box
   float bias;
 
   // state variables
-  float target; // target value this node is going toward
-  float out;    // current output
+  float out; // current output
 };
 
 void mlpbox_init(struct MLPBox *box);

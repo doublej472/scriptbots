@@ -44,8 +44,6 @@ struct Agent {
 
   float give; // is this agent attempting to give food to other agent?
 
-  int32_t id;
-
   // inhereted stuff
   float herbivore; // is this agent a herbivore? between 0 and 1
   float MUTRATE1;  // how often do mutations occur?

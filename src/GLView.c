@@ -225,6 +225,7 @@ void gl_handleIdle() {
 }
 
 void gl_renderScene() {
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
 
@@ -243,6 +244,7 @@ void drawAgent(const struct Agent *agent) {
   float asx = (agent->pos.x + GLVIEW.xtranslate) * (GLVIEW.scalemult);
   float asy = (agent->pos.y + GLVIEW.ytranslate) * (GLVIEW.scalemult);
 
+  // Basic culling
   if ((agent->selectflag == 0) &&
       (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
        asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
@@ -251,7 +253,6 @@ void drawAgent(const struct Agent *agent) {
 
   float n;
   float r = BOTRADIUS;
-  float rp = BOTRADIUS + 2;
 
   // handle selected agent
   if (agent->selectflag > 0) {
@@ -332,7 +333,7 @@ void drawAgent(const struct Agent *agent) {
   glBegin(GL_LINES);
   // and view cones
   glColor3f(0.5, 0.5, 0.5);
-  for (int32_t j = -2; j < 3; j++) {
+  for (int32_t j = -2; j <= 2; j++) {
     if (j == 0)
       continue;
     glVertex3f(agent->pos.x, agent->pos.y, 0);
@@ -340,19 +341,6 @@ void drawAgent(const struct Agent *agent) {
         agent->pos.x + (BOTRADIUS * 4) * cos(agent->angle + j * M_PI / 8),
         agent->pos.y + (BOTRADIUS * 4) * sin(agent->angle + j * M_PI / 8), 0);
   }
-  // and eye to the back
-  glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x +
-                 (BOTRADIUS * 1.5) * cos(agent->angle + M_PI + 3 * M_PI / 16),
-             agent->pos.y +
-                 (BOTRADIUS * 1.5) * sin(agent->angle + M_PI + 3 * M_PI / 16),
-             0);
-  glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x +
-                 (BOTRADIUS * 1.5) * cos(agent->angle + M_PI - 3 * M_PI / 16),
-             agent->pos.y +
-                 (BOTRADIUS * 1.5) * sin(agent->angle + M_PI - 3 * M_PI / 16),
-             0);
   glEnd();
 
   glBegin(GL_POLYGON); // body
@@ -385,8 +373,8 @@ void drawAgent(const struct Agent *agent) {
   int32_t xo = 18;
   int32_t yo = -15;
   glBegin(GL_QUADS);
-  // black background
-  glColor3f(0, 0, 0);
+  // red background
+  glColor3f(0.5, 0.0, 0.0);
   glVertex3f(agent->pos.x + xo, agent->pos.y + yo, 0);
   glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo, 0);
   glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 40, 0);
@@ -401,27 +389,18 @@ void drawAgent(const struct Agent *agent) {
   glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 40, 0);
   glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 40, 0);
 
-  // if this is a hybrid, we want to put a marker down
-  if (agent->hybrid) {
-    glColor3f(0, 0, 0.8);
-    glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo, 0);
-    glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo, 0);
-    glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 10, 0);
-    glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 10, 0);
-  }
-
   glColor3f(1 - agent->herbivore, agent->herbivore, 0);
+  glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 0, 0);
+  glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 0, 0);
+  glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 10, 0);
+  glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 10, 0);
+
+  // how much sound is this bot making?
+  glColor3f(agent->soundmul, agent->soundmul, agent->soundmul);
   glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 12, 0);
   glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 12, 0);
   glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 22, 0);
   glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 22, 0);
-
-  // how much sound is this bot making?
-  glColor3f(agent->soundmul, agent->soundmul, agent->soundmul);
-  glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 24, 0);
-  glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 24, 0);
-  glVertex3f(agent->pos.x + xo + 12, agent->pos.y + yo + 34, 0);
-  glVertex3f(agent->pos.x + xo + 6, agent->pos.y + yo + 34, 0);
 
   glEnd();
 
@@ -429,25 +408,26 @@ void drawAgent(const struct Agent *agent) {
   if (GLVIEW.scalemult > .7) {
     // generation count
     sprintf(GLVIEW.buf2, "%i", agent->gencount);
-    renderString(agent->pos.x - BOTRADIUS * 1.5, agent->pos.y + BOTRADIUS * 1.8,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2,
+                 agent->pos.y + 5.0f + BOTRADIUS * 2, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     // age
     sprintf(GLVIEW.buf2, "%i", agent->age);
-    renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 12, GLUT_BITMAP_HELVETICA_12,
-                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2,
+                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 12,
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
 
     // health
     sprintf(GLVIEW.buf2, "%.2f", agent->health);
-    renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 24, GLUT_BITMAP_HELVETICA_12,
-                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2,
+                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 24,
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
 
     // repcounter
     sprintf(GLVIEW.buf2, "%.2f", agent->repcounter);
-    renderString(agent->pos.x - BOTRADIUS * 1.5,
-                 agent->pos.y + BOTRADIUS * 1.8 + 36, GLUT_BITMAP_HELVETICA_12,
-                 GLVIEW.buf2, 0.0f, 0.0f, 0.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2,
+                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 36,
+                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
   }
 }
 
@@ -455,7 +435,7 @@ void drawFood(int32_t x, int32_t y, float quantity) {
   // draw food
   if (GLVIEW.drawfood) {
     glBegin(GL_QUADS);
-    glColor3f(0.9 - quantity, 0.9 - quantity, 1.0 - quantity);
+    glColor3f(0.02f, 0.02f + quantity * 0.8f, 0.02f);
     glVertex3f(x * CZ, y * CZ, 0);
     glVertex3f(x * CZ + CZ, y * CZ, 0);
     glVertex3f(x * CZ + CZ, y * CZ + CZ, 0);
@@ -465,10 +445,33 @@ void drawFood(int32_t x, int32_t y, float quantity) {
 }
 
 void glview_draw(struct World *world, int32_t drawfood) {
+  glBegin(GL_QUADS);
+  glColor3f(1.0f, 0.5f, 0.0f);
+  // Left wall
+  glVertex3f(-5.0f, -5.0f, 0);
+  glVertex3f(0.0f, -5.0f, 0);
+  glVertex3f(0.0f, HEIGHT + 5.0f, 0);
+  glVertex3f(-5.0f, HEIGHT + 5.0f, 0);
+  // Right wall
+  glVertex3f(WIDTH + 5.0f, -5.0f, 0);
+  glVertex3f(WIDTH, -5.0f, 0);
+  glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
+  glVertex3f(WIDTH + 5.0f, HEIGHT + 5.0f, 0);
+  // Top wall
+  glVertex3f(0.0f, -5.0f, 0);
+  glVertex3f(0.0f, 0.0f, 0);
+  glVertex3f(WIDTH, 0.0f, 0);
+  glVertex3f(WIDTH, -5.0f, 0);
+  // Bottom wall
+  glVertex3f(0.0f, HEIGHT + 5.0f, 0);
+  glVertex3f(0.0f, HEIGHT, 0);
+  glVertex3f(WIDTH, HEIGHT, 0);
+  glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
+  glEnd();
   if (drawfood) {
     for (int32_t i = 0; i < world->FW; i++) {
       for (int32_t j = 0; j < world->FH; j++) {
-        float f = 0.5 * world->food[i][j] / FOODMAX;
+        float f = world->food[i][j] / FOODMAX;
         drawFood(i, j, f);
       }
     }

@@ -13,20 +13,20 @@ extern int32_t MAX_SECONDS;
 
 #define INPUTSIZE 38
 #define OUTPUTSIZE 18
-#define BRAINSIZE 200
+#define BRAINSIZE (INPUTSIZE + OUTPUTSIZE + 200)
 #define CONNS 4
 
 // WORLD / WINDOW SETTINGS -------------------------------------
+#define CZ 50
+// cell size in pixels, for food squares. Should divide well into Width Height
+
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH 6000
-#define HEIGHT 4500
+#define WIDTH (CZ * 150)
+#define HEIGHT (CZ * 100)
 // computer window width and height
 #define WWIDTH 1400
 #define WHEIGHT 1000
-
-#define CZ 50
-// cell size in pixels, for food squares. Should divide well into Width Height
 
 #define CLOSED 0
 // world is closed and no new agents are added
@@ -85,7 +85,7 @@ extern int32_t MAX_SECONDS;
 // loss of health for movement speed
 #define LOSS_TEMP 0.00005
 // loss of health from temperature distribution across world
-#define LOSS_AGE 0.00005
+#define LOSS_AGE 0.00015
 // loss of health from old age
 #define GAIN_GROUPING 0.00003
 // addition of health for each bot near it, as a ratio of closeness

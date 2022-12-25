@@ -16,12 +16,8 @@ void mlpbox_init(struct MLPBox *box) {
     }
   }
 
-  // how fast neuron/box moves towards its target. 1 is instant.
-  box->kp = randf(0.1, 1);
-  box->gw = randf(0, 5);
   box->bias = randf(-1.5, 1.5);
   box->out = 0;
-  box->target = 0;
 }
 
 void mlpbrain_init(struct MLPBrain *brain) {
@@ -44,31 +40,28 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
   // do a single tick of the brain
   struct MLPBox *boxes = brain->boxes;
 
-  // take first few boxes and set their out to in[].
-  for (int i = 0; i < INPUTSIZE; i++) {
+  // Mix in sensor data into the first few boxes
+  for (size_t i = 0; i < INPUTSIZE; i++) {
     boxes[i].out = in[i];
   }
 
   // then do a dynamics tick and set all targets
-  for (int i = INPUTSIZE; i < BRAINSIZE; i++) {
+  for (size_t i = INPUTSIZE; i < BRAINSIZE; i++) {
     struct MLPBox *abox = &boxes[i];
 
     float acc = 0;
-    for (int j = 0; j < CONNS; j++) {
-      int idx = abox->id[j];
+    for (size_t j = 0; j < CONNS; j++) {
+      uint32_t idx = abox->id[j];
       float val = boxes[idx].out;
       acc += val * abox->w[j];
     }
 
-    acc = acc * abox->gw + abox->bias;
+    acc += abox->bias;
 
     // put through sigmoid
     acc = 1.0 / (1.0 + fast_exp(-acc)); // logistic function, ranges from 0 to 1
 
-    abox->target = acc;
-
-    // make all boxes go a bit toward target
-    abox->out += (abox->target - abox->out) * abox->kp;
+    abox->out = acc;
   }
 
   // finally set out[] to the last few boxes output
@@ -97,30 +90,6 @@ void mlpbrain_mutate(struct MLPBrain *brain, float mutaterate,
                         //             a2.mutations.push_back("bias jiggled\n");
     }
 
-    // Modify kp
-    if (randf(0, 1) < mutaterate * 3) {
-      boxes[j].kp +=
-          randn(-mutaterate2,
-                mutaterate2); // TODO: maybe make the 0 be -mutaterate2 ?
-
-      // Limit the change:
-      if (boxes[j].kp < 0.01)
-        boxes[j].kp = 0.01;
-      if (boxes[j].kp > 1)
-        boxes[j].kp = 1;
-
-      //             a2.mutations.push_back("kp jiggled\n");
-    }
-
-    // Modify gw
-    if (randf(0, 1) < mutaterate * 3) {
-      boxes[j].gw += randn(-mutaterate2, mutaterate2);
-      if (boxes[j].gw < 0)
-        boxes[j].gw = 0;
-
-      //             a2.mutations.push_back("kp jiggled\n");
-    }
-
     // Modify weight
     if (randf(0, 1) < mutaterate * 3) {
       int32_t rc = randi(0, CONNS);
@@ -146,8 +115,6 @@ void mlpbrain_crossover(struct MLPBrain *target, const struct MLPBrain *source1,
   for (size_t i = 0; i < BRAINSIZE; i++) {
     if (randf(0, 1) < 0.5) {
       target->boxes[i].bias = source1->boxes[i].bias;
-      target->boxes[i].gw = source1->boxes[i].gw;
-      target->boxes[i].kp = source1->boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
         target->boxes[i].id[j] = source1->boxes[i].id[j];
         target->boxes[i].w[j] = source1->boxes[i].w[j];
@@ -155,8 +122,6 @@ void mlpbrain_crossover(struct MLPBrain *target, const struct MLPBrain *source1,
 
     } else {
       target->boxes[i].bias = source2->boxes[i].bias;
-      target->boxes[i].gw = source2->boxes[i].gw;
-      target->boxes[i].kp = source2->boxes[i].kp;
       for (size_t j = 0; j < CONNS; j++) {
         target->boxes[i].id[j] = source2->boxes[i].id[j];
         target->boxes[i].w[j] = source2->boxes[i].w[j];
