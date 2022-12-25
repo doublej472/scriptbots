@@ -23,6 +23,7 @@ struct World {
   int32_t modcounter; // temp not private
   int32_t current_epoch;
   int32_t stopSim;
+  int32_t movieMode;
   int32_t numAgentsAdded; // counts how many agents have been artifically added
                           // per reporting iteration
 

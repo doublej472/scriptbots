@@ -199,6 +199,9 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   case 't':
     GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
     break;
+  case 'm':
+    GLVIEW.base->world->movieMode = !GLVIEW.base->world->movieMode;
+    break;
   // C-l
   case 12:
     base_loadworld(GLVIEW.base);

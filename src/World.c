@@ -58,6 +58,7 @@ void world_init(struct World *world) {
   queue_init(&world->queue);
 
   world->stopSim = 0;
+  world->movieMode = 0;
   world->modcounter = 0;
   world->current_epoch = 0;
   world->numAgentsAdded = 0;
@@ -362,6 +363,11 @@ void world_update(struct World *world) {
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
 
+  struct Agent* newMovieAgent = NULL;
+  struct Agent* prevMovieAgent = NULL;
+  int32_t newOldest = -1;
+  int32_t prevOldest = -1;
+
   // Some things need to be done single threaded
   for (int i = 0; i < world->agents.size; i++) {
     struct Agent *a = &world->agents.agents[i];
@@ -372,6 +378,31 @@ void world_update(struct World *world) {
 
     if (a->rep) {
       world_reproduce(world, a, a->MUTRATE1, a->MUTRATE2);
+    }
+
+    if (world->movieMode) {
+      if (a->selectflag) {
+	      prevOldest = a->age;
+	      prevMovieAgent = a;
+      } else {
+        if (a->age > newOldest) {
+          newOldest = a->age;
+          newMovieAgent = a;
+        }
+      }
+      a->selectflag = 0;
+    }
+  }
+
+  if (newMovieAgent != NULL) {
+    if (prevMovieAgent != NULL) {
+      if (prevOldest >= newOldest) {
+        prevMovieAgent->selectflag = 1;
+      } else {
+        newMovieAgent->selectflag = 1;
+      }
+    } else {
+      newMovieAgent->selectflag = 1;
     }
   }
 
