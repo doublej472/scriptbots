@@ -37,8 +37,8 @@ void vector2f_rotate(struct Vector2f *vec, float rads) {
   float mag = vector2f_length(vec);
   float rot = vector2f_angle(vec);
   rot += rads;
-  vec->x = cos(rot) * mag;
-  vec->y = sin(rot) * mag;
+  vec->x = cosf(rot) * mag;
+  vec->y = sinf(rot) * mag;
 }
 
 void vector2f_add(struct Vector2f *dest, struct Vector2f *vec1,

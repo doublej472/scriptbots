@@ -29,17 +29,17 @@ inline int32_t randi(int32_t a, int32_t b) {
 }
 
 // normalvariate random N(mu, sigma)
-double randn(double mu, double sigma) {
+float randn(float mu, float sigma) {
   static int32_t deviateAvailable = 0; //	flag
   static float storedDeviate;          //	deviate from previous calculation
-  double polar, rsquared, var1, var2;
+  float polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
-      var1 = 2.0 * (((double)rand_r(&rand_state)) / ((double)(RAND_MAX))) - 1.0;
-      var2 = 2.0 * (((double)rand_r(&rand_state)) / ((double)(RAND_MAX))) - 1.0;
+      var1 = 2.0f * (((float)rand_r(&rand_state)) / ((float)(RAND_MAX))) - 1.0f;
+      var2 = 2.0f * (((float)rand_r(&rand_state)) / ((float)(RAND_MAX))) - 1.0f;
       rsquared = var1 * var1 + var2 * var2;
-    } while (rsquared >= 1.0 || rsquared == 0.0);
-    polar = sqrt(-2.0 * log(rsquared) / rsquared);
+    } while (rsquared >= 1.0f || rsquared == 0.0f);
+    polar = sqrtf(-2.0f * logf(rsquared) / rsquared);
     storedDeviate = var1 * polar;
     deviateAvailable = 1;
     return var2 * polar * sigma + mu;

@@ -7,17 +7,17 @@ void mlpbox_init(struct MLPBox *box) {
   memset(box, '\0', sizeof(struct MLPBox));
 
   for (int32_t i = 0; i < CONNS; i++) {
-    box->w[i] = randf(-3, 3);
+    box->w[i] = randf(-3.0f, 3.0f);
     // Make 30% of brain connect to input
-    if (randf(0, 1) < 0.3) {
+    if (randf(0, 1) < 0.3f) {
       box->id[i] = randi(0, INPUTSIZE);
     } else {
       box->id[i] = randi(INPUTSIZE, BRAINSIZE);
     }
   }
 
-  box->bias = randf(-1.5, 1.5);
-  box->out = 0;
+  box->bias = randf(-1.5f, 1.5f);
+  box->out = 0.0f;
 }
 
 void mlpbrain_init(struct MLPBrain *brain) {
@@ -59,7 +59,7 @@ void mlpbrain_tick(struct MLPBrain *brain, const float *in, float *out) {
     acc += abox->bias;
 
     // put through sigmoid
-    acc = 1.0 / (1.0 + fast_exp(-acc)); // logistic function, ranges from 0 to 1
+    acc = 1.0f / (1.0f + fast_exp(-acc)); // logistic function, ranges from 0 to 1
 
     abox->out = acc;
   }

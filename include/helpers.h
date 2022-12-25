@@ -11,7 +11,7 @@ float randf(float a, float b);
 int32_t randi(int32_t a, int32_t b);
 
 // normalvariate random N(mu, sigma)
-double randn(double mu, double sigma);
+float randn(float mu, float sigma);
 
 // cap value between 0 and 1
 float cap(float a);

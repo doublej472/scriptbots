@@ -8,10 +8,10 @@
 #include "settings.h"
 #include "vec.h"
 
-#define WORLD_GRID_SIZE DIST
-#define WORLD_GRID_HEIGHT ((HEIGHT / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_WIDTH ((WIDTH / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_LENGTH (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT)
+#define WORLD_GRID_SIZE ((size_t) DIST)
+#define WORLD_GRID_HEIGHT ((size_t) (HEIGHT / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_WIDTH ((size_t) (WIDTH / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_LENGTH ((size_t) (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT))
 
 struct AgentQueueItem {
   struct World *world;

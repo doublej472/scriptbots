@@ -23,8 +23,8 @@ void renderString(float x, float y, void *font, const char *string, float r,
 void drawCircle(float x, float y, float r) {
   float n;
   for (int32_t k = 0; k < 17; k++) {
-    n = k * (M_PI / 8);
-    glVertex3f(x + r * sin(n), y + r * cos(n), 0);
+    n = k * ((float) M_PI / 8.0f);
+    glVertex3f(x + r * sinf(n), y + r * cosf(n), 0);
   }
 }
 
@@ -64,25 +64,25 @@ void gl_processMouse(int32_t button, int32_t state, int32_t x, int32_t y) {
 
   // have world deal with it. First translate to world coordinates though
   if (button == 0) {
-    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2) / GLVIEW.scalemult) -
+    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2.0f) / GLVIEW.scalemult) -
                  GLVIEW.xtranslate;
-    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2) / GLVIEW.scalemult) -
+    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2.0f) / GLVIEW.scalemult) -
                  GLVIEW.ytranslate;
     world_processMouse(GLVIEW.base->world, button, state, wx, wy);
   }
 
   // Scroll up
   if (button == 3) {
-    GLVIEW.scalemult += GLVIEW.scalemult * 0.05;
+    GLVIEW.scalemult += GLVIEW.scalemult * 0.05f;
   }
 
   // Scroll down
   if (button == 4) {
-    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05;
+    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05f;
   }
 
-  if (GLVIEW.scalemult < 0.01)
-    GLVIEW.scalemult = 0.01;
+  if (GLVIEW.scalemult < 0.01f)
+    GLVIEW.scalemult = 0.01f;
 
   GLVIEW.mousex = x;
   GLVIEW.mousey = y;
@@ -95,9 +95,9 @@ void gl_processMouseActiveMotion(int32_t x, int32_t y) {
 
   if (GLVIEW.downb[1] == 1) {
     // mouse wheel. Change scale
-    GLVIEW.scalemult -= 0.005 * (y - GLVIEW.mousey) * GLVIEW.scalemult;
-    if (GLVIEW.scalemult < 0.01)
-      GLVIEW.scalemult = 0.01;
+    GLVIEW.scalemult -= 0.005f * (y - GLVIEW.mousey) * GLVIEW.scalemult;
+    if (GLVIEW.scalemult < 0.01f)
+      GLVIEW.scalemult = 0.01f;
   }
 
   if (GLVIEW.downb[2] == 1) {
@@ -116,12 +116,12 @@ void gl_processMouseActiveMotion(int32_t x, int32_t y) {
 void gl_processSpecialKeys(int key, int x, int y) {
   switch (key) {
   case GLUT_KEY_PAGE_UP:
-    GLVIEW.scalemult += GLVIEW.scalemult * 0.05;
+    GLVIEW.scalemult += GLVIEW.scalemult * 0.05f;
     break;
   case GLUT_KEY_PAGE_DOWN:
-    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05;
-    if (GLVIEW.scalemult < 0.01) {
-      GLVIEW.scalemult = 0.01;
+    GLVIEW.scalemult -= GLVIEW.scalemult * 0.05f;
+    if (GLVIEW.scalemult < 0.01f) {
+      GLVIEW.scalemult = 0.01f;
     }
     break;
   case GLUT_KEY_UP:
@@ -192,9 +192,9 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
     printf("Environemt closed now= %i\n", GLVIEW.base->world->closed);
     break;
   case 'z':
-    GLVIEW.xtranslate = -WIDTH / 2;
-    GLVIEW.ytranslate = -HEIGHT / 2;
-    GLVIEW.scalemult = 0.4; // 1.0;
+    GLVIEW.xtranslate = -WIDTH / 2.0f;
+    GLVIEW.ytranslate = -HEIGHT / 2.0f;
+    GLVIEW.scalemult = 0.4f; // 1.0;
     break;
   case 't':
     GLVIEW.draw_text = GLVIEW.draw_text ? 0 : 1;
@@ -241,7 +241,7 @@ void gl_handleIdle() {
   }
   if (GLVIEW.skipdraw <= 0 && GLVIEW.draw) {
     clock_t endwait;
-    float mult = -0.005 * (GLVIEW.skipdraw - 1); // ugly, ah well
+    float mult = -0.005f * (GLVIEW.skipdraw - 1); // ugly, ah well
     endwait = clock() + mult * CLOCKS_PER_SEC;
     while (clock() < endwait) {
     }
@@ -261,7 +261,7 @@ void gl_renderScene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
 
-  glTranslatef(GLVIEW.wwidth / 2, GLVIEW.wheight / 2, 0.0f);
+  glTranslatef(GLVIEW.wwidth / 2.0f, GLVIEW.wheight / 2.0f, 0.0f);
   glScalef(GLVIEW.scalemult, GLVIEW.scalemult, 1.0f);
   glTranslatef(GLVIEW.xtranslate, GLVIEW.ytranslate, 0.0f);
 
@@ -296,7 +296,7 @@ void drawAgent(const struct Agent *agent) {
     // draw selection
     glBegin(GL_POLYGON);
     glColor3f(1, 1, 0);
-    drawCircle(agent->pos.x, agent->pos.y, BOTRADIUS + 5);
+    drawCircle(agent->pos.x, agent->pos.y, BOTRADIUS + 5.0f);
     glEnd();
 
     glPushMatrix();
@@ -357,7 +357,7 @@ void drawAgent(const struct Agent *agent) {
     glBegin(GL_POLYGON);
     glColor3f(agent->ir, agent->ig, agent->ib);
     drawCircle(agent->pos.x, agent->pos.y,
-               BOTRADIUS + ((int32_t)agent->indicator));
+               (float) BOTRADIUS + ((int32_t)agent->indicator));
     glEnd();
   }
 
@@ -370,8 +370,8 @@ void drawAgent(const struct Agent *agent) {
       continue;
     glVertex3f(agent->pos.x, agent->pos.y, 0);
     glVertex3f(
-        agent->pos.x + (BOTRADIUS * 4) * cos(agent->angle + j * M_PI / 8),
-        agent->pos.y + (BOTRADIUS * 4) * sin(agent->angle + j * M_PI / 8), 0);
+        agent->pos.x + (BOTRADIUS * 4.0f) * cosf(agent->angle + j * (float) M_PI / 8.0f),
+        agent->pos.y + (BOTRADIUS * 4.0f) * sinf(agent->angle + j * (float) M_PI / 8.0f), 0);
   }
   glEnd();
 
@@ -383,21 +383,21 @@ void drawAgent(const struct Agent *agent) {
   glBegin(GL_LINES);
   // outline
   if (agent->boost)
-    glColor3f(0.8, 0, 0); // draw boost as green outline
+    glColor3f(0.8f, 0, 0); // draw boost as green outline
   else
     glColor3f(0, 0, 0);
 
   for (int32_t k = 0; k < 17; k++) {
-    n = k * (M_PI / 8);
-    glVertex3f(agent->pos.x + r * sin(n), agent->pos.y + r * cos(n), 0);
-    n = (k + 1) * (M_PI / 8);
-    glVertex3f(agent->pos.x + r * sin(n), agent->pos.y + r * cos(n), 0);
+    n = k * ((float) M_PI / 8.0f);
+    glVertex3f(agent->pos.x + r * sinf(n), agent->pos.y + r * cosf(n), 0);
+    n = (k + 1.0f) * ((float) M_PI / 8.0f);
+    glVertex3f(agent->pos.x + r * sinf(n), agent->pos.y + r * cosf(n), 0);
   }
   // and spike
   glColor3f(0.5, 0, 0);
   glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x + (3 * r * agent->spikeLength) * cos(agent->angle),
-             agent->pos.y + (3 * r * agent->spikeLength) * sin(agent->angle),
+  glVertex3f(agent->pos.x + (3.0f * r * agent->spikeLength) * cosf(agent->angle),
+             agent->pos.y + (3.0f * r * agent->spikeLength) * sinf(agent->angle),
              0);
   glEnd();
 
@@ -437,7 +437,7 @@ void drawAgent(const struct Agent *agent) {
   glEnd();
 
   // print stats if zoomed in enough
-  if (GLVIEW.scalemult > .7) {
+  if (GLVIEW.scalemult > 0.7f) {
     // generation count
     sprintf(GLVIEW.buf2, "%i", agent->gencount);
     renderString(agent->pos.x - BOTRADIUS * 2,

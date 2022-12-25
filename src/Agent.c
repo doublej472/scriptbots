@@ -10,7 +10,7 @@
 void agent_init(struct Agent *agent) {
   vector2f_init(&agent->pos, randf(0, WIDTH), randf(0, HEIGHT));
   agent->angle = randf(-M_PI, M_PI);
-  agent->health = 1.0 + randf(0, 0.1);
+  agent->health = 1.0f + randf(0, 0.1f);
   agent->touch = 0;
   agent->age = 0;
   agent->spikeLength = 0;
@@ -35,11 +35,11 @@ void agent_init(struct Agent *agent) {
   agent->herbivore = randf(0, 1);
   agent->rep = 0;
   agent->repcounter =
-      agent->herbivore * randf(REPRATEH - 0.1, REPRATEH + 0.1) +
-      (1 - agent->herbivore) * randf(REPRATEC - 0.1, REPRATEC + 0.1);
+      agent->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
+      (1.0f - agent->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
 
-  agent->MUTRATE1 = 0.003;
-  agent->MUTRATE2 = 0.05;
+  agent->MUTRATE1 = 0.003f;
+  agent->MUTRATE2 = 0.05f;
 
   agent->spiked = 0;
 
@@ -78,7 +78,7 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
   // we want to spawn behind so that agents dont accidentally eat their young
   // right away
   struct Vector2f fb;
-  vector2f_init(&fb, randf(BOTRADIUS, BOTRADIUS * 3), 0);
+  vector2f_init(&fb, randf(BOTRADIUS, BOTRADIUS * 3.0f), 0.0f);
 
   vector2f_rotate(&fb, -child->angle);
   vector2f_add(&child->pos, &parent->pos, &fb);
@@ -94,32 +94,32 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
 
   child->gencount = parent->gencount + 1;
   child->repcounter =
-      child->herbivore * randf(REPRATEH - 0.1, REPRATEH + 0.1) +
-      (1 - child->herbivore) * randf(REPRATEC - 0.1, REPRATEC + 0.1);
+      child->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
+      (1.0f - child->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
 
   // noisy attribute passing
   child->MUTRATE1 = parent->MUTRATE1;
   child->MUTRATE2 = parent->MUTRATE2;
-  if (randf(0, 1) < 0.2)
+  if (randf(0, 1) < 0.2f)
     child->MUTRATE1 = randn(parent->MUTRATE1, METAMUTRATE1);
-  if (randf(0, 1) < 0.2)
+  if (randf(0, 1) < 0.2f)
     child->MUTRATE2 = randn(parent->MUTRATE2, METAMUTRATE2);
-  if (parent->MUTRATE1 < 0.001)
-    parent->MUTRATE1 = 0.001;
-  if (parent->MUTRATE2 < 0.02)
-    parent->MUTRATE2 = 0.02;
-  child->herbivore = cap(randn(parent->herbivore, 0.03));
-  if (randf(0, 1) < MR * 5)
+  if (parent->MUTRATE1 < 0.001f)
+    parent->MUTRATE1 = 0.001f;
+  if (parent->MUTRATE2 < 0.02f)
+    parent->MUTRATE2 = 0.02f;
+  child->herbivore = cap(randn(parent->herbivore, 0.03f));
+  if (randf(0, 1) < MR * 5.0f)
     child->clockf1 = randn(child->clockf1, MR2);
-  if (child->clockf1 < 2)
-    child->clockf1 = 2;
-  if (randf(0, 1) < MR * 5)
+  if (child->clockf1 < 2.0f)
+    child->clockf1 = 2.0f;
+  if (randf(0, 1) < MR * 5.0f)
     child->clockf2 = randn(child->clockf2, MR2);
-  if (child->clockf2 < 2)
-    child->clockf2 = 2;
+  if (child->clockf2 < 2.0f)
+    child->clockf2 = 2.0f;
 
   child->temperature_preference =
-      cap(randn(parent->temperature_preference, 0.005));
+      cap(randn(parent->temperature_preference, 0.005f));
   //    child->temperature_preference= parent->temperature_preference;
 
   // mutate brain here
@@ -152,14 +152,14 @@ void agent_process_health(struct Agent *agent) {
   // process bots health
   float healthloss = LOSS_BASE; // base amount of health lost every turn for
                                 // being alive
-  if (agent->age > 500) {
-    healthloss += (LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
+  if (agent->age > 500.0f) {
+    healthloss += ((float) LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
   }
 
   // remove health based on wheel speed
   if (agent->boost) { // is using boost
-    healthloss += LOSS_SPEED * BOTSPEED *
-                  (fabsf(agent->w1) + fabsf(agent->w2)) * BOOSTSIZEMULT *
+    healthloss += (float) LOSS_SPEED * (float) BOTSPEED *
+                  (fabsf(agent->w1) + fabsf(agent->w2)) * (float) BOOSTSIZEMULT *
                   agent->boost;
   } else { // no boost
     healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));
@@ -171,11 +171,11 @@ void agent_process_health(struct Agent *agent) {
   // process temperature preferences
   // calculate temperature at the agents spot. (based on distance from
   // equator)
-  float dd = 2.0 * fabs(agent->pos.x / WIDTH - 0.5);
+  float dd = 2.0f * fabsf(agent->pos.x / (float) WIDTH - 0.5f);
   float discomfort = fabsf(dd - agent->temperature_preference);
   discomfort = discomfort * discomfort;
-  if (discomfort < 0.08)
-    discomfort = 0;
+  if (discomfort < 0.08f)
+    discomfort = 0.0f;
   healthloss += LOSS_TEMP * discomfort;
 
   // apply the health changes

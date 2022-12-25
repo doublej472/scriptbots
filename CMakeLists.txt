@@ -7,12 +7,12 @@ option(USE_LTO "Compile with LTO optimizations" NO)
 option(MARCH_NATIVE "Compile with -march=native" NO)
 option(ASAN "Compile with address sanitation enabled" NO)
 option(TRAP_NAN "Make program exit on math errors" NO)
+option(FASTMATH "Compile with fast math optimizations (UNSAFE)" NO)
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	option(GRAPHITE "Compile with graphite optimizations" NO)
 	option(IPAPTA "Compile with ipa-pta optimizations" NO)
 	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" NO)
-	option(FASTMATH "Compile with fast math optimizations (UNSAFE)" NO)
 endif()
 
 add_executable(scriptbots
@@ -37,8 +37,8 @@ if (ASAN)
 endif()
 
 if (FASTMATH)
-	target_link_options(scriptbots PRIVATE -fno-math-errno -fno-trapping-math)
-	target_compile_options(scriptbots PRIVATE -fno-math-errno -fno-trapping-math)
+	target_link_options(scriptbots PRIVATE -ffast-math)
+	target_compile_options(scriptbots PRIVATE -ffast-math)
 endif()
 
 if (DEVIRTLTO)
