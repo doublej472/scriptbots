@@ -304,18 +304,29 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   for (size_t j = 0; j < num_to_dist_body; j++) {
     struct Agent *a2 = dist_agents[j];
     // young killed agents should give very little resources
-    // at age 1, they mature and give full. This can also help prevent
+    // at age 10, they mature and give full. This can also help prevent
     // agents eating their young right away
     float agemult = 1.0f;
-    if (a->age < 1) {
-      agemult = ((float)a->age + 0.2f) / 4.0f;
+    if (a->age < 10) {
+      agemult = ((float)a->age + 0.5f) / 20.0f;
     }
 
-    float health_add =
-        1.5f * ((1.0f - a2->herbivore) * agemult) / (float)num_to_dist_body;
-    // Reward hunting in groups
-    health_add += 0.5f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
-    float rep_sub = 3.5f * health_add;
+    // Base health add
+    float health_add = 1.0f;
+
+    // bonus for hunting in groups
+    health_add += 0.8f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
+
+    // Factor in age muliplier
+    health_add *= agemult;
+
+    // Factor in herbivore percentage
+    health_add *= (1.0f - a2->herbivore);
+
+    // Divide for each agent
+    health_add /= (float) num_to_dist_body;
+
+    float rep_sub = 3.0f * health_add;
 
     // printf("n: %d, carn: %f, h+: %f, r-: %f\n", num_to_dist_body, 1.0f -
     // a2->herbivore, health_add, rep_sub);
