@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-static const float WEIGHT_RANGE = 3.0f;
+static const float WEIGHT_RANGE = 8.0f;
 static const float BIAS_RANGE = 3.0f;
 
 __m256 exp256_ps(__m256 x) {
@@ -227,26 +227,34 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
 
 void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
                      float mutaterate2) {
-  size_t biases = BRAIN_WIDTH * BRAIN_DEPTH / 8;
-  size_t weights = BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH - 1) / 8;
+  size_t biases = BRAIN_WIDTH * BRAIN_DEPTH;
+  size_t weights = BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH - 1);
 
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
+    size_t numbtomut = randi(1,5);
+    size_t numwtomut = randi(1,25);
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
 
-    // mutate w
-    size_t idx = randi(0, weights);
-
-    for (int i = 0; i < 8; i++) {
-      brain->weights[idx][i] = randf(-WEIGHT_RANGE, WEIGHT_RANGE);
+    for (int i = 0; i < numbtomut; i++) {
+      size_t idx = randi(0, biases);
+      brain->biases[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
+      if (brain->biases[idx / 8][idx % 8] > BIAS_RANGE) {
+	      brain->biases[idx / 8][idx % 8] = BIAS_RANGE;
+      } else if (brain->biases[idx / 8][idx % 8] < -BIAS_RANGE) {
+	      brain->biases[idx / 8][idx % 8] = -BIAS_RANGE;
+      }
     }
-
-    // mutate b
-    idx = randi(0, biases);
-
-    for (int i = 0; i < 8; i++) {
-      brain->biases[idx][i] = randf(-BIAS_RANGE, BIAS_RANGE);
+    // mutate w
+    for (int i = 0; i < numwtomut; i++) {
+      size_t idx = randi(0, weights);
+      brain->weights[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
+      if (brain->weights[idx / 8][idx % 8] > WEIGHT_RANGE) {
+	      brain->weights[idx / 8][idx % 8] = WEIGHT_RANGE;
+      } else if (brain->weights[idx / 8][idx % 8] < -WEIGHT_RANGE) {
+	      brain->weights[idx / 8][idx % 8] = -WEIGHT_RANGE;
+      }
     }
   }
 }

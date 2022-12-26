@@ -19,10 +19,10 @@ extern int32_t MAX_SECONDS;
 #define OUTPUTSIZE (18 + PLANSIZE)
 
 // Needs to be at least 1, but that does barely any work
-#define BRAIN_DEPTH 4
+#define BRAIN_DEPTH 3
 
 // MUST BE MULTIPLE OF 8 and bigger than INPUT_SIZE and OUTPUT_SIZE
-#define BRAIN_WIDTH (5 * 8)
+#define BRAIN_WIDTH (4 * 8)
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 #define CZ 50
@@ -68,9 +68,9 @@ extern int32_t MAX_SECONDS;
 // how sensitive are the eyes?
 #define BLOOD_SENSITIVITY 2.0f
 // how sensitive are blood sensors?
-#define METAMUTRATE1 0.002f
+#define METAMUTRATE1 0.01f
 // what is the change in MUTRATE1 and 2 on reproduction
-#define METAMUTRATE2 0.05f
+#define METAMUTRATE2 0.15f
 #define OLD_AGE_THRESHOLD = 500
 // at what age do they start lossing health for being old?
 
@@ -112,9 +112,9 @@ extern int32_t MAX_SECONDS;
 // how much does every agent consume?
 #define FOODWASTE 0.001f
 // how much food disapears if agent eats?
-#define FOODMAX 0.5f
+#define FOODMAX 0.8f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 5
+#define FOODADDFREQ 3
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f
