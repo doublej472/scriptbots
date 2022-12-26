@@ -16,9 +16,6 @@ float randn(float mu, float sigma);
 // cap value between 0 and 1
 float cap(float a);
 
-// Fast exp(), not accurate
-float fast_exp(float x);
-
 // Get number of processors in the system
 long get_nprocs();
 #endif

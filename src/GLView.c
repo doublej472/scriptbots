@@ -313,7 +313,15 @@ void drawAgent(const struct Agent *agent) {
     glBegin(GL_QUADS);
     for (int32_t j = 0; j < INPUTSIZE; j++) {
       col = agent->in[j];
-      glColor3f(col, col, col);
+      if (j < 18) {
+        glColor3f(col, col, col);
+      } else if (j < 19) {
+        // random inputs
+        glColor3f(0.0f, col, col);
+      } else {
+        // plan inputs
+        glColor3f(0.0f, col, 0.0f);
+      }
       glVertex3f(0 + ss * j, 0, 0.0f);
       glVertex3f(xx + ss * j, 0, 0.0f);
       glVertex3f(xx + ss * j, yy, 0.0f);

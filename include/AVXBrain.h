@@ -12,6 +12,7 @@ struct AVXBrain {
   alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
 
   // for each neuron, we have BRAIN_WIDTH inputs that are individually weighted
+  // Also skip the first layer since that is the input layer
   alignas(
       32) __m256 weights[(BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH - 1)) / 8];
   // for each neuron, bias output

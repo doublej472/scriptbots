@@ -3,6 +3,7 @@
 #include "AVXBrain.h"
 #include "helpers.h"
 #include "settings.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

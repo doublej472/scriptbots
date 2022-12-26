@@ -492,6 +492,8 @@ void world_addRandomBots(struct World *world, int32_t num) {
     struct Agent a;
     agent_init(&a);
 
+    // printf("%f\n", a.brain->inputs[0][0]);
+
     avec_push_back(&world->agents_staging, a);
   }
 }
@@ -1082,11 +1084,8 @@ void agent_input_processor(void *arg) {
       a->in[18] = randf(0, 1); // random input for bot
     }
 
-    // Copy last ouput and last "plan" to the current inputs
-    // PREV_OUT is 19-28
-    // PREV_PLAN is 29-38
-    for (int i = 0; i < OUTPUTSIZE; i++) {
-      a->in[i + INPUTSIZE - OUTPUTSIZE - 1] = a->out[i];
+    for (int i = 19; i < INPUTSIZE; i++) {
+      a->in[i] = a->out[i - 1];
     }
 
     // Now process brain

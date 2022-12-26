@@ -11,11 +11,15 @@ extern int32_t NUM_THREADS;
 extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
-#define INPUTSIZE 38
-#define OUTPUTSIZE 18
+#define PLANSIZE 4
+
+// Must be at least 19 for normal inputs,
+// everything past 19 is for planning
+#define INPUTSIZE (19 + PLANSIZE)
+#define OUTPUTSIZE (18 + PLANSIZE)
 
 // Needs to be at least 1, but that does barely any work
-#define BRAIN_DEPTH 3
+#define BRAIN_DEPTH 4
 
 // MUST BE MULTIPLE OF 8 and bigger than INPUT_SIZE and OUTPUT_SIZE
 #define BRAIN_WIDTH (5 * 8)
