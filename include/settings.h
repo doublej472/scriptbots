@@ -132,8 +132,8 @@ extern int32_t MAX_SECONDS;
 #define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE
 
 // GEOMETRIC CALCULATION CONSTATNS (DO NOT CHANGE)
-#define PI8 ((float) (M_PI / 8.0f / 2.0f)) // pi/8/2
-#define PI38 (3.0f * PI8)     // 3pi/8/2
+#define PI8 ((float)(M_PI / 8.0f / 2.0f)) // pi/8/2
+#define PI38 (3.0f * PI8)                 // 3pi/8/2
 #define reportInterval (10000 / REPORTS_PER_EPOCH)
 
 #endif

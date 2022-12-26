@@ -1,7 +1,7 @@
 #ifndef AGENT_H
 #define AGENT_H
-#include <stdint.h>
 #include <stdalign.h>
+#include <stdint.h>
 
 #include "AVXBrain.h"
 #include "vec2f.h"
@@ -66,8 +66,8 @@ void agent_initevent(struct Agent *agent, float size, float r, float g,
 void agent_tick(struct Agent *agent);
 void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
                      float MR2);
-//void agent_crossover(struct Agent *target, const struct Agent *agent1,
-//                     const struct Agent *agent2);
+// void agent_crossover(struct Agent *target, const struct Agent *agent1,
+//                      const struct Agent *agent2);
 void agent_process_health(struct Agent *agent);
 
 #endif // AGENT_H

@@ -8,10 +8,10 @@
 #include "settings.h"
 #include "vec.h"
 
-#define WORLD_GRID_SIZE ((size_t) DIST)
-#define WORLD_GRID_HEIGHT ((size_t) (HEIGHT / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_WIDTH ((size_t) (WIDTH / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_LENGTH ((size_t) (WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT))
+#define WORLD_GRID_SIZE ((size_t)DIST)
+#define WORLD_GRID_HEIGHT ((size_t)(HEIGHT / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_WIDTH ((size_t)(WIDTH / WORLD_GRID_SIZE) + 1)
+#define WORLD_GRID_LENGTH ((size_t)(WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT))
 
 struct AgentQueueItem {
   struct World *world;
@@ -62,7 +62,7 @@ void world_setInputsRunBrain(struct World *world);
 void world_processOutputs(struct World *world);
 void world_addRandomBots(struct World *world, int32_t num);
 void world_addCarnivore(struct World *world);
-//void world_addNewByCrossover(struct World *world);
+// void world_addNewByCrossover(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a, float MR, float MR2);
 void world_writeReport(struct World *world);
 void world_reset(struct World *world);

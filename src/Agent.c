@@ -127,39 +127,39 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
   avxbrain_mutate(child->brain, MR, MR2);
 }
 
-//void agent_crossover(struct Agent *target, const struct Agent *agent1,
-//                     const struct Agent *agent2) {
-//  target->hybrid = 1; // set this non-default flag
-//  target->gencount = agent1->gencount;
-//  if (agent2->gencount < target->gencount)
-//    target->gencount = agent2->gencount;
+// void agent_crossover(struct Agent *target, const struct Agent *agent1,
+//                      const struct Agent *agent2) {
+//   target->hybrid = 1; // set this non-default flag
+//   target->gencount = agent1->gencount;
+//   if (agent2->gencount < target->gencount)
+//     target->gencount = agent2->gencount;
 //
-//  // agent heredity attributes
-//  target->clockf1 = randf(0, 1) < 0.5 ? agent1->clockf1 : agent2->clockf1;
-//  target->clockf2 = randf(0, 1) < 0.5 ? agent1->clockf2 : agent2->clockf2;
-//  target->herbivore = randf(0, 1) < 0.5 ? agent1->herbivore : agent2->herbivore;
-//  target->MUTRATE1 = randf(0, 1) < 0.5 ? agent1->MUTRATE1 : agent2->MUTRATE1;
-//  target->MUTRATE2 = randf(0, 1) < 0.5 ? agent1->MUTRATE2 : agent2->MUTRATE2;
-//  target->temperature_preference = randf(0, 1) < 0.5
-//                                       ? agent1->temperature_preference
-//                                       : agent2->temperature_preference;
+//   // agent heredity attributes
+//   target->clockf1 = randf(0, 1) < 0.5 ? agent1->clockf1 : agent2->clockf1;
+//   target->clockf2 = randf(0, 1) < 0.5 ? agent1->clockf2 : agent2->clockf2;
+//   target->herbivore = randf(0, 1) < 0.5 ? agent1->herbivore :
+//   agent2->herbivore; target->MUTRATE1 = randf(0, 1) < 0.5 ? agent1->MUTRATE1
+//   : agent2->MUTRATE1; target->MUTRATE2 = randf(0, 1) < 0.5 ? agent1->MUTRATE2
+//   : agent2->MUTRATE2; target->temperature_preference = randf(0, 1) < 0.5
+//                                        ? agent1->temperature_preference
+//                                        : agent2->temperature_preference;
 //
-//  target->brain = malloc(sizeof(struct AVXBrain));
-//  mlpbrain_crossover(target->brain, agent1->brain, agent2->brain);
-//}
+//   target->brain = malloc(sizeof(struct AVXBrain));
+//   mlpbrain_crossover(target->brain, agent1->brain, agent2->brain);
+// }
 
 void agent_process_health(struct Agent *agent) {
   // process bots health
   float healthloss = LOSS_BASE; // base amount of health lost every turn for
                                 // being alive
   if (agent->age > 500.0f) {
-    healthloss += ((float) LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
+    healthloss += ((float)LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
   }
 
   // remove health based on wheel speed
   if (agent->boost) { // is using boost
-    healthloss += (float) LOSS_SPEED * (float) BOTSPEED *
-                  (fabsf(agent->w1) + fabsf(agent->w2)) * (float) BOOSTSIZEMULT *
+    healthloss += (float)LOSS_SPEED * (float)BOTSPEED *
+                  (fabsf(agent->w1) + fabsf(agent->w2)) * (float)BOOSTSIZEMULT *
                   agent->boost;
   } else { // no boost
     healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));
@@ -171,7 +171,7 @@ void agent_process_health(struct Agent *agent) {
   // process temperature preferences
   // calculate temperature at the agents spot. (based on distance from
   // equator)
-  float dd = 2.0f * fabsf(agent->pos.x / (float) WIDTH - 0.5f);
+  float dd = 2.0f * fabsf(agent->pos.x / (float)WIDTH - 0.5f);
   float discomfort = fabsf(dd - agent->temperature_preference);
   discomfort = discomfort * discomfort;
   if (discomfort < 0.08f)

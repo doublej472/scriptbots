@@ -23,7 +23,7 @@ void renderString(float x, float y, void *font, const char *string, float r,
 void drawCircle(float x, float y, float r) {
   float n;
   for (int32_t k = 0; k < 17; k++) {
-    n = k * ((float) M_PI / 8.0f);
+    n = k * ((float)M_PI / 8.0f);
     glVertex3f(x + r * sinf(n), y + r * cosf(n), 0);
   }
 }
@@ -177,11 +177,11 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   case 'f':
     GLVIEW.drawfood = !GLVIEW.drawfood;
     break;
-//  case 'a':
-//    for (int32_t i = 0; i < 10; i++) {
-//      world_addNewByCrossover(GLVIEW.base->world);
-//    }
-//    break;
+    //  case 'a':
+    //    for (int32_t i = 0; i < 10; i++) {
+    //      world_addNewByCrossover(GLVIEW.base->world);
+    //    }
+    //    break;
   case 'q':
     for (int32_t i = 0; i < 10; i++) {
       world_addCarnivore(GLVIEW.base->world);
@@ -360,7 +360,7 @@ void drawAgent(const struct Agent *agent) {
     glBegin(GL_POLYGON);
     glColor3f(agent->ir, agent->ig, agent->ib);
     drawCircle(agent->pos.x, agent->pos.y,
-               (float) BOTRADIUS + ((int32_t)agent->indicator));
+               (float)BOTRADIUS + ((int32_t)agent->indicator));
     glEnd();
   }
 
@@ -372,9 +372,11 @@ void drawAgent(const struct Agent *agent) {
     if (j == 0)
       continue;
     glVertex3f(agent->pos.x, agent->pos.y, 0);
-    glVertex3f(
-        agent->pos.x + (BOTRADIUS * 4.0f) * cosf(agent->angle + j * (float) M_PI / 8.0f),
-        agent->pos.y + (BOTRADIUS * 4.0f) * sinf(agent->angle + j * (float) M_PI / 8.0f), 0);
+    glVertex3f(agent->pos.x + (BOTRADIUS * 4.0f) *
+                                  cosf(agent->angle + j * (float)M_PI / 8.0f),
+               agent->pos.y + (BOTRADIUS * 4.0f) *
+                                  sinf(agent->angle + j * (float)M_PI / 8.0f),
+               0);
   }
   glEnd();
 
@@ -391,17 +393,17 @@ void drawAgent(const struct Agent *agent) {
     glColor3f(0, 0, 0);
 
   for (int32_t k = 0; k < 17; k++) {
-    n = k * ((float) M_PI / 8.0f);
+    n = k * ((float)M_PI / 8.0f);
     glVertex3f(agent->pos.x + r * sinf(n), agent->pos.y + r * cosf(n), 0);
-    n = (k + 1.0f) * ((float) M_PI / 8.0f);
+    n = (k + 1.0f) * ((float)M_PI / 8.0f);
     glVertex3f(agent->pos.x + r * sinf(n), agent->pos.y + r * cosf(n), 0);
   }
   // and spike
   glColor3f(0.5, 0, 0);
   glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(agent->pos.x + (3.0f * r * agent->spikeLength) * cosf(agent->angle),
-             agent->pos.y + (3.0f * r * agent->spikeLength) * sinf(agent->angle),
-             0);
+  glVertex3f(
+      agent->pos.x + (3.0f * r * agent->spikeLength) * cosf(agent->angle),
+      agent->pos.y + (3.0f * r * agent->spikeLength) * sinf(agent->angle), 0);
   glEnd();
 
   // and health

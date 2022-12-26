@@ -157,14 +157,15 @@ static void world_update_gui(struct World *world) {
   timespec_diff(&ts_delta, &world->startTime, &endTime);
   timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
 
-  float deltat = (float)ts_delta.tv_sec + ((float) ts_delta.tv_nsec / 1000000000.0f);
-  float totaldeltat =
-      (float)ts_totaldelta.tv_sec + ((float) ts_totaldelta.tv_nsec / 1000000000.0f);
+  float deltat =
+      (float)ts_delta.tv_sec + ((float)ts_delta.tv_nsec / 1000000000.0f);
+  float totaldeltat = (float)ts_totaldelta.tv_sec +
+                      ((float)ts_totaldelta.tv_nsec / 1000000000.0f);
 
   printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
          "%.1f - Time: %.2f sec     \r",
          world->current_epoch, world->modcounter / 100,
-         (int32_t) world->agents.size, (float) reportInterval / deltat,
+         (int32_t)world->agents.size, (float)reportInterval / deltat,
          totaldeltat);
 
   world->startTime = endTime;
@@ -324,7 +325,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     health_add *= (1.0f - a2->herbivore);
 
     // Divide for each agent
-    health_add /= (float) num_to_dist_body;
+    health_add /= (float)num_to_dist_body;
 
     float rep_sub = 3.0f * health_add;
 
@@ -374,8 +375,8 @@ void world_update(struct World *world) {
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
 
-  struct Agent* newMovieAgent = NULL;
-  struct Agent* prevMovieAgent = NULL;
+  struct Agent *newMovieAgent = NULL;
+  struct Agent *prevMovieAgent = NULL;
   int32_t newOldest = -1;
   int32_t prevOldest = -1;
 
@@ -393,8 +394,8 @@ void world_update(struct World *world) {
 
     if (world->movieMode) {
       if (a->selectflag) {
-	      prevOldest = a->age;
-	      prevMovieAgent = a;
+        prevOldest = a->age;
+        prevMovieAgent = a;
       } else {
         if (a->age > newOldest) {
           newOldest = a->age;
@@ -505,34 +506,34 @@ void world_addCarnivore(struct World *world) {
   world->numAgentsAdded++;
 }
 
-//void world_addNewByCrossover(struct World *world) {
-//  // find two success cases
-//  size_t i1 = randi(0, world->agents.size);
-//  size_t i2 = randi(0, world->agents.size);
-//  for (size_t i = 0; i < world->agents.size; i++) {
-//    if (world->agents.agents[i].age > world->agents.agents[i1].age &&
-//        randf(0, 1) < 0.1f) {
-//      i1 = i;
-//    }
-//    if (world->agents.agents[i].age > world->agents.agents[i2].age &&
-//        randf(0, 1) < 0.1f && i != i1) {
-//      i2 = i;
-//    }
-//  }
+// void world_addNewByCrossover(struct World *world) {
+//   // find two success cases
+//   size_t i1 = randi(0, world->agents.size);
+//   size_t i2 = randi(0, world->agents.size);
+//   for (size_t i = 0; i < world->agents.size; i++) {
+//     if (world->agents.agents[i].age > world->agents.agents[i1].age &&
+//         randf(0, 1) < 0.1f) {
+//       i1 = i;
+//     }
+//     if (world->agents.agents[i].age > world->agents.agents[i2].age &&
+//         randf(0, 1) < 0.1f && i != i1) {
+//       i2 = i;
+//     }
+//   }
 //
-//  struct Agent *a1 = &world->agents.agents[i1];
-//  struct Agent *a2 = &world->agents.agents[i2];
+//   struct Agent *a1 = &world->agents.agents[i1];
+//   struct Agent *a2 = &world->agents.agents[i2];
 //
-//  // cross brains
-//  struct Agent anew;
-//  agent_init(&anew);
-//  agent_crossover(&anew, a1, a2);
+//   // cross brains
+//   struct Agent anew;
+//   agent_init(&anew);
+//   agent_crossover(&anew, a1, a2);
 //
-//  // maybe do mutation here? I dont know. So far its only crossover
-//  avec_push_back(&world->agents_staging, anew);
+//   // maybe do mutation here? I dont know. So far its only crossover
+//   avec_push_back(&world->agents_staging, anew);
 //
-//  world->numAgentsAdded++; // record in report
-//}
+//   world->numAgentsAdded++; // record in report
+// }
 
 void world_reproduce(struct World *world, struct Agent *a, float MR,
                      float MR2) {
@@ -541,7 +542,8 @@ void world_reproduce(struct World *world, struct Agent *a, float MR,
   if (randf(0, 1) < 0.04f)
     MR2 = MR2 * randf(1, 10);
 
-  agent_initevent(a, 30, 0.0f, 0.8f, 0.0f); // green event means agent reproduced.
+  agent_initevent(a, 30, 0.0f, 0.8f,
+                  0.0f); // green event means agent reproduced.
   for (int32_t i = 0; i < BABIES; i++) {
 
     struct Agent a2;
@@ -559,7 +561,8 @@ void world_writeReport(struct World *world) {
   int32_t topcarn = 0;
   int32_t total_age = 0;
   int32_t avg_age;
-  float epoch_decimal = (float) world->modcounter / 10000.0f + (float) world->current_epoch;
+  float epoch_decimal =
+      (float)world->modcounter / 10000.0f + (float)world->current_epoch;
 
   // Count number of herb, carn and top of each
   for (size_t i = 0; i < world->agents.size; i++) {
@@ -616,8 +619,8 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
     float d;
 
     for (size_t i = 0; i < world->agents.size; i++) {
-      d = powf((float) x - world->agents.agents[i].pos.x, 2.0f) +
-          powf((float) y - world->agents.agents[i].pos.y, 2.0f);
+      d = powf((float)x - world->agents.agents[i].pos.x, 2.0f) +
+          powf((float)y - world->agents.agents[i].pos.y, 2.0f);
       if (d < mind) {
         mind = d;
         mini = i;
@@ -743,7 +746,7 @@ void agent_output_processor(void *arg) {
 
     struct Vector2f v;
     vector2f_init(&v, BOTRADIUS / 2, 0);
-    vector2f_rotate(&v, a->angle + (float) M_PI / 2.0f);
+    vector2f_rotate(&v, a->angle + (float)M_PI / 2.0f);
 
     struct Vector2f w1p;
     struct Vector2f w2p;
@@ -765,14 +768,14 @@ void agent_output_processor(void *arg) {
 
     vector2f_sub(&a->pos, &w2p, &vv);
     a->angle -= BW1;
-    if (a->angle < (float) -M_PI)
-      a->angle = (float) M_PI - ((float) -M_PI - a->angle);
+    if (a->angle < (float)-M_PI)
+      a->angle = (float)M_PI - ((float)-M_PI - a->angle);
     vector2f_sub(&vv, &a->pos, &w1p);
     vector2f_rotate(&vv, BW2);
     vector2f_add(&a->pos, &w1p, &vv);
     a->angle += BW2;
-    if (a->angle > (float) M_PI)
-      a->angle = (float) -M_PI + (a->angle - (float) M_PI);
+    if (a->angle > (float)M_PI)
+      a->angle = (float)-M_PI + (a->angle - (float)M_PI);
 
     // wrap around the map
     /*if (a->pos.x<0) a->pos.x= WIDTH+a->pos.x;
@@ -817,7 +820,7 @@ void agent_output_processor(void *arg) {
       // Also inject a bit non-determinism
 
       // the parent splits it health evenly with all of its babies
-      a->health -= a->health / ((float) BABIES + 1.0f);
+      a->health -= a->health / ((float)BABIES + 1.0f);
 
       a->rep = 1;
 
@@ -917,8 +920,8 @@ void agent_input_processor(void *arg) {
           agent_initevent(a, 5.0f * ratio, 0.5f, 0.5f, 0.5f); // visualize it
 
           // sound (number of agents nearby)
-          soaccum +=
-              0.4f * ((DIST - d) / DIST) * (fmaxf(fabsf(a2->w1), fabsf(a2->w2)));
+          soaccum += 0.4f * ((DIST - d) / DIST) *
+                     (fmaxf(fabsf(a2->w1), fabsf(a2->w2)));
         }
 
         // current angle between bots
@@ -927,25 +930,25 @@ void agent_input_processor(void *arg) {
         // left and right eyes
         float leyeangle = a->angle - PI8;
         float reyeangle = a->angle + PI8;
-        float backangle = a->angle + (float) M_PI;
+        float backangle = a->angle + (float)M_PI;
         float forwangle = a->angle;
-        if (leyeangle < (float) -M_PI)
-          leyeangle += 2.0f * (float) M_PI;
-        if (reyeangle > (float) M_PI)
-          reyeangle -= 2.0f * (float) M_PI;
-        if (backangle > (float) M_PI)
-          backangle -= 2.0f * (float) M_PI;
+        if (leyeangle < (float)-M_PI)
+          leyeangle += 2.0f * (float)M_PI;
+        if (reyeangle > (float)M_PI)
+          reyeangle -= 2.0f * (float)M_PI;
+        if (backangle > (float)M_PI)
+          backangle -= 2.0f * (float)M_PI;
         float diff1 = leyeangle - ang;
-        if (fabsf(diff1) > (float) M_PI)
-          diff1 = 2.0f * (float) M_PI - fabsf(diff1);
+        if (fabsf(diff1) > (float)M_PI)
+          diff1 = 2.0f * (float)M_PI - fabsf(diff1);
         diff1 = fabsf(diff1);
         float diff2 = reyeangle - ang;
-        if (fabsf(diff2) > (float) M_PI)
-          diff2 = 2.0f * (float) M_PI - fabsf(diff2);
+        if (fabsf(diff2) > (float)M_PI)
+          diff2 = 2.0f * (float)M_PI - fabsf(diff2);
         diff2 = fabsf(diff2);
         float diff4 = forwangle - ang;
-        if (fabsf(forwangle) > (float) M_PI)
-          diff4 = 2.0f * (float) M_PI - fabsf(forwangle);
+        if (fabsf(forwangle) > (float)M_PI)
+          diff4 = 2.0f * (float)M_PI - fabsf(forwangle);
         diff4 = fabsf(diff4);
 
         if (diff1 < PI38) {
@@ -974,7 +977,8 @@ void agent_input_processor(void *arg) {
           float mul4 =
               BLOOD_SENSITIVITY * ((PI38 - diff4) / PI38) * ((DIST - d) / DIST);
           // if we can see an agent close with both eyes in front of us
-          blood += mul4 * (1.0f - a2->health / 2.0f); // remember: health is in [0 2]
+          blood +=
+              mul4 * (1.0f - a2->health / 2.0f); // remember: health is in [0 2]
           // agents with high life dont bleed. low life makes them bleed more
         }
 
@@ -1004,7 +1008,7 @@ void agent_input_processor(void *arg) {
           struct Vector2f tmp;
           vector2f_sub(&tmp, &a2->pos, &a->pos);
           float diff = vector2f_angle_between(&v, &tmp);
-          if (fabsf(diff) < (float) M_PI / 6.0f) {
+          if (fabsf(diff) < (float)M_PI / 6.0f) {
             // bot i is also properly aligned!!! that's a hit
             float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
                         fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
@@ -1020,7 +1024,7 @@ void agent_input_processor(void *arg) {
             vector2f_init(&v2, 1.0f, 0.0f);
             vector2f_rotate(&v2, a2->angle);
             float adiff = vector2f_angle_between(&v, &v2);
-            if (fabsf(adiff) < (float) M_PI / 2.0f) {
+            if (fabsf(adiff) < (float)M_PI / 2.0f) {
               // this was attack from the back. Retract spike of the other
               // agent (startle!) this is done so that the other agent cant
               // right away "by accident" attack this agent
