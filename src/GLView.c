@@ -177,11 +177,11 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   case 'f':
     GLVIEW.drawfood = !GLVIEW.drawfood;
     break;
-  case 'a':
-    for (int32_t i = 0; i < 10; i++) {
-      world_addNewByCrossover(GLVIEW.base->world);
-    }
-    break;
+//  case 'a':
+//    for (int32_t i = 0; i < 10; i++) {
+//      world_addNewByCrossover(GLVIEW.base->world);
+//    }
+//    break;
   case 'q':
     for (int32_t i = 0; i < 10; i++) {
       world_addCarnivore(GLVIEW.base->world);
@@ -331,21 +331,24 @@ void drawAgent(const struct Agent *agent) {
     yy += ss * 2;
 
     // draw brain. Eventually move this to brain class?
-    int cols = 40;
+    int cols = BRAIN_WIDTH;
     ss = 8;
 
-    for (int32_t j = 0; j < BRAINSIZE; j++) {
-      col = agent->brain->boxes[j].out;
+    for (int32_t j = 0; j < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; j++) {
+      __m256 group = agent->brain->vals[j];
+      for (int32_t k = 0; k < 8; k++) {
+        col = group[k];
 
-      int offx = (j % cols);
-      int offy = (j / cols);
+        int offx = ((j * 8 + k) % cols);
+        int offy = ((j * 8 + k) / cols);
 
-      glColor3f(col, col, col);
+        glColor3f(col, col, col);
 
-      glVertex3f(ss * offx, yy + ss * offy, 0.0f);
-      glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
-      glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
-      glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
+        glVertex3f(ss * offx, yy + ss * offy, 0.0f);
+        glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
+        glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
+        glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
+      }
     }
 
     glEnd();

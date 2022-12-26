@@ -1,6 +1,6 @@
 #include "Agent.h"
 
-#include "MLPBrain.h"
+#include "AVXBrain.h"
 #include "helpers.h"
 #include "settings.h"
 #include <stdio.h>
@@ -46,9 +46,9 @@ void agent_init(struct Agent *agent) {
   memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
   memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
 
-  agent->brain = malloc(sizeof(struct MLPBrain));
+  agent->brain = aligned_alloc(32, sizeof(struct AVXBrain));
 
-  mlpbrain_init(agent->brain);
+  avxbrain_init(agent->brain);
 }
 
 void agent_print(struct Agent *agent) {
@@ -68,7 +68,7 @@ void agent_initevent(struct Agent *agent, float size, float r, float g,
 }
 
 void agent_tick(struct Agent *agent) {
-  mlpbrain_tick(agent->brain, agent->in, agent->out);
+  avxbrain_tick(agent->brain, &agent->in, &agent->out);
 }
 
 void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
@@ -104,10 +104,10 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
     child->MUTRATE1 = randn(parent->MUTRATE1, METAMUTRATE1);
   if (randf(0, 1) < 0.2f)
     child->MUTRATE2 = randn(parent->MUTRATE2, METAMUTRATE2);
-  if (parent->MUTRATE1 < 0.001f)
-    parent->MUTRATE1 = 0.001f;
-  if (parent->MUTRATE2 < 0.02f)
-    parent->MUTRATE2 = 0.02f;
+  if (child->MUTRATE1 < 0.001f)
+    child->MUTRATE1 = 0.001f;
+  if (child->MUTRATE2 < 0.02f)
+    child->MUTRATE2 = 0.02f;
   child->herbivore = cap(randn(parent->herbivore, 0.03f));
   if (randf(0, 1) < MR * 5.0f)
     child->clockf1 = randn(child->clockf1, MR2);
@@ -123,30 +123,30 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
   //    child->temperature_preference= parent->temperature_preference;
 
   // mutate brain here
-  memcpy(child->brain, parent->brain, sizeof(struct MLPBrain));
-  mlpbrain_mutate(child->brain, MR, MR2);
+  memcpy(child->brain, parent->brain, sizeof(struct AVXBrain));
+  avxbrain_mutate(child->brain, MR, MR2);
 }
 
-void agent_crossover(struct Agent *target, const struct Agent *agent1,
-                     const struct Agent *agent2) {
-  target->hybrid = 1; // set this non-default flag
-  target->gencount = agent1->gencount;
-  if (agent2->gencount < target->gencount)
-    target->gencount = agent2->gencount;
-
-  // agent heredity attributes
-  target->clockf1 = randf(0, 1) < 0.5 ? agent1->clockf1 : agent2->clockf1;
-  target->clockf2 = randf(0, 1) < 0.5 ? agent1->clockf2 : agent2->clockf2;
-  target->herbivore = randf(0, 1) < 0.5 ? agent1->herbivore : agent2->herbivore;
-  target->MUTRATE1 = randf(0, 1) < 0.5 ? agent1->MUTRATE1 : agent2->MUTRATE1;
-  target->MUTRATE2 = randf(0, 1) < 0.5 ? agent1->MUTRATE2 : agent2->MUTRATE2;
-  target->temperature_preference = randf(0, 1) < 0.5
-                                       ? agent1->temperature_preference
-                                       : agent2->temperature_preference;
-
-  target->brain = malloc(sizeof(struct MLPBrain));
-  mlpbrain_crossover(target->brain, agent1->brain, agent2->brain);
-}
+//void agent_crossover(struct Agent *target, const struct Agent *agent1,
+//                     const struct Agent *agent2) {
+//  target->hybrid = 1; // set this non-default flag
+//  target->gencount = agent1->gencount;
+//  if (agent2->gencount < target->gencount)
+//    target->gencount = agent2->gencount;
+//
+//  // agent heredity attributes
+//  target->clockf1 = randf(0, 1) < 0.5 ? agent1->clockf1 : agent2->clockf1;
+//  target->clockf2 = randf(0, 1) < 0.5 ? agent1->clockf2 : agent2->clockf2;
+//  target->herbivore = randf(0, 1) < 0.5 ? agent1->herbivore : agent2->herbivore;
+//  target->MUTRATE1 = randf(0, 1) < 0.5 ? agent1->MUTRATE1 : agent2->MUTRATE1;
+//  target->MUTRATE2 = randf(0, 1) < 0.5 ? agent1->MUTRATE2 : agent2->MUTRATE2;
+//  target->temperature_preference = randf(0, 1) < 0.5
+//                                       ? agent1->temperature_preference
+//                                       : agent2->temperature_preference;
+//
+//  target->brain = malloc(sizeof(struct AVXBrain));
+//  mlpbrain_crossover(target->brain, agent1->brain, agent2->brain);
+//}
 
 void agent_process_health(struct Agent *agent) {
   // process bots health

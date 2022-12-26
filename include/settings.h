@@ -13,8 +13,12 @@ extern int32_t MAX_SECONDS;
 
 #define INPUTSIZE 38
 #define OUTPUTSIZE 18
-#define BRAINSIZE (INPUTSIZE + OUTPUTSIZE + 200)
-#define CONNS 4
+
+// Needs to be at least 1, but that does barely any work
+#define BRAIN_DEPTH 3
+
+// MUST BE MULTIPLE OF 8 and bigger than INPUT_SIZE and OUTPUT_SIZE
+#define BRAIN_WIDTH (5 * 8)
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 #define CZ 50
@@ -36,7 +40,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 3000
+#define NUMBOTS 2000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots

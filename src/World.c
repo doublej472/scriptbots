@@ -69,8 +69,8 @@ void world_init(struct World *world) {
   // Track total running time:
   clock_gettime(CLOCK_MONOTONIC_RAW, &world->totalStartTime);
 
-  avec_init(&world->agents, 16);
-  avec_init(&world->agents_staging, 16);
+  avec_init(&world->agents, NUMBOTS);
+  avec_init(&world->agents_staging, NUMBOTS);
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t)NUMBOTS * .8);
@@ -505,34 +505,34 @@ void world_addCarnivore(struct World *world) {
   world->numAgentsAdded++;
 }
 
-void world_addNewByCrossover(struct World *world) {
-  // find two success cases
-  size_t i1 = randi(0, world->agents.size);
-  size_t i2 = randi(0, world->agents.size);
-  for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].age > world->agents.agents[i1].age &&
-        randf(0, 1) < 0.1f) {
-      i1 = i;
-    }
-    if (world->agents.agents[i].age > world->agents.agents[i2].age &&
-        randf(0, 1) < 0.1f && i != i1) {
-      i2 = i;
-    }
-  }
-
-  struct Agent *a1 = &world->agents.agents[i1];
-  struct Agent *a2 = &world->agents.agents[i2];
-
-  // cross brains
-  struct Agent anew;
-  agent_init(&anew);
-  agent_crossover(&anew, a1, a2);
-
-  // maybe do mutation here? I dont know. So far its only crossover
-  avec_push_back(&world->agents_staging, anew);
-
-  world->numAgentsAdded++; // record in report
-}
+//void world_addNewByCrossover(struct World *world) {
+//  // find two success cases
+//  size_t i1 = randi(0, world->agents.size);
+//  size_t i2 = randi(0, world->agents.size);
+//  for (size_t i = 0; i < world->agents.size; i++) {
+//    if (world->agents.agents[i].age > world->agents.agents[i1].age &&
+//        randf(0, 1) < 0.1f) {
+//      i1 = i;
+//    }
+//    if (world->agents.agents[i].age > world->agents.agents[i2].age &&
+//        randf(0, 1) < 0.1f && i != i1) {
+//      i2 = i;
+//    }
+//  }
+//
+//  struct Agent *a1 = &world->agents.agents[i1];
+//  struct Agent *a2 = &world->agents.agents[i2];
+//
+//  // cross brains
+//  struct Agent anew;
+//  agent_init(&anew);
+//  agent_crossover(&anew, a1, a2);
+//
+//  // maybe do mutation here? I dont know. So far its only crossover
+//  avec_push_back(&world->agents_staging, anew);
+//
+//  world->numAgentsAdded++; // record in report
+//}
 
 void world_reproduce(struct World *world, struct Agent *a, float MR,
                      float MR2) {
@@ -602,8 +602,8 @@ void world_writeReport(struct World *world) {
 void world_reset(struct World *world) {
   avec_free(&world->agents_staging);
   avec_free(&world->agents);
-  avec_init(&world->agents_staging, 16);
-  avec_init(&world->agents, 16);
+  avec_init(&world->agents_staging, NUMBOTS);
+  avec_init(&world->agents, NUMBOTS);
   world_addRandomBots(world, NUMBOTS);
   world_flush_staging(world);
 }

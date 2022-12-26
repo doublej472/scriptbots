@@ -22,7 +22,7 @@ add_executable(scriptbots
 	src/Base.c
 	src/Agent.c
 	src/main.c
-	src/MLPBrain.c
+	src/AVXBrain.c
 	src/helpers.c
 	src/World.c
 )

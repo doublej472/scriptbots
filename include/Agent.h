@@ -1,8 +1,9 @@
 #ifndef AGENT_H
 #define AGENT_H
 #include <stdint.h>
+#include <stdalign.h>
 
-#include "MLPBrain.h"
+#include "AVXBrain.h"
 #include "vec2f.h"
 
 struct Agent {
@@ -26,10 +27,6 @@ struct Agent {
   float spikeLength;
   int32_t age;
 
-  float in[INPUTSIZE];   // input: 2 eyes, sensors for R,G,B,proximity each,
-                         // then Sound, Smell, Health
-  float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
-
   float repcounter;       // when repcounter gets to 0, this bot reproduces
   int rep;                // If this agent will reproduce the next world update
   int32_t gencount;       // generation counter
@@ -51,7 +48,10 @@ struct Agent {
   float
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
-  struct MLPBrain *brain;
+  float in[INPUTSIZE];   // input: 2 eyes, sensors for R,G,B,proximity each,
+                         // then Sound, Smell, Health
+  float out[OUTPUTSIZE]; // output: Left, Right, R, G, B, SPIKE
+  struct AVXBrain *brain;
 };
 
 struct Agent_d {
@@ -66,8 +66,8 @@ void agent_initevent(struct Agent *agent, float size, float r, float g,
 void agent_tick(struct Agent *agent);
 void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
                      float MR2);
-void agent_crossover(struct Agent *target, const struct Agent *agent1,
-                     const struct Agent *agent2);
+//void agent_crossover(struct Agent *target, const struct Agent *agent1,
+//                     const struct Agent *agent2);
 void agent_process_health(struct Agent *agent);
 
 #endif // AGENT_H
