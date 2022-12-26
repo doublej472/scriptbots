@@ -60,7 +60,7 @@ void base_loadworld(struct Base *base) {
 
   printf("Reading %ld brains...\n", size);
   for (int i = 0; i < base->world->agents.size; i++) {
-    base->world->agents.agents[i].brain = malloc(sizeof(struct AVXBrain));
+    base->world->agents.agents[i].brain = aligned_alloc(32, sizeof(struct AVXBrain));
     fread(base->world->agents.agents[i].brain, sizeof(struct AVXBrain), 1, f);
   }
 
