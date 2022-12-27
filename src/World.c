@@ -168,6 +168,7 @@ static void world_update_gui(struct World *world) {
          world->current_epoch, world->modcounter / 100,
          (int32_t)world->agents.size, (float)reportInterval / deltat,
          totaldeltat);
+  fflush(stdout);
 
   world->startTime = endTime;
 
