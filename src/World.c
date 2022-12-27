@@ -40,7 +40,7 @@ void world_flush_staging(struct World *world) {
     if (a->health <= 0) {
       // The i-- is very important here, since we need to retry the current
       // iteration because it was replaced with a different agent
-      free(a->brain);
+      free_brain(a->brain);
       avec_delete(&world->agents, i--);
       continue;
     }
@@ -65,15 +65,16 @@ void world_init(struct World *world) {
   world->FW = WIDTH / CZ;
   world->FH = HEIGHT / CZ;
 
-  clock_gettime(CLOCK_MONOTONIC_RAW, &world->startTime);
+  clock_gettime(CLOCK_MONOTONIC, &world->startTime);
   // Track total running time:
-  clock_gettime(CLOCK_MONOTONIC_RAW, &world->totalStartTime);
+  clock_gettime(CLOCK_MONOTONIC, &world->totalStartTime);
 
   avec_init(&world->agents, NUMBOTS);
   avec_init(&world->agents_staging, NUMBOTS);
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t)NUMBOTS * .8);
+  printf("winit\n");
   for (int32_t i = 0; i < (int32_t)NUMBOTS * .2; ++i)
     world_addCarnivore(world);
 
@@ -101,7 +102,7 @@ void world_printState(struct World *world) {
   printf("World State Info -----------\n");
   printf("Epoch:\t\t%i\n", world->current_epoch);
   printf("Tick:\t\t%i\n", world->modcounter);
-  printf("Num Agents:%li\n", world->agents.size);
+  printf("Num Agents:%zu\n", world->agents.size);
   printf("Agents Added:%i\n", world->numAgentsAdded);
   printf("----------------------------\n");
 }
@@ -150,7 +151,7 @@ static void world_update_gui(struct World *world) {
 
   // Update GUI
   struct timespec endTime;
-  clock_gettime(CLOCK_MONOTONIC_RAW, &endTime);
+  clock_gettime(CLOCK_MONOTONIC, &endTime);
   struct timespec ts_delta;
   struct timespec ts_totaldelta;
 
@@ -438,16 +439,17 @@ void world_update(struct World *world) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
-  for (size_t i = 0; i < world->agents.size; i += 16) {
-    size_t max = i + 16;
-    if (max > world->agents.size) {
-      max = world->agents.size;
+  struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
+  for (size_t i = 0; i*16 < world->agents.size; i++) {
+    size_t start = (i*16);
+    size_t end = (i*16) + 16;
+    if (end > world->agents.size) {
+      end = world->agents.size;
     }
-    struct AgentQueueItem *agentQueueItem =
-        malloc(sizeof(struct AgentQueueItem));
+    struct AgentQueueItem *agentQueueItem = &agentQueueItems[i];
     agentQueueItem->world = world;
-    agentQueueItem->start = i;
-    agentQueueItem->end = max;
+    agentQueueItem->start = start;
+    agentQueueItem->end = end;
 
     struct QueueItem queueItem = {agent_input_processor, agentQueueItem};
     queue_enqueue(&world->queue, queueItem);
@@ -462,16 +464,17 @@ void world_setInputsRunBrain(struct World *world) {
 }
 
 void world_processOutputs(struct World *world) {
-  for (size_t i = 0; i < world->agents.size; i += 16) {
-    size_t max = i + 16;
-    if (max > world->agents.size) {
-      max = world->agents.size;
+  struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
+  for (size_t i = 0; i*16 < world->agents.size; i++) {
+    size_t start = (i*16);
+    size_t end = (i*16) + 16;
+    if (end > world->agents.size) {
+      end = world->agents.size;
     }
-    struct AgentQueueItem *agentQueueItem =
-        malloc(sizeof(struct AgentQueueItem));
+    struct AgentQueueItem *agentQueueItem = &agentQueueItems[i];
     agentQueueItem->world = world;
-    agentQueueItem->start = i;
-    agentQueueItem->end = max;
+    agentQueueItem->start = start;
+    agentQueueItem->end = end;
 
     struct QueueItem queueItem = {agent_output_processor, agentQueueItem};
     queue_enqueue(&world->queue, queueItem);

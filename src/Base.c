@@ -19,12 +19,12 @@ void base_saveworld(struct Base *base) {
   w.agents_staging.agents = NULL;
   fwrite(&w, sizeof(struct World), 1, f);
 
-  printf("Writing %ld agents...\n", base->world->agents.size);
+  printf("Writing %zu agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
   fwrite(base->world->agents.agents, sizeof(struct Agent),
          base->world->agents.size, f);
 
-  printf("Writing %ld brains...\n", base->world->agents.size);
+  printf("Writing %zu brains...\n", base->world->agents.size);
   for (int i = 0; i < base->world->agents.size; i++) {
     fwrite(base->world->agents.agents[i].brain, sizeof(struct AVXBrain), 1, f);
   }
@@ -39,7 +39,7 @@ void base_loadworld(struct Base *base) {
   FILE *f = fopen("world.dat", "rb");
 
   for (int i = 0; i < base->world->agents.size; i++) {
-    free(base->world->agents.agents[i].brain);
+    free_brain(base->world->agents.agents[i].brain);
   }
 
   avec_free(&base->world->agents);
@@ -49,25 +49,28 @@ void base_loadworld(struct Base *base) {
   memcpy(&old_queue, &base->world->queue, sizeof(struct Queue));
 
   fread(base->world, sizeof(struct World), 1, f);
+  base->world->stopSim = 0;
 
   long size = 0l;
   fread(&size, sizeof(long), 1, f);
   printf("Reading %ld agents...\n", size);
+
   avec_init(&base->world->agents, size);
   avec_init(&base->world->agents_staging, 16);
+
   fread(base->world->agents.agents, sizeof(struct Agent), size, f);
   base->world->agents.size = size;
 
   printf("Reading %ld brains...\n", size);
   for (int i = 0; i < base->world->agents.size; i++) {
     base->world->agents.agents[i].brain =
-        aligned_alloc(32, sizeof(struct AVXBrain));
+        alloc_aligned(32, sizeof(struct AVXBrain));
     fread(base->world->agents.agents[i].brain, sizeof(struct AVXBrain), 1, f);
   }
 
   printf("Fixing world struct...\n");
-  clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->startTime);
-  clock_gettime(CLOCK_MONOTONIC_RAW, &base->world->totalStartTime);
+  clock_gettime(CLOCK_MONOTONIC, &base->world->startTime);
+  clock_gettime(CLOCK_MONOTONIC, &base->world->totalStartTime);
 
   memcpy(&base->world->queue, &old_queue, sizeof(struct Queue));
 

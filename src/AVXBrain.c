@@ -98,9 +98,12 @@ __m256 exp256_ps(__m256 x) {
 __m256 activation_function(__m256 x) {
   // printf("input before: %f\n", x[0]);
 
+  __m256 minusone = _mm256_set1_ps(-1.0f);
+  __m256 one = _mm256_set1_ps(1.0f);
+
   // flip sign
   x = _mm256_mul_ps(
-      x, (__m256){-1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f});
+      x, minusone);
 
   // exp part
   x = exp256_ps(x);
@@ -120,8 +123,8 @@ __m256 activation_function(__m256 x) {
   // printf("exp after: %f\n", x[0]);
   //  sigmoid part
   x = _mm256_add_ps(x,
-                    (__m256){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-  x = _mm256_div_ps((__m256){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+                    one);
+  x = _mm256_div_ps(one,
                     x);
 
   // printf("activation after: %f\n", x[0]);
@@ -134,16 +137,32 @@ void avxbrain_init(struct AVXBrain *b) {
 
   // Init weights
   for (size_t i = 0; i < weights; i++) {
-    for (int j = 0; j < 8; j++) {
-      b->weights[i][j] = randf(-WEIGHT_RANGE, WEIGHT_RANGE);
-    }
+    alignas(32) float randvals[8] = {
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+    };
+      b->weights[i] = _mm256_load_ps((const float*) randvals);
   }
+  
   // Init biases and initial vals
   for (size_t i = 0; i < neurons; i++) {
-    for (int j = 0; j < 8; j++) {
-      b->biases[i][j] = randf(-BIAS_RANGE, BIAS_RANGE);
-    }
-    b->vals[i] = (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    alignas(32) float randvals[8] = {
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+      randf(-BIAS_RANGE, BIAS_RANGE),
+    };
+    b->biases[i] = _mm256_load_ps((const float*) randvals);
   }
 }
 

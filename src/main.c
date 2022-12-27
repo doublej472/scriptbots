@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
 
 // For detecting keyboard:
 #include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
 
 #ifdef TRAP_NAN
@@ -39,11 +39,16 @@ int32_t VERBOSE;
 int32_t HEADLESS;
 int32_t NUM_THREADS;
 
+struct Base base;
+
 // ---------------------------------------------------------------------------
 // Prototypes:
-int32_t kbhit();
 void runHeadless(struct Base *base);
 void runWithGraphics(int32_t argc, char **argv, struct Base *base);
+
+void signal_handler(int signum) {
+  base.world->stopSim = 1;
+}
 
 void *worker_thread(void *arg) {
   struct Base *base = (struct Base *)arg;
@@ -54,7 +59,6 @@ void *worker_thread(void *arg) {
     struct QueueItem qi = queue_dequeue(&base->world->queue);
     qi.function(qi.data);
     queue_workdone(&base->world->queue);
-    free(qi.data);
   }
 }
 
@@ -106,10 +110,11 @@ int main(int argc, char **argv) {
     }
   }
 
-  struct Base base;
   struct World world;
   world_init(&world);
   base_init(&base, &world);
+
+  signal(SIGINT, signal_handler); 
 
   printf("---------------------------------------------------------------------"
          "----------\n");
@@ -130,8 +135,13 @@ int main(int argc, char **argv) {
   printf("   Termination:\n");
   if (MAX_EPOCHS < INT_MAX)
     printf("      Stopping at %i epochs\n", MAX_EPOCHS);
-  else
-    printf("      Press any key to save and end simulation\n\n");
+  else {
+    if (HEADLESS) {
+      printf("      Press ctrl+c to save and end simulation\n\n");
+    } else {
+      printf("      Press ESC to save and end simulation\n\n");
+    }
+  }
 
   if (WIDTH % CZ != 0 || HEIGHT % CZ != 0) {
     printf("   WARNING: The cell size variable CZ should divide evenly "
@@ -181,42 +191,13 @@ int main(int argc, char **argv) {
     runWithGraphics(argc, argv, &base);
   }
 
-  queue_close(&world.queue);
+  queue_close(&base.world->queue);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);
   }
 
   free(threads);
-
-  return 0;
-}
-
-// ---------------------------------------------------------------------------
-// Used for detecting keyboard end
-// Cross-platform?
-// ---------------------------------------------------------------------------
-int32_t kbhit() {
-  struct termios oldt, newt;
-  int32_t ch;
-  int32_t oldf;
-
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-  ch = getchar();
-
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-  if (ch != EOF) {
-    ungetc(ch, stdin);
-    return 1;
-  }
 
   return 0;
 }
@@ -253,18 +234,18 @@ void runWithGraphics(int32_t argc, char **argv, struct Base *base) {
 // Run Scriptbots headless
 // ---------------------------------------------------------------------------
 void runHeadless(struct Base *base) {
+  printf("Simulation Starting...\n");
 
-  printf("Simulation Starting...\r");
-  while (!kbhit() && !base->world->stopSim) {
+  while (!base->world->stopSim) {
     world_update(base->world);
   }
 
   base_saveworld(base);
   for (int i = 0; i < base->world->agents.size; i++) {
-    free(base->world->agents.agents[i].brain);
+    free_brain(base->world->agents.agents[i].brain);
   }
   for (int i = 0; i < base->world->agents_staging.size; i++) {
-    free(base->world->agents_staging.agents[i].brain);
+    free_brain(base->world->agents_staging.agents[i].brain);
   }
   avec_free(&base->world->agents);
   avec_free(&base->world->agents_staging);

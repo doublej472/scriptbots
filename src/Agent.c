@@ -47,7 +47,7 @@ void agent_init(struct Agent *agent) {
   memset(&agent->in, '\0', sizeof(float) * INPUTSIZE);
   memset(&agent->out, '\0', sizeof(float) * OUTPUTSIZE);
 
-  agent->brain = aligned_alloc(32, sizeof(struct AVXBrain));
+  agent->brain = alloc_aligned(32, sizeof(struct AVXBrain));
 
   avxbrain_init(agent->brain);
 }

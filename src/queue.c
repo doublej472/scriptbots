@@ -6,7 +6,6 @@
 void queue_init(struct Queue *queue) {
   pthread_condattr_t cattr;
   pthread_condattr_init(&cattr);
-  pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC);
 
   pthread_mutexattr_t mattr;
   pthread_mutexattr_init(&mattr);
@@ -27,7 +26,7 @@ void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   pthread_mutex_lock(&(queue->mutex));
   while (queue->size == QUEUE_BUFFER_SIZE) {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += 1;
 
     pthread_cond_timedwait(&(queue->cond_item_removed), &(queue->mutex), &ts);
@@ -46,10 +45,11 @@ void queue_enqueue(struct Queue *queue, struct QueueItem value) {
 }
 
 struct QueueItem queue_dequeue(struct Queue *queue) {
+
   pthread_mutex_lock(&(queue->mutex));
   while (queue->size == 0) {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += 1;
 
     pthread_cond_timedwait(&(queue->cond_item_added), &(queue->mutex), &ts);

@@ -148,10 +148,10 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
     queue_close(&GLVIEW.base->world->queue);
     base_saveworld(GLVIEW.base);
     for (int i = 0; i < GLVIEW.base->world->agents.size; i++) {
-      free(GLVIEW.base->world->agents.agents[i].brain);
+      free_brain(GLVIEW.base->world->agents.agents[i].brain);
     }
     for (int i = 0; i < GLVIEW.base->world->agents_staging.size; i++) {
-      free(GLVIEW.base->world->agents_staging.agents[i].brain);
+      free_brain(GLVIEW.base->world->agents_staging.agents[i].brain);
     }
     avec_free(&GLVIEW.base->world->agents);
     avec_free(&GLVIEW.base->world->agents_staging);
@@ -233,7 +233,7 @@ void gl_handleIdle() {
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf,
             "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
-            GLVIEW.frames, world_numAgents(GLVIEW.base->world), num_carns,
+            GLVIEW.frames * 4, world_numAgents(GLVIEW.base->world), num_carns,
             num_herbs, GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
     GLVIEW.frames = 0;

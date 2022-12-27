@@ -18,4 +18,7 @@ float cap(float a);
 
 // Get number of processors in the system
 long get_nprocs();
+
+void *alloc_aligned(size_t size, size_t alignment);
+void free_brain(void *f);
 #endif
