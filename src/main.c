@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <signal.h>
+#include <pthread.h>
 
 // For detecting keyboard:
 #include <fcntl.h>

@@ -1,8 +1,10 @@
-#include "Base.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "Base.h"
+#include "lock.h"
 
 void base_init(struct Base *base, struct World *world) { base->world = world; }
 
@@ -75,18 +77,14 @@ void base_loadworld(struct Base *base) {
   memcpy(&base->world->queue, &old_queue, sizeof(struct Queue));
 
   // Wait until we have no agents being worked on
-  pthread_mutex_lock(&base->world->queue.mutex);
-  while (base->world->queue.num_work_items != 0 ||
-         base->world->queue.size != 0) {
-    pthread_cond_wait(&base->world->queue.cond_work_done,
-                      &base->world->queue.mutex);
-  }
+  queue_wait_until_done(&base->world->queue);
+  lock_lock(&base->world->queue.lock);
 
   base->world->queue.size = 0;
   base->world->queue.in = 0;
   base->world->queue.out = 0;
   base->world->queue.num_work_items = 0;
-  pthread_mutex_unlock(&base->world->queue.mutex);
+  lock_unlock(&base->world->queue.lock);
 
   world_flush_staging(base->world);
   world_sortGrid(base->world);

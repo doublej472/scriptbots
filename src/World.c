@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -456,12 +455,8 @@ void world_setInputsRunBrain(struct World *world) {
     queue_enqueue(&world->queue, queueItem);
   }
 
-  pthread_mutex_lock(&world->queue.mutex);
-  while (world->queue.num_work_items != 0 || world->queue.size != 0) {
-    pthread_cond_wait(&world->queue.cond_work_done, &world->queue.mutex);
-  }
-
-  pthread_mutex_unlock(&world->queue.mutex);
+  queue_wait_until_done(&world->queue);
+  // printf("input done, %zu size, %zu work items\n", world->queue.size, world->queue.num_work_items);
 }
 
 void world_processOutputs(struct World *world) {
@@ -481,12 +476,7 @@ void world_processOutputs(struct World *world) {
     queue_enqueue(&world->queue, queueItem);
   }
 
-  pthread_mutex_lock(&world->queue.mutex);
-  while (world->queue.num_work_items != 0 || world->queue.size != 0) {
-    pthread_cond_wait(&world->queue.cond_work_done, &world->queue.mutex);
-  }
-
-  pthread_mutex_unlock(&world->queue.mutex);
+  queue_wait_until_done(&world->queue);
 }
 
 void world_addRandomBots(struct World *world, int32_t num) {

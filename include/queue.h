@@ -13,11 +13,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <pthread.h>
-#include <stdio.h>
-
 #ifndef _QUEUE_H
 #define _QUEUE_H
+
+#include <stdio.h>
+#include "lock.h"
 
 #define QUEUE_BUFFER_SIZE 1000
 
@@ -27,17 +27,20 @@ struct QueueItem {
 };
 
 struct Queue {
-  struct QueueItem buffer[QUEUE_BUFFER_SIZE];
+  struct Lock lock;
+  struct LockCondition cond_item_added;
+  struct LockCondition cond_item_removed;
+  struct LockCondition cond_work_done;
+  // This value is set to 0 on init, and only ever written to once the entire
+  // program, which is when this queue is closed. So no protection around this variable.
+  int closed;
+  // Everything below this line needs the spinlock for safe modification
   size_t size;
   size_t in;
   size_t out;
-  int closed;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond_item_added;
-  pthread_cond_t cond_item_removed;
 
   size_t num_work_items;
-  pthread_cond_t cond_work_done;
+  struct QueueItem buffer[QUEUE_BUFFER_SIZE];
 };
 
 void queue_init(struct Queue *queue);
@@ -46,5 +49,7 @@ struct QueueItem queue_dequeue(struct Queue *queue);
 size_t queue_size(struct Queue *queue);
 void queue_workdone(struct Queue *queue);
 void queue_close(struct Queue *queue);
+
+void queue_wait_until_done(struct Queue *queue);
 
 #endif

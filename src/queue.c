@@ -1,37 +1,27 @@
-#include <pthread.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "queue.h"
+#include "lock.h"
 
 void queue_init(struct Queue *queue) {
-  pthread_condattr_t cattr;
-  pthread_condattr_init(&cattr);
-
-  pthread_mutexattr_t mattr;
-  pthread_mutexattr_init(&mattr);
-
   queue->size = 0;
   queue->in = 0;
   queue->out = 0;
   queue->closed = 0;
-  queue->num_work_items = 0;
 
-  pthread_mutex_init(&queue->mutex, &mattr);
-  pthread_cond_init(&queue->cond_item_added, &cattr);
-  pthread_cond_init(&queue->cond_item_removed, &cattr);
-  pthread_cond_init(&queue->cond_work_done, &cattr);
+  lock_init(&queue->lock);
+  lock_condition_init(&queue->cond_item_added);
+  lock_condition_init(&queue->cond_item_removed);
+  lock_condition_init(&queue->cond_work_done);
 }
 
 void queue_enqueue(struct Queue *queue, struct QueueItem value) {
-  pthread_mutex_lock(&(queue->mutex));
+  lock_lock(&queue->lock);
   while (queue->size == QUEUE_BUFFER_SIZE) {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1;
-
-    pthread_cond_timedwait(&(queue->cond_item_removed), &(queue->mutex), &ts);
+    lock_condition_timedwait(&queue->lock, &queue->cond_item_removed, 200);
     if (queue->closed != 0) {
-      pthread_mutex_unlock(&(queue->mutex));
+      lock_unlock(&queue->lock);
       pthread_exit(0);
     }
   }
@@ -40,21 +30,16 @@ void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   ++queue->in;
   queue->in %= QUEUE_BUFFER_SIZE;
   ++queue->num_work_items;
-  pthread_mutex_unlock(&(queue->mutex));
-  pthread_cond_signal(&(queue->cond_item_added));
+  lock_unlock(&queue->lock);
+  lock_condition_signal(&queue->cond_item_added);
 }
 
 struct QueueItem queue_dequeue(struct Queue *queue) {
-
-  pthread_mutex_lock(&(queue->mutex));
+  lock_lock(&queue->lock);
   while (queue->size == 0) {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1;
-
-    pthread_cond_timedwait(&(queue->cond_item_added), &(queue->mutex), &ts);
+    lock_condition_timedwait(&queue->lock, &queue->cond_item_added, 200);
     if (queue->closed != 0) {
-      pthread_mutex_unlock(&(queue->mutex));
+      lock_unlock(&queue->lock);
       pthread_exit(0);
     }
   }
@@ -62,31 +47,38 @@ struct QueueItem queue_dequeue(struct Queue *queue) {
   --queue->size;
   ++queue->out;
   queue->out %= QUEUE_BUFFER_SIZE;
-  pthread_mutex_unlock(&(queue->mutex));
-  pthread_cond_broadcast(&(queue->cond_item_removed));
+  lock_unlock(&queue->lock);
+  lock_condition_signal(&queue->cond_item_removed);
   return value;
 }
 
 void queue_workdone(struct Queue *queue) {
-  pthread_mutex_lock(&(queue->mutex));
-  --queue->num_work_items;
-  size_t workdone = queue->num_work_items;
+  lock_lock(&queue->lock);
+  size_t n = --queue->num_work_items;
   size_t size = queue->size;
-  pthread_mutex_unlock(&(queue->mutex));
-  if (workdone == 0 && size == 0) {
-    pthread_cond_broadcast(&(queue->cond_work_done));
+  lock_unlock(&queue->lock);
+  if (n == 0 && size == 0) {
+    lock_condition_broadcast(&queue->cond_work_done);
   }
 }
 
 void queue_close(struct Queue *queue) {
-  pthread_mutex_lock(&(queue->mutex));
+  lock_lock(&queue->lock);
   queue->closed = 1;
-  pthread_mutex_unlock(&(queue->mutex));
+  lock_unlock(&queue->lock);
 }
 
 size_t queue_size(struct Queue *queue) {
-  pthread_mutex_lock(&(queue->mutex));
+  lock_lock(&queue->lock);
   size_t size = queue->size;
-  pthread_mutex_unlock(&(queue->mutex));
+  lock_unlock(&queue->lock);
   return size;
+}
+
+void queue_wait_until_done(struct Queue *queue) {
+  lock_lock(&queue->lock);
+  while (queue->num_work_items != 0 || queue->size != 0) {
+    lock_condition_wait(&queue->lock, &queue->cond_work_done);
+  }
+  lock_unlock(&queue->lock);
 }

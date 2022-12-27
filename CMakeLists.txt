@@ -25,6 +25,7 @@ add_executable(scriptbots
 	src/AVXBrain.c
 	src/helpers.c
 	src/World.c
+	src/lock.c
 )
 
 if (TRAP_NAN)
