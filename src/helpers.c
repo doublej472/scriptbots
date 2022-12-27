@@ -4,7 +4,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#if defined(WIN32) && !defined(UNIX)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <sysinfoapi.h>
 #endif
 
@@ -75,19 +75,19 @@ inline float cap(float a) {
 
 // Get number of processors in the system
 inline long get_nprocs() {
-#if defined(WIN32) && !defined(UNIX)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 SYSTEM_INFO sysinfo;
 GetSystemInfo(&sysinfo);
 return sysinfo.dwNumberOfProcessors;
-#elif defined(UNIX) && !defined(WIN32)
+#elif __linux__
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
 
 void *alloc_aligned(size_t alignment, size_t size) {
-#if defined(WIN32) && !defined(UNIX)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 return _aligned_malloc(size, alignment);
-#elif defined(UNIX) && !defined(WIN32)
+#elif __linux__
 return aligned_alloc(alignment, size);
 #else
 #error "No aligned alloc available!!!"
@@ -95,9 +95,9 @@ return aligned_alloc(alignment, size);
 }
 
 void free_brain(void *f) {
-#if defined(WIN32) && !defined(UNIX)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 _aligned_free(f);
-#elif defined(UNIX) && !defined(WIN32)
+#elif __linux__
 free(f);
 #else
 #error "No aligned free available!!!"

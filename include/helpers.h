@@ -1,6 +1,7 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 #include <stdint.h>
+#include <stddef.h>
 
 void init_thread_random();
 
