@@ -78,13 +78,23 @@ if (USE_LTO)
 endif()
 
 if (USE_OPENGL)
-	find_package(GLEW REQUIRED)
-	find_package(GLUT REQUIRED)
-
-	add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
-	target_link_libraries(scriptbots GLEW::GLEW GLUT::GLUT)
-	target_sources(scriptbots PRIVATE src/GLView.c)
 	add_compile_definitions(OPENGL)
+
+	if(WIN32)
+		find_package(GLEW REQUIRED)
+		find_package(GLUT REQUIRED)
+
+		add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
+		target_link_libraries(scriptbots GLEW::GLEW GLUT::GLUT)
+		target_sources(scriptbots PRIVATE src/GLView.c)
+	else()
+		find_package(OpenGL REQUIRED)
+		find_package(GLUT REQUIRED)
+
+		add_dependencies(scriptbots OpenGL::OpenGL GLUT::GLUT)
+		target_link_libraries(scriptbots OpenGL::OpenGL GLUT::GLUT)
+		target_sources(scriptbots PRIVATE src/GLView.c)
+	endif()
 endif()
 
 target_compile_options(scriptbots PRIVATE -Wall)
