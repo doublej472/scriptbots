@@ -74,8 +74,7 @@ __m256 activation_function(__m256 x) {
   __m256 one = _mm256_set1_ps(1.0f);
 
   // flip sign
-  x = _mm256_mul_ps(
-      x, minusone);
+  x = _mm256_mul_ps(x, minusone);
 
   // exp part
   x = exp256_ps(x);
@@ -94,10 +93,8 @@ __m256 activation_function(__m256 x) {
 
   // printf("exp after: %f\n", x[0]);
   //  sigmoid part
-  x = _mm256_add_ps(x,
-                    one);
-  x = _mm256_div_ps(one,
-                    x);
+  x = _mm256_add_ps(x, one);
+  x = _mm256_div_ps(one, x);
 
   // printf("activation after: %f\n", x[0]);
   return x;
@@ -110,31 +107,23 @@ void avxbrain_init(struct AVXBrain *b) {
   // Init weights
   for (size_t i = 0; i < weights; i++) {
     alignas(32) float randvals[8] = {
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-      randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
+        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
     };
-      b->weights[i] = _mm256_load_ps((const float*) randvals);
+    b->weights[i] = _mm256_load_ps((const float *)randvals);
   }
-  
+
   // Init biases and initial vals
   for (size_t i = 0; i < neurons; i++) {
     alignas(32) float randvals[8] = {
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
-      randf(-BIAS_RANGE, BIAS_RANGE),
+        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
+        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
+        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
+        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
     };
-    b->biases[i] = _mm256_load_ps((const float*) randvals);
+    b->biases[i] = _mm256_load_ps((const float *)randvals);
   }
 }
 
@@ -223,8 +212,8 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
 
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
-    size_t numbtomut = randi(1,5);
-    size_t numwtomut = randi(1,25);
+    size_t numbtomut = randi(1, 5);
+    size_t numwtomut = randi(1, 25);
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
 
@@ -232,9 +221,9 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
       size_t idx = randi(0, biases);
       brain->biases[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
       if (brain->biases[idx / 8][idx % 8] > BIAS_RANGE) {
-	      brain->biases[idx / 8][idx % 8] = BIAS_RANGE;
+        brain->biases[idx / 8][idx % 8] = BIAS_RANGE;
       } else if (brain->biases[idx / 8][idx % 8] < -BIAS_RANGE) {
-	      brain->biases[idx / 8][idx % 8] = -BIAS_RANGE;
+        brain->biases[idx / 8][idx % 8] = -BIAS_RANGE;
       }
     }
     // mutate w
@@ -242,9 +231,9 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
       size_t idx = randi(0, weights);
       brain->weights[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
       if (brain->weights[idx / 8][idx % 8] > WEIGHT_RANGE) {
-	      brain->weights[idx / 8][idx % 8] = WEIGHT_RANGE;
+        brain->weights[idx / 8][idx % 8] = WEIGHT_RANGE;
       } else if (brain->weights[idx / 8][idx % 8] < -WEIGHT_RANGE) {
-	      brain->weights[idx / 8][idx % 8] = -WEIGHT_RANGE;
+        brain->weights[idx / 8][idx % 8] = -WEIGHT_RANGE;
       }
     }
   }

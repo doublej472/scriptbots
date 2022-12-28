@@ -16,8 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
-#include <stdio.h>
 #include "lock.h"
+#include <stdio.h>
 
 #define QUEUE_BUFFER_SIZE 1000
 
@@ -32,7 +32,8 @@ struct Queue {
   struct LockCondition cond_item_removed;
   struct LockCondition cond_work_done;
   // This value is set to 0 on init, and only ever written to once the entire
-  // program, which is when this queue is closed. So no protection around this variable.
+  // program, which is when this queue is closed. So no protection around this
+  // variable.
   int closed;
   // Everything below this line needs the spinlock for safe modification
   size_t size;
