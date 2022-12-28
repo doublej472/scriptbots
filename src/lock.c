@@ -56,7 +56,7 @@ void lock_destroy(struct Lock *l) {
 #endif
 }
 
-void lock_lock(struct Lock *l) {
+inline void lock_lock(struct Lock *l) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   AcquireSRWLockExclusive(&l->win_lock);
 #elif __linux__
@@ -64,7 +64,7 @@ void lock_lock(struct Lock *l) {
 #endif
 }
 
-int lock_trylock(struct Lock *l) {
+inline int lock_trylock(struct Lock *l) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   return TryAcquireSRWLockExclusive(&l->win_lock) == 0 ? 0 : 1;
 #elif __linux__
@@ -72,7 +72,7 @@ int lock_trylock(struct Lock *l) {
 #endif
 }
 
-void lock_unlock(struct Lock *l) {
+inline void lock_unlock(struct Lock *l) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   ReleaseSRWLockExclusive(&l->win_lock);
 #elif __linux__
@@ -96,7 +96,7 @@ void lock_condition_destroy(struct LockCondition *lc) {
 #endif
 }
 
-void lock_condition_signal(struct LockCondition *lc) {
+inline void lock_condition_signal(struct LockCondition *lc) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   WakeConditionVariable(&lc->win_cond);
 #elif __linux__
@@ -104,7 +104,7 @@ void lock_condition_signal(struct LockCondition *lc) {
 #endif
 }
 
-void lock_condition_broadcast(struct LockCondition *lc) {
+inline void lock_condition_broadcast(struct LockCondition *lc) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   WakeAllConditionVariable(&lc->win_cond);
 #elif __linux__
@@ -112,7 +112,7 @@ void lock_condition_broadcast(struct LockCondition *lc) {
 #endif
 }
 
-void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
+inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
                               int64_t milliseconds) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD)milliseconds,
@@ -125,6 +125,6 @@ void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
 #endif
 }
 
-void lock_condition_wait(struct Lock *l, struct LockCondition *lc) {
+inline void lock_condition_wait(struct Lock *l, struct LockCondition *lc) {
   lock_condition_timedwait(l, lc, 3000);
 }

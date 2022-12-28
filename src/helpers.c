@@ -37,7 +37,7 @@ inline float approx_atan2(float y, float x) {
 }
 
 // uniform random in [a,b)
-float randf(float a, float b) {
+inline float randf(float a, float b) {
   return ((b - a) * ((float)rand() / (float)RAND_MAX)) + a;
 }
 
