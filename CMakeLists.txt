@@ -26,6 +26,7 @@ add_executable(scriptbots
 	src/helpers.c
 	src/World.c
 	src/lock.c
+	src/mtwister.c
 )
 
 if (TRAP_NAN)
@@ -69,6 +70,7 @@ if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
 		src/helpers.c
+	        src/mtwister.c
 		tests/vec2f.c
 	)
 	target_link_options(test_vec2f PRIVATE -lm)

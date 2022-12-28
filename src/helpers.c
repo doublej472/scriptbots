@@ -11,7 +11,9 @@
 
 #include "helpers.h"
 
-void init_thread_random() { srand(time(0)); }
+void init_thread_random() {
+  mtrand = seedRand(time(0));
+}
 
 inline float approx_atan2(float y, float x) {
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
@@ -37,11 +39,11 @@ inline float approx_atan2(float y, float x) {
 
 // uniform random in [a,b)
 inline float randf(float a, float b) {
-  return ((b - a) * ((float)rand() / (float)RAND_MAX)) + a;
+  return (b - a) * genRand(&mtrand) + a;
 }
 
 // uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) { return (rand() % (b - a)) + a; }
+inline int32_t randi(int32_t a, int32_t b) { return (genRandLong(&mtrand) % (b - a)) + a; }
 
 // normalvariate random N(mu, sigma)
 float randn(float mu, float sigma) {
@@ -50,8 +52,8 @@ float randn(float mu, float sigma) {
   float polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
-      var1 = 2.0f * (((float)rand()) / ((float)(RAND_MAX))) - 1.0f;
-      var2 = 2.0f * (((float)rand()) / ((float)(RAND_MAX))) - 1.0f;
+      var1 = 2.0f * genRand(&mtrand) - 1.0f;
+      var2 = 2.0f * genRand(&mtrand) - 1.0f;
       rsquared = var1 * var1 + var2 * var2;
     } while (rsquared >= 1.0f || rsquared == 0.0f);
     polar = sqrtf(-2.0f * logf(rsquared) / rsquared);
