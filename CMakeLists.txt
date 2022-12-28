@@ -68,6 +68,7 @@ endif()
 if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
+		src/helpers.c
 		tests/vec2f.c
 	)
 	target_link_options(test_vec2f PRIVATE -lm)

@@ -73,7 +73,6 @@ void world_init(struct World *world) {
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t)NUMBOTS * .8);
-  printf("winit\n");
   for (int32_t i = 0; i < (int32_t)NUMBOTS * .2; ++i)
     world_addCarnivore(world);
 
@@ -95,6 +94,8 @@ void world_init(struct World *world) {
 
   // Delete the old report to start fresh
   remove("report.csv");
+  world_flush_staging(world);
+  world_sortGrid(world);
 }
 
 void world_printState(struct World *world) {

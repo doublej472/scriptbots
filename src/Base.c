@@ -9,6 +9,8 @@
 void base_init(struct Base *base, struct World *world) { base->world = world; }
 
 void base_saveworld(struct Base *base) {
+  // Wait until we have no agents being worked on
+  queue_wait_until_done(&base->world->queue);
   world_flush_staging(base->world);
 
   FILE *f = fopen("world.dat", "wb");
@@ -36,6 +38,8 @@ void base_saveworld(struct Base *base) {
 }
 
 void base_loadworld(struct Base *base) {
+  // Wait until we have no agents being worked on
+  queue_wait_until_done(&base->world->queue);
   world_flush_staging(base->world);
   printf("Loading world from world.dat...\n");
   FILE *f = fopen("world.dat", "rb");
@@ -77,7 +81,6 @@ void base_loadworld(struct Base *base) {
   memcpy(&base->world->queue, &old_queue, sizeof(struct Queue));
 
   // Wait until we have no agents being worked on
-  queue_wait_until_done(&base->world->queue);
   lock_lock(&base->world->queue.lock);
 
   base->world->queue.size = 0;

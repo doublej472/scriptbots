@@ -88,7 +88,7 @@ void lock_condition_init(struct LockCondition *lc) {
 #endif
 }
 
-void lock_destroy_condition(struct LockCondition *lc) {
+void lock_condition_destroy(struct LockCondition *lc) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   // nothing here
 #elif __linux__

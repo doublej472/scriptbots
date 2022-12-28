@@ -5,6 +5,8 @@
 
 void init_thread_random();
 
+float approx_atan2(float y, float x);
+
 // uniform random in [a,b)
 float randf(float a, float b);
 
@@ -20,6 +22,6 @@ float cap(float a);
 // Get number of processors in the system
 long get_nprocs();
 
-void *alloc_aligned(size_t size, size_t alignment);
+void *alloc_aligned(size_t alignment, size_t size);
 void free_brain(void *f);
 #endif

@@ -44,6 +44,7 @@ struct Queue {
 };
 
 void queue_init(struct Queue *queue);
+void queue_destroy(struct Queue *queue);
 void queue_enqueue(struct Queue *queue, struct QueueItem value);
 struct QueueItem queue_dequeue(struct Queue *queue);
 size_t queue_size(struct Queue *queue);

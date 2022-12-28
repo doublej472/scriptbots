@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "vec2f.h"
+#include "helpers.h"
 
 void vector2f_init(struct Vector2f *vec, float x, float y) {
   vec->x = x;
@@ -24,7 +25,8 @@ float vector2f_angle(struct Vector2f *vec) {
   if ((vec->x == 0.0f) && (vec->y == 0.0f)) {
     return 0.0f;
   }
-  return atan2f(vec->y, vec->x);
+
+  return approx_atan2(vec->y, vec->x);
 }
 
 float vector2f_angle_between(struct Vector2f *vec1, struct Vector2f *vec2) {

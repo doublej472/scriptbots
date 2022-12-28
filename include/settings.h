@@ -11,18 +11,21 @@ extern int32_t NUM_THREADS;
 extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
-#define PLANSIZE 4
-
-// Must be at least 19 for normal inputs,
-// everything past 19 is for planning
-#define INPUTSIZE (19 + PLANSIZE)
-#define OUTPUTSIZE (18 + PLANSIZE)
-
-// Needs to be at least 1, but that does barely any work
+// How many hidden layers this brain has
 #define BRAIN_DEPTH 3
 
-// MUST BE MULTIPLE OF 8 and bigger than INPUT_SIZE and OUTPUT_SIZE
-#define BRAIN_WIDTH (4 * 8)
+// MUST BE MULTIPLE OF 8 real inputs and outputs
+// Essentially how many neurons are in a given layer
+#define BRAIN_WIDTH (8 * 6)
+
+// How many inputs / outputs are dedicated to planning
+// which means this number of outputs will be copied to inputs
+// on the next brain tick
+#define PLANSIZE (BRAIN_WIDTH - 19)
+
+// 19 and 18 here represent "real" inputs and outputs
+#define INPUTSIZE (19 + PLANSIZE)
+#define OUTPUTSIZE (18 + PLANSIZE)
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 #define CZ 50
@@ -30,8 +33,8 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 150)
-#define HEIGHT (CZ * 100)
+#define WIDTH (CZ * 250)
+#define HEIGHT (CZ * 200)
 // computer window width and height
 #define WWIDTH 1400
 #define WHEIGHT 1000
@@ -44,7 +47,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 5000
+#define NUMBOTS 10000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -75,7 +78,7 @@ extern int32_t MAX_SECONDS;
 // at what age do they start lossing health for being old?
 
 // REPRODUCTION ----------------------------------------------
-#define BABIES 2
+#define BABIES 3
 // number of babies per agent when they reproduce
 #define REPRATEH 7
 // reproduction rate for herbivors
@@ -114,7 +117,7 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.8f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 3
+#define FOODADDFREQ 2
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f

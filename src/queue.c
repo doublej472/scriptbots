@@ -16,6 +16,18 @@ void queue_init(struct Queue *queue) {
   lock_condition_init(&queue->cond_work_done);
 }
 
+void queue_destroy(struct Queue *queue) {
+  queue->size = 0;
+  queue->in = 0;
+  queue->out = 0;
+  queue->closed = 0;
+
+  lock_destroy(&queue->lock);
+  lock_condition_destroy(&queue->cond_item_added);
+  lock_condition_destroy(&queue->cond_item_removed);
+  lock_condition_destroy(&queue->cond_work_done);
+}
+
 void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   lock_lock(&queue->lock);
   while (queue->size == QUEUE_BUFFER_SIZE) {
