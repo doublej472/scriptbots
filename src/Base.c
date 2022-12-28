@@ -10,7 +10,7 @@ void base_init(struct Base *base, struct World *world) { base->world = world; }
 
 void base_saveworld(struct Base *base) {
   // Wait until we have no agents being worked on
-  queue_wait_until_done(&base->world->queue);
+  queue_wait_until_done(base->world->queue);
   world_flush_staging(base->world);
 
   FILE *f = fopen("world.dat", "wb");
@@ -39,7 +39,7 @@ void base_saveworld(struct Base *base) {
 
 void base_loadworld(struct Base *base) {
   // Wait until we have no agents being worked on
-  queue_wait_until_done(&base->world->queue);
+  queue_wait_until_done(base->world->queue);
   world_flush_staging(base->world);
   printf("Loading world from world.dat...\n");
   FILE *f = fopen("world.dat", "rb");
@@ -51,8 +51,7 @@ void base_loadworld(struct Base *base) {
   avec_free(&base->world->agents);
   avec_free(&base->world->agents_staging);
 
-  struct Queue old_queue;
-  memcpy(&old_queue, &base->world->queue, sizeof(struct Queue));
+  struct Queue *old_queue = base->world->queue;
 
   fread(base->world, sizeof(struct World), 1, f);
   base->world->stopSim = 0;
@@ -78,16 +77,16 @@ void base_loadworld(struct Base *base) {
   clock_gettime(CLOCK_MONOTONIC, &base->world->startTime);
   clock_gettime(CLOCK_MONOTONIC, &base->world->totalStartTime);
 
-  memcpy(&base->world->queue, &old_queue, sizeof(struct Queue));
+  base->world->queue = old_queue;
 
   // Wait until we have no agents being worked on
-  lock_lock(&base->world->queue.lock);
+  lock_lock(&base->world->queue->lock);
 
-  base->world->queue.size = 0;
-  base->world->queue.in = 0;
-  base->world->queue.out = 0;
-  base->world->queue.num_work_items = 0;
-  lock_unlock(&base->world->queue.lock);
+  base->world->queue->size = 0;
+  base->world->queue->in = 0;
+  base->world->queue->out = 0;
+  base->world->queue->num_work_items = 0;
+  lock_unlock(&base->world->queue->lock);
 
   world_flush_staging(base->world);
   world_sortGrid(base->world);

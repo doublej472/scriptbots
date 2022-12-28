@@ -54,7 +54,8 @@ void world_flush_staging(struct World *world) {
 void world_init(struct World *world) {
   memset(&world->agent_grid, '\0', sizeof(size_t) * WORLD_GRID_LENGTH);
 
-  queue_init(&world->queue);
+  world->queue = malloc(sizeof(struct Queue));
+  queue_init(world->queue);
 
   world->stopSim = 0;
   world->movieMode = 0;
@@ -453,12 +454,12 @@ void world_setInputsRunBrain(struct World *world) {
     agentQueueItem->end = end;
 
     struct QueueItem queueItem = {agent_input_processor, agentQueueItem};
-    queue_enqueue(&world->queue, queueItem);
+    queue_enqueue(world->queue, queueItem);
   }
 
-  queue_wait_until_done(&world->queue);
-  // printf("input done, %zu size, %zu work items\n", world->queue.size,
-  // world->queue.num_work_items);
+  queue_wait_until_done(world->queue);
+  // printf("input done, %zu size, %zu work items\n", world->queue->size,
+  // world->queue->num_work_items);
 }
 
 void world_processOutputs(struct World *world) {
@@ -475,10 +476,13 @@ void world_processOutputs(struct World *world) {
     agentQueueItem->end = end;
 
     struct QueueItem queueItem = {agent_output_processor, agentQueueItem};
-    queue_enqueue(&world->queue, queueItem);
+    queue_enqueue(world->queue, queueItem);
   }
 
-  queue_wait_until_done(&world->queue);
+  queue_wait_until_done(world->queue);
+  // printf("output done, %zu size, %zu work items\n", world->queue->size,
+  // world->queue->num_work_items);
+  // printf("nagets: %zu\n", world->agents.size);
 }
 
 void world_addRandomBots(struct World *world, int32_t num) {

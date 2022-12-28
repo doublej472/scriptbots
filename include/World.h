@@ -42,7 +42,7 @@ struct World {
   struct timespec
       totalStartTime; // used for deciding when to quit the simulation
 
-  struct Queue queue;
+  struct Queue *queue;
 
   struct AVec agents;
   // When agents get added to the world, they go the this AVec first, then

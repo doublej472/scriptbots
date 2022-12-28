@@ -50,14 +50,14 @@ void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 void signal_handler(int signum) { base.world->stopSim = 1; }
 
 void *worker_thread(void *arg) {
-  struct Base *base = (struct Base *)arg;
+  struct Queue *queue = (struct Queue *)arg;
 
   init_thread_random();
 
   while (1) {
-    struct QueueItem qi = queue_dequeue(&base->world->queue);
+    struct QueueItem qi = queue_dequeue(queue);
     qi.function(qi.data);
-    queue_workdone(&base->world->queue);
+    queue_workdone(queue);
   }
 }
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
 
   for (int i = 0; i < NUM_THREADS; i++) {
     // printf("Creating thread\n");
-    pthread_create(&threads[i], NULL, worker_thread, &base);
+    pthread_create(&threads[i], NULL, worker_thread, base.world->queue);
   }
 
   // Load file if needed
@@ -190,12 +190,13 @@ int main(int argc, char **argv) {
     runWithGraphics(argc, argv, &base);
   }
 
-  queue_close(&base.world->queue);
+  queue_close(base.world->queue);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);
   }
 
+  free(base.world->queue);
   free(threads);
 
   return 0;

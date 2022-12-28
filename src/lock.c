@@ -113,7 +113,7 @@ inline void lock_condition_broadcast(struct LockCondition *lc) {
 }
 
 inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
-                              int64_t milliseconds) {
+                                     int64_t milliseconds) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD)milliseconds,
                             0);

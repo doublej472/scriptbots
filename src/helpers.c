@@ -1,10 +1,12 @@
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
-#include <stdint.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <sysinfoapi.h>
+#elif __linux__
+#include <unistd.h>
 #endif
 
 #include "helpers.h"
@@ -12,28 +14,25 @@
 void init_thread_random() { srand(time(0)); }
 
 inline float approx_atan2(float y, float x) {
-  //http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
-  //Volkan SALMA
+  // http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
+  // Volkan SALMA
 
   const float ONEQTR_PI = M_PI / 4.0;
-	const float THRQTR_PI = 3.0 * M_PI / 4.0;
-	float r, angle;
-	float abs_y = fabs(y) + 1e-10f;      // kludge to prevent 0/0 condition
-	if ( x < 0.0f )
-	{
-		r = (x + abs_y) / (abs_y - x);
-		angle = THRQTR_PI;
-	}
-	else
-	{
-		r = (x - abs_y) / (x + abs_y);
-		angle = ONEQTR_PI;
-	}
-	angle += (0.1963f * r * r - 0.9817f) * r;
-	if ( y < 0.0f )
-		return( -angle );     // negate if in quad III or IV
-	else
-		return( angle );
+  const float THRQTR_PI = 3.0 * M_PI / 4.0;
+  float r, angle;
+  float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
+  if (x < 0.0f) {
+    r = (x + abs_y) / (abs_y - x);
+    angle = THRQTR_PI;
+  } else {
+    r = (x - abs_y) / (x + abs_y);
+    angle = ONEQTR_PI;
+  }
+  angle += (0.1963f * r * r - 0.9817f) * r;
+  if (y < 0.0f)
+    return (-angle); // negate if in quad III or IV
+  else
+    return (angle);
 }
 
 // uniform random in [a,b)
