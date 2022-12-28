@@ -73,7 +73,6 @@ void world_init(struct World *world) {
 
   // create the bots but with 20% more carnivores, to give them head start
   world_addRandomBots(world, (int32_t)NUMBOTS * .8);
-  printf("winit\n");
   for (int32_t i = 0; i < (int32_t)NUMBOTS * .2; ++i)
     world_addCarnivore(world);
 
@@ -440,9 +439,9 @@ void world_update(struct World *world) {
 
 void world_setInputsRunBrain(struct World *world) {
   struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
-  for (size_t i = 0; i*16 < world->agents.size; i++) {
-    size_t start = (i*16);
-    size_t end = (i*16) + 16;
+  for (size_t i = 0; i * 16 < world->agents.size; i++) {
+    size_t start = (i * 16);
+    size_t end = (i * 16) + 16;
     if (end > world->agents.size) {
       end = world->agents.size;
     }
@@ -456,14 +455,15 @@ void world_setInputsRunBrain(struct World *world) {
   }
 
   queue_wait_until_done(&world->queue);
-  // printf("input done, %zu size, %zu work items\n", world->queue.size, world->queue.num_work_items);
+  // printf("input done, %zu size, %zu work items\n", world->queue.size,
+  // world->queue.num_work_items);
 }
 
 void world_processOutputs(struct World *world) {
   struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
-  for (size_t i = 0; i*16 < world->agents.size; i++) {
-    size_t start = (i*16);
-    size_t end = (i*16) + 16;
+  for (size_t i = 0; i * 16 < world->agents.size; i++) {
+    size_t start = (i * 16);
+    size_t end = (i * 16) + 16;
     if (end > world->agents.size) {
       end = world->agents.size;
     }

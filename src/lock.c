@@ -5,25 +5,26 @@
 #if __linux__
 #include <time.h>
 
+#define NSEC_PER_SEC 1000000000
+
 /* Add a nanosecond value to a timespec
  *
  * \param r[out] result: a + b
  * \param a[in] base operand as timespec
  * \param b[in] operand in nanoseconds
  */
-static inline void
-timespec_add_nsec(struct timespec *r, const struct timespec *a, int64_t b)
-{
-	r->tv_sec = a->tv_sec + (b / NSEC_PER_SEC);
-	r->tv_nsec = a->tv_nsec + (b % NSEC_PER_SEC);
+static inline void timespec_add_nsec(struct timespec *r,
+                                     const struct timespec *a, int64_t b) {
+  r->tv_sec = a->tv_sec + (b / NSEC_PER_SEC);
+  r->tv_nsec = a->tv_nsec + (b % NSEC_PER_SEC);
 
-	if (r->tv_nsec >= NSEC_PER_SEC) {
-		r->tv_sec++;
-		r->tv_nsec -= NSEC_PER_SEC;
-	} else if (r->tv_nsec < 0) {
-		r->tv_sec--;
-		r->tv_nsec += NSEC_PER_SEC;
-	}
+  if (r->tv_nsec >= NSEC_PER_SEC) {
+    r->tv_sec++;
+    r->tv_nsec -= NSEC_PER_SEC;
+  } else if (r->tv_nsec < 0) {
+    r->tv_sec--;
+    r->tv_nsec += NSEC_PER_SEC;
+  }
 }
 
 /* Add a millisecond value to a timespec
@@ -32,10 +33,9 @@ timespec_add_nsec(struct timespec *r, const struct timespec *a, int64_t b)
  * \param a[in] base operand as timespec
  * \param b[in] operand in milliseconds
  */
-static inline void
-timespec_add_msec(struct timespec *r, const struct timespec *a, int64_t b)
-{
-	timespec_add_nsec(r, a, b * 1000000);
+static inline void timespec_add_msec(struct timespec *r,
+                                     const struct timespec *a, int64_t b) {
+  timespec_add_nsec(r, a, b * 1000000);
 }
 
 #endif
@@ -76,7 +76,7 @@ void lock_unlock(struct Lock *l) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   ReleaseSRWLockExclusive(&l->win_lock);
 #elif __linux__
-    pthread_mutex_unlock(&l->lin_lock);
+  pthread_mutex_unlock(&l->lin_lock);
 #endif
 }
 
@@ -84,7 +84,7 @@ void lock_condition_init(struct LockCondition *lc) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   InitializeConditionVariable(&lc->win_cond);
 #elif __linux__
-    pthread_cond_init(&lc->lin_cond);
+  pthread_cond_init(&lc->lin_cond, NULL);
 #endif
 }
 
@@ -92,7 +92,7 @@ void lock_destroy_condition(struct LockCondition *lc) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   // nothing here
 #elif __linux__
-    pthread_cond_destroy(&lc->lin_cond);
+  pthread_cond_destroy(&lc->lin_cond);
 #endif
 }
 
@@ -112,13 +112,15 @@ void lock_condition_broadcast(struct LockCondition *lc) {
 #endif
 }
 
-void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc, int64_t milliseconds) {
-  #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD) milliseconds, 0);
+void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
+                              int64_t milliseconds) {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+  SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD)milliseconds,
+                            0);
 #elif __linux__
   struct timespec ts, tsfuture;
   clock_gettime(CLOCK_REALTIME, &ts);
-  timespec_add_msec(&tsfuture, &ts, (int64_t) milliseconds);
+  timespec_add_msec(&tsfuture, &ts, (int64_t)milliseconds);
   pthread_cond_timedwait(&lc->lin_cond, &l->lin_lock, &tsfuture);
 #endif
 }

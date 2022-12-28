@@ -1,8 +1,8 @@
-#include <time.h>
 #include <pthread.h>
+#include <time.h>
 
-#include "queue.h"
 #include "lock.h"
+#include "queue.h"
 
 void queue_init(struct Queue *queue) {
   queue->size = 0;

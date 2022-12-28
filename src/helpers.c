@@ -11,14 +11,12 @@
 void init_thread_random() { srand(time(0)); }
 
 // uniform random in [a,b)
-inline float randf(float a, float b) {
+float randf(float a, float b) {
   return ((b - a) * ((float)rand() / (float)RAND_MAX)) + a;
 }
 
 // uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) {
-  return (rand() % (b - a)) + a;
-}
+inline int32_t randi(int32_t a, int32_t b) { return (rand() % (b - a)) + a; }
 
 // normalvariate random N(mu, sigma)
 float randn(float mu, float sigma) {
@@ -76,9 +74,9 @@ inline float cap(float a) {
 // Get number of processors in the system
 inline long get_nprocs() {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-SYSTEM_INFO sysinfo;
-GetSystemInfo(&sysinfo);
-return sysinfo.dwNumberOfProcessors;
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo(&sysinfo);
+  return sysinfo.dwNumberOfProcessors;
 #elif __linux__
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
@@ -86,9 +84,9 @@ return sysinfo.dwNumberOfProcessors;
 
 void *alloc_aligned(size_t alignment, size_t size) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-return _aligned_malloc(size, alignment);
+  return _aligned_malloc(size, alignment);
 #elif __linux__
-return aligned_alloc(alignment, size);
+  return aligned_alloc(alignment, size);
 #else
 #error "No aligned alloc available!!!"
 #endif
@@ -96,9 +94,9 @@ return aligned_alloc(alignment, size);
 
 void free_brain(void *f) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-_aligned_free(f);
+  _aligned_free(f);
 #elif __linux__
-free(f);
+  free(f);
 #else
 #error "No aligned free available!!!"
 #endif

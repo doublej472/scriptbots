@@ -1,11 +1,11 @@
 #include <getopt.h>
 #include <limits.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <signal.h>
-#include <pthread.h>
 
 // For detecting keyboard:
 #include <fcntl.h>
@@ -47,9 +47,7 @@ struct Base base;
 void runHeadless(struct Base *base);
 void runWithGraphics(int32_t argc, char **argv, struct Base *base);
 
-void signal_handler(int signum) {
-  base.world->stopSim = 1;
-}
+void signal_handler(int signum) { base.world->stopSim = 1; }
 
 void *worker_thread(void *arg) {
   struct Base *base = (struct Base *)arg;
@@ -115,7 +113,7 @@ int main(int argc, char **argv) {
   world_init(&world);
   base_init(&base, &world);
 
-  signal(SIGINT, signal_handler); 
+  signal(SIGINT, signal_handler);
 
   printf("---------------------------------------------------------------------"
          "----------\n");
