@@ -18,7 +18,7 @@
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
 #include "GLView.h"
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #endif
 
 #include "Base.h"
@@ -190,7 +190,17 @@ int main(int argc, char **argv) {
     runWithGraphics(argc, argv, &base);
   }
 
+  base_saveworld(&base);
   queue_close(base.world->queue);
+
+  for (int i = 0; i < base.world->agents.size; i++) {
+    free_brain(base.world->agents.agents[i]->brain);
+  }
+  for (int i = 0; i < base.world->agents_staging.size; i++) {
+    free_brain(base.world->agents_staging.agents[i]->brain);
+  }
+  avec_free(&base.world->agents);
+  avec_free(&base.world->agents_staging);
 
   for (int i = 0; i < NUM_THREADS; i++) {
     pthread_join(threads[i], NULL);
@@ -207,26 +217,9 @@ int main(int argc, char **argv) {
 // Run Scriptbots with graphics
 // ---------------------------------------------------------------------------
 void runWithGraphics(int32_t argc, char **argv, struct Base *base) {
-
 #ifdef OPENGL
-  init_glview();
+  init_glview(argc, argv);
   GLVIEW.base = base;
-
-  // GLUT SETUP
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-  glutInitWindowSize(WWIDTH, WHEIGHT);
-  glutCreateWindow("Scriptbots");
-  glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-  glutDisplayFunc(gl_renderScene);
-  glutIdleFunc(gl_handleIdle);
-  glutReshapeFunc(gl_changeSize);
-
-  glutKeyboardFunc(gl_processNormalKeys);
-  glutSpecialFunc(gl_processSpecialKeys);
-  glutMouseFunc(gl_processMouse);
-  glutMotionFunc(gl_processMouseActiveMotion);
-
   glutMainLoop(); // spin
 #endif
 }
@@ -240,14 +233,4 @@ void runHeadless(struct Base *base) {
   while (!base->world->stopSim) {
     world_update(base->world);
   }
-
-  base_saveworld(base);
-  for (int i = 0; i < base->world->agents.size; i++) {
-    free_brain(base->world->agents.agents[i]->brain);
-  }
-  for (int i = 0; i < base->world->agents_staging.size; i++) {
-    free_brain(base->world->agents_staging.agents[i]->brain);
-  }
-  avec_free(&base->world->agents);
-  avec_free(&base->world->agents_staging);
 }

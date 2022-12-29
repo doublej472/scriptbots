@@ -1,4 +1,4 @@
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -28,7 +28,7 @@ void drawCircle(float x, float y, float r) {
   }
 }
 
-void init_glview() {
+void init_glview(int32_t argc, char **argv) {
   GLVIEW.paused = 0;
   GLVIEW.draw = 1;
   GLVIEW.skipdraw = 1;
@@ -47,6 +47,25 @@ void init_glview() {
   GLVIEW.wwidth = WWIDTH;
   GLVIEW.wheight = WHEIGHT;
   GLVIEW.draw_text = 1;
+
+  // GLUT SETUP
+  glutInit(&argc, argv);
+  glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
+  glutInitContextVersion(2, 1);
+  // glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
+  // glutInitContextProfile(GLUT_CORE_PROFILE);
+  glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
+  glutInitWindowSize(WWIDTH, WHEIGHT);
+  glutCreateWindow("Scriptbots");
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glutDisplayFunc(gl_renderScene);
+  glutIdleFunc(gl_handleIdle);
+  glutReshapeFunc(gl_changeSize);
+
+  glutKeyboardFunc(gl_processNormalKeys);
+  glutSpecialFunc(gl_processSpecialKeys);
+  glutMouseFunc(gl_processMouse);
+  glutMotionFunc(gl_processMouseActiveMotion);
 }
 
 void gl_changeSize(int32_t w, int32_t h) {
@@ -145,18 +164,7 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   switch (key) {
   case 27:
     printf("\n\nESC key pressed, shutting down\n");
-    queue_close(GLVIEW.base->world->queue);
-    base_saveworld(GLVIEW.base);
-    for (int i = 0; i < GLVIEW.base->world->agents.size; i++) {
-      free_brain(GLVIEW.base->world->agents.agents[i]->brain);
-    }
-    for (int i = 0; i < GLVIEW.base->world->agents_staging.size; i++) {
-      free_brain(GLVIEW.base->world->agents_staging.agents[i]->brain);
-    }
-    avec_free(&GLVIEW.base->world->agents);
-    avec_free(&GLVIEW.base->world->agents_staging);
-    free(GLVIEW.base->world->queue);
-    exit(0);
+    glutLeaveMainLoop();
     break;
   case 'r':
     world_reset(GLVIEW.base->world);
@@ -258,7 +266,7 @@ void gl_handleIdle() {
 }
 
 void gl_renderScene() {
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
 

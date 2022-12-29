@@ -27,7 +27,7 @@ struct GLView {
 
 extern struct GLView GLVIEW;
 
-void init_glview();
+void init_glview(int32_t argc, char **argv);
 void gl_processMouse(int32_t button, int32_t state, int32_t x, int32_t y);
 void gl_processMouseActiveMotion(int32_t x, int32_t y);
 void gl_changeSize(int32_t w, int32_t h);

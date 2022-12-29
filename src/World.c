@@ -432,7 +432,7 @@ void world_update(struct World *world) {
       if (world->agents.size < NUMBOTS_MIN) {
         world_addRandomBots(world, 50);
       }
-      if (world_numCarnivores(world) < 5) {
+      if (world_numCarnivores(world) == 0) {
         for (int i = 0; i < 50; i++) {
           world_addCarnivore(world);
         }

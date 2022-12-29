@@ -12,7 +12,7 @@ static const float BIAS_RANGE = 3.0f;
 
 #define USE_FMA 1
 
-__m256 exp256_ps(__m256 x) {
+static inline __m256 exp256_ps(__m256 x) {
   __m256 t, f, p, r;
   __m256i i, j;
 
@@ -69,7 +69,7 @@ __m256 exp256_ps(__m256 x) {
   return r;
 }
 
-__m256 activation_function(__m256 x) {
+static inline __m256 activation_function(__m256 x) {
   // printf("input before: %f\n", x[0]);
 
   // flip sign
@@ -101,7 +101,7 @@ __m256 activation_function(__m256 x) {
 
 void avxbrain_init(struct AVXBrain *b) {
   size_t neurons = (BRAIN_WIDTH * BRAIN_DEPTH) / 8;
-  size_t weights = (BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH - 1)) / 8;
+  size_t weights = (BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH)) / 8;
 
   // Init weights
   for (size_t i = 0; i < weights; i++) {
