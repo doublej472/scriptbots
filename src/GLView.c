@@ -364,36 +364,36 @@ void drawAgent(const struct Agent *agent) {
     yy += (ss * (BRAIN_DEPTH + 1) + 14);
 
     sprintf(GLVIEW.buf2, "Generation: %i", agent->gencount);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Age: %i", agent->age);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Health: %f", agent->health);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Repcounter: %f", agent->repcounter);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Herbivore: %f", agent->herbivore);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Mutate Rate Chance: %f", agent->MUTRATE1);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Mutate Rate Magnitude: %f", agent->MUTRATE2);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Wheel speeds (L, R): %f %f", agent->w2, agent->w1);
-    renderString( 0, yy,
-                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
 
     glPopMatrix();
   }
@@ -545,13 +545,13 @@ void glview_draw(struct World *world, int32_t drawfood) {
         float asy = ((j * CZ) + GLVIEW.ytranslate) * (GLVIEW.scalemult);
 
         // Basic culling
-        if (
-          asx > GLVIEW.wwidth + CZ*2.0f || asx < -(GLVIEW.wwidth + CZ*2.0f) ||
-          asy > GLVIEW.wheight + CZ*2.0f || asy < -(GLVIEW.wheight + CZ*2.0f)
-        ) {
+        if (asx > GLVIEW.wwidth + CZ * 2.0f ||
+            asx < -(GLVIEW.wwidth + CZ * 2.0f) ||
+            asy > GLVIEW.wheight + CZ * 2.0f ||
+            asy < -(GLVIEW.wheight + CZ * 2.0f)) {
           continue;
         }
-        
+
         float f = world->food[i][j] / FOODMAX;
 
         if (GLVIEW.drawfood && f > 0.00001f) {

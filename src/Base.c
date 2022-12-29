@@ -28,8 +28,7 @@ void base_saveworld(struct Base *base) {
   printf("Writing %zu agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
   for (size_t i = 0; i < base->world->agents.size; i++) {
-    fwrite(base->world->agents.agents[i], sizeof(struct Agent),
-          1, f);
+    fwrite(base->world->agents.agents[i], sizeof(struct Agent), 1, f);
   }
 
   printf("Writing %zu brains...\n", base->world->agents.size);

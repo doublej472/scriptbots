@@ -44,12 +44,12 @@ inline float approx_atan2(float y, float x) {
 }
 
 // uniform random in [a,b)
-inline float randf(float a, float b) {
-  return (b - a) * genRand(&mtrand) + a;
-}
+inline float randf(float a, float b) { return (b - a) * genRand(&mtrand) + a; }
 
 // uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) { return (genRandLong(&mtrand) % (b - a)) + a; }
+inline int32_t randi(int32_t a, int32_t b) {
+  return (genRandLong(&mtrand) % (b - a)) + a;
+}
 
 // normalvariate random N(mu, sigma)
 float randn(float mu, float sigma) {

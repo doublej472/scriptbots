@@ -156,9 +156,14 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
       size_t weight_group_idx = i * (BRAIN_WIDTH / 8) + j;
       size_t input_group_idx = j;
 
-      __m256 neural_in = _mm256_mul_ps(b->inputs[input_group_idx],
-                                       b->weights[weight_group_idx]);
-      sum = _mm256_add_ps(sum, neural_in);
+#if USE_FMA
+      sum = _mm256_fmadd_ps(b->inputs[input_group_idx],
+                            b->weights[weight_group_idx], sum);
+#else
+      sum = _mm256_add_ps(_mm256_mul_ps(b->inputs[input_group_idx],
+                                        b->weights[weight_group_idx]),
+                          sum);
+#endif
     }
 
     b->vals[i] = _mm256_add_ps(sum, b->biases[i]);
@@ -180,9 +185,14 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
       size_t weight_group_idx = i * (BRAIN_WIDTH / 8) + j;
       size_t val_group_idx = prev_layer * (BRAIN_WIDTH / 8) + j;
 
-      __m256 neural_in =
-          _mm256_mul_ps(b->vals[val_group_idx], b->weights[weight_group_idx]);
-      sum = _mm256_add_ps(sum, neural_in);
+#if USE_FMA
+      sum = _mm256_fmadd_ps(b->inputs[val_group_idx],
+                            b->weights[weight_group_idx], sum);
+#else
+      sum = _mm256_add_ps(
+          _mm256_mul_ps(b->inputs[val_group_idx], b->weights[weight_group_idx]),
+          sum);
+#endif
     }
 
     b->vals[i] = _mm256_add_ps(sum, b->biases[i]);
@@ -192,7 +202,6 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
   }
 
   size_t output_layer = BRAIN_WIDTH * (BRAIN_DEPTH - 1) / 8;
-
   for (size_t i = 0; i < BRAIN_WIDTH / 8; i++) {
     for (size_t j = 0; j < 8; j++) {
       size_t out_idx = i * 8 + j;

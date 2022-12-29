@@ -232,8 +232,8 @@ int32_t world_get_close_agents(struct World *world, size_t index,
   struct Agent *a = world->agents.agents[index];
   int32_t num_close_agents = 0;
 
-  size_t this_grid_x = (size_t) a->pos.x / WORLD_GRID_SIZE;
-  size_t this_grid_y = (size_t) a->pos.y / WORLD_GRID_SIZE;
+  size_t this_grid_x = (size_t)a->pos.x / WORLD_GRID_SIZE;
+  size_t this_grid_y = (size_t)a->pos.y / WORLD_GRID_SIZE;
 
   // Check 3x3 grid position around our current grid position
   // Check current grid position first, so we can guarantee we will find close
@@ -445,7 +445,8 @@ void world_update(struct World *world) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  struct AgentQueueItem
+      agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
   for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
     size_t start = (i * BATCH_SIZE);
     size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
@@ -467,7 +468,8 @@ void world_setInputsRunBrain(struct World *world) {
 }
 
 void world_processOutputs(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  struct AgentQueueItem
+      agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
   for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
     size_t start = (i * BATCH_SIZE);
     size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
@@ -672,16 +674,16 @@ void world_sortGrid(struct World *world) {
   for (size_t i = 1; i < world->agents.size; i++) {
     struct Agent *key_agent = world->agents.agents[i];
 
-    size_t key_grid_x = (size_t) key_agent->pos.x / WORLD_GRID_SIZE;
-    size_t key_grid_y = (size_t) key_agent->pos.y / WORLD_GRID_SIZE;
+    size_t key_grid_x = (size_t)key_agent->pos.x / WORLD_GRID_SIZE;
+    size_t key_grid_y = (size_t)key_agent->pos.y / WORLD_GRID_SIZE;
     size_t key_grid_index = key_grid_y * WORLD_GRID_WIDTH + key_grid_x;
 
     long j = i - 1;
     while (j >= 0) {
       struct Agent *a2 = world->agents.agents[j];
 
-      size_t next_grid_x = (size_t) a2->pos.x / WORLD_GRID_SIZE;
-      size_t next_grid_y = (size_t) a2->pos.y / WORLD_GRID_SIZE;
+      size_t next_grid_x = (size_t)a2->pos.x / WORLD_GRID_SIZE;
+      size_t next_grid_y = (size_t)a2->pos.y / WORLD_GRID_SIZE;
       size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
 
       if (next_grid_index <= key_grid_index) {
@@ -700,8 +702,8 @@ void world_sortGrid(struct World *world) {
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
 
-    size_t grid_x = (size_t) a->pos.x / WORLD_GRID_SIZE;
-    size_t grid_y = (size_t) a->pos.y / WORLD_GRID_SIZE;
+    size_t grid_x = (size_t)a->pos.x / WORLD_GRID_SIZE;
+    size_t grid_y = (size_t)a->pos.y / WORLD_GRID_SIZE;
     size_t grid_index = grid_y * WORLD_GRID_WIDTH + grid_x;
 
     while (grid_index > current_grid_index) {

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 void avec_init(struct AVec *vec, size_t size) {
-  vec->agents = (struct Agent **)malloc(sizeof(struct Agent*) * size);
+  vec->agents = (struct Agent **)malloc(sizeof(struct Agent *) * size);
   vec->allocated = size;
   vec->size = 0;
 }
@@ -39,7 +39,7 @@ void avec_shrink(struct AVec *vec, size_t size) {
   int newsize = size > vec->size ? size : vec->size;
 
   vec->agents =
-      (struct Agent **)realloc(vec->agents, sizeof(struct Agent*) * newsize);
+      (struct Agent **)realloc(vec->agents, sizeof(struct Agent *) * newsize);
   vec->allocated = newsize;
 }
 
