@@ -39,8 +39,8 @@ void agent_init(struct Agent *agent) {
       agent->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
       (1.0f - agent->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
 
-  agent->MUTRATE1 = 0.003f;
-  agent->MUTRATE2 = 0.05f;
+  agent->MUTRATE1 = METAMUTRATE1;
+  agent->MUTRATE2 = METAMUTRATE2;
 
   agent->spiked = 0;
 
@@ -72,8 +72,7 @@ void agent_tick(struct Agent *agent) {
   avxbrain_tick(agent->brain, &agent->in, &agent->out);
 }
 
-void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
-                     float MR2) {
+void agent_reproduce(struct Agent *child, struct Agent *parent) {
 
   // spawn the baby somewhere closeby behind agent
   // we want to spawn behind so that agents dont accidentally eat their young
@@ -95,27 +94,29 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
 
   child->gencount = parent->gencount + 1;
   child->repcounter =
-      child->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
-      (1.0f - child->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
+      child->herbivore * randf(REPRATEH - 0.2f, REPRATEH + 0.2f) +
+      (1.0f - child->herbivore) * randf(REPRATEC - 0.2f, REPRATEC + 0.2f);
 
   // noisy attribute passing
   child->MUTRATE1 = parent->MUTRATE1;
   child->MUTRATE2 = parent->MUTRATE2;
   if (randf(0, 1) < 0.2f)
-    child->MUTRATE1 = randn(parent->MUTRATE1, METAMUTRATE1);
+    child->MUTRATE1 = cap(randn(parent->MUTRATE1, METAMUTRATE1));
   if (randf(0, 1) < 0.2f)
     child->MUTRATE2 = randn(parent->MUTRATE2, METAMUTRATE2);
-  if (child->MUTRATE1 < 0.001f)
-    child->MUTRATE1 = 0.001f;
-  if (child->MUTRATE2 < 0.02f)
+  if (child->MUTRATE1 < 0.02f) {
+    child->MUTRATE1 = 0.02f;
+  }
+  if (child->MUTRATE2 < 0.02f) {
     child->MUTRATE2 = 0.02f;
+  }
   child->herbivore = cap(randn(parent->herbivore, 0.03f));
-  if (randf(0, 1) < MR * 5.0f)
-    child->clockf1 = randn(child->clockf1, MR2);
+  if (randf(0, 1) < child->MUTRATE1 * 5.0f)
+    child->clockf1 = randn(child->clockf1, child->MUTRATE2);
   if (child->clockf1 < 2.0f)
     child->clockf1 = 2.0f;
-  if (randf(0, 1) < MR * 5.0f)
-    child->clockf2 = randn(child->clockf2, MR2);
+  if (randf(0, 1) < child->MUTRATE1 * 5.0f)
+    child->clockf2 = randn(child->clockf2, child->MUTRATE2);
   if (child->clockf2 < 2.0f)
     child->clockf2 = 2.0f;
 
@@ -125,7 +126,7 @@ void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
 
   // mutate brain here
   memcpy(child->brain, parent->brain, sizeof(struct AVXBrain));
-  avxbrain_mutate(child->brain, MR, MR2);
+  avxbrain_mutate(child->brain, child->MUTRATE1, child->MUTRATE2);
 }
 
 // void agent_crossover(struct Agent *target, const struct Agent *agent1,

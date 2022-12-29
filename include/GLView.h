@@ -10,7 +10,7 @@ struct GLView {
   int32_t skipdraw;
   int32_t drawfood;
   char buf[100];
-  char buf2[10];
+  char buf2[256];
   int32_t modcounter;
   int32_t lastUpdate;
   int32_t frames;

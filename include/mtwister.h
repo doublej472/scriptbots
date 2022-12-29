@@ -30,8 +30,8 @@ typedef struct tagMTRand {
 
 extern thread_local MTRand mtrand;
 
-MTRand seedRand(unsigned long seed);
-unsigned long genRandLong(MTRand* rand);
-float genRand(MTRand* rand);
+void seedRand(unsigned long seed);
+unsigned long genRandLong();
+float genRand();
 
 #endif /* #ifndef __MTWISTER_H */

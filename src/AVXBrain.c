@@ -72,11 +72,8 @@ __m256 exp256_ps(__m256 x) {
 __m256 activation_function(__m256 x) {
   // printf("input before: %f\n", x[0]);
 
-  __m256 minusone = _mm256_set1_ps(-1.0f);
-  __m256 one = _mm256_set1_ps(1.0f);
-
   // flip sign
-  x = _mm256_mul_ps(x, minusone);
+  x = _mm256_xor_ps(x, _mm256_set1_ps(-0.0f));
 
   // exp part
   x = exp256_ps(x);
@@ -95,8 +92,8 @@ __m256 activation_function(__m256 x) {
 
   // printf("exp after: %f\n", x[0]);
   //  sigmoid part
-  x = _mm256_add_ps(x, one);
-  x = _mm256_div_ps(one, x);
+  x = _mm256_add_ps(x, _mm256_set1_ps(1.0f));
+  x = _mm256_div_ps(_mm256_set1_ps(1.0f), x);
 
   // printf("activation after: %f\n", x[0]);
   return x;
@@ -214,8 +211,8 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
 
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
-    size_t numbtomut = randi(1, 5);
-    size_t numwtomut = randi(1, 25);
+    size_t numbtomut = randi(1, 25);
+    size_t numwtomut = randi(1, 150);
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
 

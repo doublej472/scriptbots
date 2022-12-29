@@ -64,8 +64,7 @@ void agent_print(struct Agent *agent);
 void agent_initevent(struct Agent *agent, float size, float r, float g,
                      float b);
 void agent_tick(struct Agent *agent);
-void agent_reproduce(struct Agent *child, struct Agent *parent, float MR,
-                     float MR2);
+void agent_reproduce(struct Agent *child, struct Agent *parent);
 // void agent_crossover(struct Agent *target, const struct Agent *agent1,
 //                      const struct Agent *agent2);
 void agent_process_health(struct Agent *agent);

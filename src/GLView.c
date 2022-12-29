@@ -148,10 +148,10 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
     queue_close(GLVIEW.base->world->queue);
     base_saveworld(GLVIEW.base);
     for (int i = 0; i < GLVIEW.base->world->agents.size; i++) {
-      free_brain(GLVIEW.base->world->agents.agents[i].brain);
+      free_brain(GLVIEW.base->world->agents.agents[i]->brain);
     }
     for (int i = 0; i < GLVIEW.base->world->agents_staging.size; i++) {
-      free_brain(GLVIEW.base->world->agents_staging.agents[i].brain);
+      free_brain(GLVIEW.base->world->agents_staging.agents[i]->brain);
     }
     avec_free(&GLVIEW.base->world->agents);
     avec_free(&GLVIEW.base->world->agents_staging);
@@ -184,7 +184,7 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
     //    }
     //    break;
   case 'q':
-    for (int32_t i = 0; i < 10; i++) {
+    for (int32_t i = 0; i < 100; i++) {
       world_addCarnivore(GLVIEW.base->world);
     }
     break;
@@ -359,8 +359,42 @@ void drawAgent(const struct Agent *agent) {
         glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
       }
     }
-
     glEnd();
+
+    yy += (ss * (BRAIN_DEPTH + 1) + 14);
+
+    sprintf(GLVIEW.buf2, "Generation: %i", agent->gencount);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Age: %i", agent->age);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Health: %f", agent->health);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Repcounter: %f", agent->repcounter);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Herbivore: %f", agent->herbivore);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Mutate Rate Chance: %f", agent->MUTRATE1);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Mutate Rate Magnitude: %f", agent->MUTRATE2);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Wheel speeds (L, R): %f %f", agent->w2, agent->w1);
+    renderString( 0, yy,
+                  GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+
     glPopMatrix();
   }
 
@@ -477,19 +511,6 @@ void drawAgent(const struct Agent *agent) {
   }
 }
 
-void drawFood(int32_t x, int32_t y, float quantity) {
-  // draw food
-  if (GLVIEW.drawfood) {
-    glBegin(GL_QUADS);
-    glColor3f(0.02f, 0.02f + quantity * 0.8f, 0.02f);
-    glVertex3f(x * CZ, y * CZ, 0);
-    glVertex3f(x * CZ + CZ, y * CZ, 0);
-    glVertex3f(x * CZ + CZ, y * CZ + CZ, 0);
-    glVertex3f(x * CZ, y * CZ + CZ, 0);
-    glEnd();
-  }
-}
-
 void glview_draw(struct World *world, int32_t drawfood) {
   glBegin(GL_QUADS);
   glColor3f(1.0f, 0.5f, 0.0f);
@@ -514,16 +535,38 @@ void glview_draw(struct World *world, int32_t drawfood) {
   glVertex3f(WIDTH, HEIGHT, 0);
   glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
   glEnd();
+
   if (drawfood) {
+    glBegin(GL_QUADS);
     for (int32_t i = 0; i < world->FW; i++) {
       for (int32_t j = 0; j < world->FH; j++) {
+        // Determine if food is off screen, give some wiggle room
+        float asx = ((i * CZ) + GLVIEW.xtranslate) * (GLVIEW.scalemult);
+        float asy = ((j * CZ) + GLVIEW.ytranslate) * (GLVIEW.scalemult);
+
+        // Basic culling
+        if (
+          asx > GLVIEW.wwidth + CZ*2.0f || asx < -(GLVIEW.wwidth + CZ*2.0f) ||
+          asy > GLVIEW.wheight + CZ*2.0f || asy < -(GLVIEW.wheight + CZ*2.0f)
+        ) {
+          continue;
+        }
+        
         float f = world->food[i][j] / FOODMAX;
-        drawFood(i, j, f);
+
+        if (GLVIEW.drawfood && f > 0.00001f) {
+          glColor3f(0.02f, 0.02f + f * 0.8f, 0.02f);
+          glVertex3f(i * CZ, j * CZ, 0);
+          glVertex3f(i * CZ + CZ, j * CZ, 0);
+          glVertex3f(i * CZ + CZ, j * CZ + CZ, 0);
+          glVertex3f(i * CZ, j * CZ + CZ, 0);
+        }
       }
     }
+    glEnd();
   }
   for (size_t i = 0; i < world->agents.size; i++) {
-    drawAgent(&world->agents.agents[i]);
+    drawAgent(world->agents.agents[i]);
   }
 }
 

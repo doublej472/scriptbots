@@ -10,6 +10,8 @@
 #include "vec.h"
 #include "vec2f.h"
 
+#define BATCH_SIZE 128
+
 static void timespec_diff(struct timespec *result, struct timespec *start,
                           struct timespec *stop) {
   if ((stop->tv_nsec - start->tv_nsec) < 0) {
@@ -33,20 +35,22 @@ static void world_growFood(struct World *world, int32_t x, int32_t y) {
 void world_flush_staging(struct World *world) {
   // Check for and delete dead agents
   for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i];
+    struct Agent *a = world->agents.agents[i];
 
     // Cull any dead agents
     if (a->health <= 0) {
       // The i-- is very important here, since we need to retry the current
       // iteration because it was replaced with a different agent
       free_brain(a->brain);
+      free(a);
       avec_delete(&world->agents, i--);
       continue;
     }
   }
+
   // Add agents from staging vector
   for (size_t i = 0; i < world->agents_staging.size; i++) {
-    avec_push_back(&world->agents, *avec_get(&world->agents_staging, i));
+    avec_push_back(&world->agents, world->agents_staging.agents[i]);
   }
   world->agents_staging.size = 0;
 }
@@ -116,7 +120,7 @@ static void world_update_food(struct World *world) {
       for (int32_t x = 0; x < world->FW; ++x) {
         for (int32_t y = 0; y < world->FH; ++y) {
           // only grow if not dead
-          if (world->food[x][y] > 0) {
+          if (world->food[x][y] > 0.0001f) {
 
             // Grow current square
             world_growFood(world, x, y);
@@ -201,7 +205,7 @@ static int32_t check_grid_position(struct World *world, struct Agent *a,
     if (num_close_agents >= NUMBOTS_CLOSE) {
       break;
     }
-    struct Agent *a2 = &world->agents.agents[i];
+    struct Agent *a2 = world->agents.agents[i];
     if (a == a2) {
       continue;
     }
@@ -225,11 +229,11 @@ static int32_t check_grid_position(struct World *world, struct Agent *a,
 
 int32_t world_get_close_agents(struct World *world, size_t index,
                                struct Agent_d *close_agents) {
-  struct Agent *a = &world->agents.agents[index];
+  struct Agent *a = world->agents.agents[index];
   int32_t num_close_agents = 0;
 
-  size_t this_grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
-  size_t this_grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+  size_t this_grid_x = (size_t) a->pos.x / WORLD_GRID_SIZE;
+  size_t this_grid_y = (size_t) a->pos.y / WORLD_GRID_SIZE;
 
   // Check 3x3 grid position around our current grid position
   // Check current grid position first, so we can guarantee we will find close
@@ -276,7 +280,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   struct Agent *dist_agents[FOOD_DISTRIBUTION_MAX];
   int num_to_dist_body = 0;
 
-  struct Agent *a = &world->agents.agents[i];
+  struct Agent *a = world->agents.agents[i];
 
   for (size_t j = 0; j < num_close_agents; j++) {
     if (num_to_dist_body >= FOOD_DISTRIBUTION_MAX) {
@@ -385,14 +389,14 @@ void world_update(struct World *world) {
 
   // Some things need to be done single threaded
   for (int i = 0; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i];
+    struct Agent *a = world->agents.agents[i];
     if (a->health <= 0 && a->spiked == 1) {
       // Distribute dead agents to nearby carnivores
       world_dist_dead_agent(world, i);
     }
 
     if (a->rep) {
-      world_reproduce(world, a, a->MUTRATE1, a->MUTRATE2);
+      world_reproduce(world, a);
     }
 
     if (world->movieMode) {
@@ -441,10 +445,10 @@ void world_update(struct World *world) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
-  for (size_t i = 0; i * 16 < world->agents.size; i++) {
-    size_t start = (i * 16);
-    size_t end = (i * 16) + 16;
+  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
+    size_t start = (i * BATCH_SIZE);
+    size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
     if (end > world->agents.size) {
       end = world->agents.size;
     }
@@ -463,10 +467,10 @@ void world_setInputsRunBrain(struct World *world) {
 }
 
 void world_processOutputs(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / 16) + 1)];
-  for (size_t i = 0; i * 16 < world->agents.size; i++) {
-    size_t start = (i * 16);
-    size_t end = (i * 16) + 16;
+  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
+    size_t start = (i * BATCH_SIZE);
+    size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
     if (end > world->agents.size) {
       end = world->agents.size;
     }
@@ -489,8 +493,8 @@ void world_addRandomBots(struct World *world, int32_t num) {
   world->numAgentsAdded += num; // record in report
 
   for (int32_t i = 0; i < num; i++) {
-    struct Agent a;
-    agent_init(&a);
+    struct Agent *a = malloc(sizeof(struct Agent));
+    agent_init(a);
 
     // printf("%f\n", a.brain->inputs[0][0]);
 
@@ -499,9 +503,9 @@ void world_addRandomBots(struct World *world, int32_t num) {
 }
 
 void world_addCarnivore(struct World *world) {
-  struct Agent a;
-  agent_init(&a);
-  a.herbivore = randf(0, 0.1f);
+  struct Agent *a = malloc(sizeof(struct Agent));
+  agent_init(a);
+  a->herbivore = randf(0, 0.1f);
 
   avec_push_back(&world->agents_staging, a);
 
@@ -537,20 +541,13 @@ void world_addCarnivore(struct World *world) {
 //   world->numAgentsAdded++; // record in report
 // }
 
-void world_reproduce(struct World *world, struct Agent *a, float MR,
-                     float MR2) {
-  if (randf(0, 1) < 0.04f)
-    MR = MR * randf(1, 10);
-  if (randf(0, 1) < 0.04f)
-    MR2 = MR2 * randf(1, 10);
-
+void world_reproduce(struct World *world, struct Agent *a) {
   agent_initevent(a, 30, 0.0f, 0.8f,
                   0.0f); // green event means agent reproduced.
   for (int32_t i = 0; i < BABIES; i++) {
-
-    struct Agent a2;
-    agent_init(&a2);
-    agent_reproduce(&a2, a, MR, MR2);
+    struct Agent *a2 = malloc(sizeof(struct Agent));
+    agent_init(a2);
+    agent_reproduce(a2, a);
     avec_push_back(&world->agents_staging, a2);
   }
 }
@@ -568,20 +565,20 @@ void world_writeReport(struct World *world) {
 
   // Count number of herb, carn and top of each
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].herbivore > 0.5f)
+    if (world->agents.agents[i]->herbivore > 0.5f)
       numherb++;
     else
       numcarn++;
 
-    if (world->agents.agents[i].herbivore > 0.5f &&
-        world->agents.agents[i].gencount > topherb)
-      topherb = world->agents.agents[i].gencount;
-    if (world->agents.agents[i].herbivore < 0.5f &&
-        world->agents.agents[i].gencount > topcarn)
-      topcarn = world->agents.agents[i].gencount;
+    if (world->agents.agents[i]->herbivore > 0.5f &&
+        world->agents.agents[i]->gencount > topherb)
+      topherb = world->agents.agents[i]->gencount;
+    if (world->agents.agents[i]->herbivore < 0.5f &&
+        world->agents.agents[i]->gencount > topcarn)
+      topcarn = world->agents.agents[i]->gencount;
 
     // Average Age:
-    total_age += world->agents.agents[i].age;
+    total_age += world->agents.agents[i]->age;
   }
   avg_age = total_age / world->agents.size;
 
@@ -621,8 +618,8 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
     float d;
 
     for (size_t i = 0; i < world->agents.size; i++) {
-      d = powf((float)x - world->agents.agents[i].pos.x, 2.0f) +
-          powf((float)y - world->agents.agents[i].pos.y, 2.0f);
+      d = powf((float)x - world->agents.agents[i]->pos.x, 2.0f) +
+          powf((float)y - world->agents.agents[i]->pos.y, 2.0f);
       if (d < mind) {
         mind = d;
         mini = i;
@@ -631,10 +628,10 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
     // toggle selection of this agent
     for (size_t i = 0; i < world->agents.size; i++) {
       if (i != mini) {
-        world->agents.agents[i].selectflag = 0;
+        world->agents.agents[i]->selectflag = 0;
       } else {
-        world->agents.agents[i].selectflag =
-            world->agents.agents[mini].selectflag ? 0 : 1;
+        world->agents.agents[i]->selectflag =
+            world->agents.agents[mini]->selectflag ? 0 : 1;
       }
     }
 
@@ -645,7 +642,7 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
 int32_t world_numHerbivores(struct World *world) {
   int32_t numherb = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].herbivore > 0.5)
+    if (world->agents.agents[i]->herbivore > 0.5)
       numherb++;
   }
 
@@ -655,7 +652,7 @@ int32_t world_numHerbivores(struct World *world) {
 int32_t world_numCarnivores(struct World *world) {
   int32_t numcarn = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i].herbivore <= 0.5)
+    if (world->agents.agents[i]->herbivore <= 0.5)
       numcarn++;
   }
 
@@ -673,19 +670,18 @@ int32_t world_numAgents(struct World *world) {
 void world_sortGrid(struct World *world) {
   // printf("\nagents_size: %li\n", world->agents.size);
   for (size_t i = 1; i < world->agents.size; i++) {
-    struct Agent key_agent = world->agents.agents[i];
-    // memcpy(&key_agent, &, sizeof(struct Agent));
+    struct Agent *key_agent = world->agents.agents[i];
 
-    size_t key_grid_x = floor(key_agent.pos.x / WORLD_GRID_SIZE);
-    size_t key_grid_y = floor(key_agent.pos.y / WORLD_GRID_SIZE);
+    size_t key_grid_x = (size_t) key_agent->pos.x / WORLD_GRID_SIZE;
+    size_t key_grid_y = (size_t) key_agent->pos.y / WORLD_GRID_SIZE;
     size_t key_grid_index = key_grid_y * WORLD_GRID_WIDTH + key_grid_x;
 
     long j = i - 1;
     while (j >= 0) {
-      struct Agent *a2 = &world->agents.agents[j];
+      struct Agent *a2 = world->agents.agents[j];
 
-      size_t next_grid_x = floor(a2->pos.x / WORLD_GRID_SIZE);
-      size_t next_grid_y = floor(a2->pos.y / WORLD_GRID_SIZE);
+      size_t next_grid_x = (size_t) a2->pos.x / WORLD_GRID_SIZE;
+      size_t next_grid_y = (size_t) a2->pos.y / WORLD_GRID_SIZE;
       size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
 
       if (next_grid_index <= key_grid_index) {
@@ -702,10 +698,10 @@ void world_sortGrid(struct World *world) {
   // Construct grid
   size_t current_grid_index = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = &world->agents.agents[i];
+    struct Agent *a = world->agents.agents[i];
 
-    size_t grid_x = floor(a->pos.x / WORLD_GRID_SIZE);
-    size_t grid_y = floor(a->pos.y / WORLD_GRID_SIZE);
+    size_t grid_x = (size_t) a->pos.x / WORLD_GRID_SIZE;
+    size_t grid_y = (size_t) a->pos.y / WORLD_GRID_SIZE;
     size_t grid_index = grid_y * WORLD_GRID_WIDTH + grid_x;
 
     while (grid_index > current_grid_index) {
@@ -726,7 +722,7 @@ void agent_output_processor(void *arg) {
   struct World *world = aqi->world;
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
-    struct Agent *a = &world->agents.agents[i];
+    struct Agent *a = world->agents.agents[i];
 
     a->w1 = a->out[0]; //-(2*a->out[0]-1);
     a->w2 = a->out[1]; //-(2*a->out[1]-1);
@@ -840,7 +836,7 @@ void agent_input_processor(void *arg) {
   struct World *world = aqi->world;
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
-    struct Agent *a = &world->agents.agents[i];
+    struct Agent *a = world->agents.agents[i];
 
     // printf("&world->agents.size: %zu\n", world->agents.size);
     // for (size_t j = 0; j < world->agents.size; j++) {

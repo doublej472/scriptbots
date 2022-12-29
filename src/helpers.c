@@ -12,7 +12,13 @@
 #include "helpers.h"
 
 void init_thread_random() {
-  mtrand = seedRand(time(0));
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+
+  long seed = ts.tv_nsec;
+  seed ^= ts.tv_sec;
+
+  seedRand(seed);
 }
 
 inline float approx_atan2(float y, float x) {

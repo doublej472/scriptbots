@@ -16,21 +16,25 @@ void base_saveworld(struct Base *base) {
   FILE *f = fopen("world.dat", "wb");
   printf("Saving world to world.dat...\n");
 
-  struct World w;
-  memcpy(&w, base->world, sizeof(struct World));
+  struct World *w = malloc(sizeof(struct World));
+  memcpy(w, base->world, sizeof(struct World));
   // Clean up pointers
-  w.agents.agents = NULL;
-  w.agents_staging.agents = NULL;
-  fwrite(&w, sizeof(struct World), 1, f);
+  w->agents.agents = NULL;
+  w->agents_staging.agents = NULL;
+  fwrite(w, sizeof(struct World), 1, f);
+
+  free(w);
 
   printf("Writing %zu agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
-  fwrite(base->world->agents.agents, sizeof(struct Agent),
-         base->world->agents.size, f);
+  for (size_t i = 0; i < base->world->agents.size; i++) {
+    fwrite(base->world->agents.agents[i], sizeof(struct Agent),
+          1, f);
+  }
 
   printf("Writing %zu brains...\n", base->world->agents.size);
   for (int i = 0; i < base->world->agents.size; i++) {
-    fwrite(base->world->agents.agents[i].brain, sizeof(struct AVXBrain), 1, f);
+    fwrite(base->world->agents.agents[i]->brain, sizeof(struct AVXBrain), 1, f);
   }
 
   fclose(f);
@@ -45,7 +49,8 @@ void base_loadworld(struct Base *base) {
   FILE *f = fopen("world.dat", "rb");
 
   for (int i = 0; i < base->world->agents.size; i++) {
-    free_brain(base->world->agents.agents[i].brain);
+    free_brain(base->world->agents.agents[i]->brain);
+    free(base->world->agents.agents[i]);
   }
 
   avec_free(&base->world->agents);
@@ -63,14 +68,18 @@ void base_loadworld(struct Base *base) {
   avec_init(&base->world->agents, size);
   avec_init(&base->world->agents_staging, 16);
 
-  fread(base->world->agents.agents, sizeof(struct Agent), size, f);
   base->world->agents.size = size;
+
+  for (int i = 0; i < base->world->agents.size; i++) {
+    base->world->agents.agents[i] = malloc(sizeof(struct Agent));
+    fread(base->world->agents.agents[i], sizeof(struct Agent), 1, f);
+  }
 
   printf("Reading %ld brains...\n", size);
   for (int i = 0; i < base->world->agents.size; i++) {
-    base->world->agents.agents[i].brain =
+    base->world->agents.agents[i]->brain =
         alloc_aligned(32, sizeof(struct AVXBrain));
-    fread(base->world->agents.agents[i].brain, sizeof(struct AVXBrain), 1, f);
+    fread(base->world->agents.agents[i]->brain, sizeof(struct AVXBrain), 1, f);
   }
 
   printf("Fixing world struct...\n");

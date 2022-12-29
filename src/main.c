@@ -109,9 +109,9 @@ int main(int argc, char **argv) {
     }
   }
 
-  struct World world;
-  world_init(&world);
-  base_init(&base, &world);
+  struct World *world = malloc(sizeof(struct World));
+  world_init(world);
+  base_init(&base, world);
 
   signal(SIGINT, signal_handler);
 
@@ -197,6 +197,7 @@ int main(int argc, char **argv) {
   }
 
   free(base.world->queue);
+  free(base.world);
   free(threads);
 
   return 0;
@@ -242,10 +243,10 @@ void runHeadless(struct Base *base) {
 
   base_saveworld(base);
   for (int i = 0; i < base->world->agents.size; i++) {
-    free_brain(base->world->agents.agents[i].brain);
+    free_brain(base->world->agents.agents[i]->brain);
   }
   for (int i = 0; i < base->world->agents_staging.size; i++) {
-    free_brain(base->world->agents_staging.agents[i].brain);
+    free_brain(base->world->agents_staging.agents[i]->brain);
   }
   avec_free(&base->world->agents);
   avec_free(&base->world->agents_staging);

@@ -44,13 +44,13 @@ void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   queue->in %= QUEUE_BUFFER_SIZE;
   ++queue->num_work_items;
   lock_unlock(&queue->lock);
-  lock_condition_broadcast(&queue->cond_item_added);
+  lock_condition_signal(&queue->cond_item_added);
 }
 
 struct QueueItem queue_dequeue(struct Queue *queue) {
   lock_lock(&queue->lock);
   while (queue->size == 0) {
-    lock_condition_timedwait(&queue->lock, &queue->cond_item_added, 200);
+    lock_condition_timedwait(&queue->lock, &queue->cond_item_added, 3000);
     if (queue->closed != 0) {
       lock_unlock(&queue->lock);
       pthread_exit(0);
@@ -61,7 +61,7 @@ struct QueueItem queue_dequeue(struct Queue *queue) {
   ++queue->out;
   queue->out %= QUEUE_BUFFER_SIZE;
   lock_unlock(&queue->lock);
-  lock_condition_broadcast(&queue->cond_item_removed);
+  lock_condition_signal(&queue->cond_item_removed);
   return value;
 }
 
@@ -79,6 +79,11 @@ void queue_close(struct Queue *queue) {
   lock_lock(&queue->lock);
   queue->closed = 1;
   lock_unlock(&queue->lock);
+
+  // Wake up all threads so they exit quicker
+  lock_condition_broadcast(&queue->cond_item_added);
+  lock_condition_broadcast(&queue->cond_item_removed);
+  lock_condition_broadcast(&queue->cond_work_done);
 }
 
 size_t queue_size(struct Queue *queue) {
