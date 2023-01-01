@@ -94,6 +94,8 @@ extern int32_t MAX_SECONDS;
 // loss of health from shouting
 #define LOSS_SPEED 0.00005f
 // loss of health for movement speed
+#define LOSS_BOOST 0.00030f
+// loss of health for boosting
 #define LOSS_TEMP 0.00005f
 // loss of health from temperature distribution across world
 #define LOSS_AGE 0.00015f

@@ -3,16 +3,16 @@ project(scriptbots)
 
 option(USE_OPENGL "Compile with OpenGL gui" YES)
 option(BUILD_TESTS "Compile tests" NO)
-option(USE_LTO "Compile with LTO optimizations" NO)
+option(USE_LTO "Compile with LTO optimizations" YES)
 option(MARCH_NATIVE "Compile with -march=native" NO)
 option(ASAN "Compile with address sanitation enabled" NO)
 option(TRAP_NAN "Make program exit on math errors" NO)
-option(FASTMATH "Compile with fast math optimizations (UNSAFE)" NO)
+option(FASTMATH "Compile with fast math optimizations (untested)" NO)
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-	option(GRAPHITE "Compile with graphite optimizations" NO)
-	option(IPAPTA "Compile with ipa-pta optimizations" NO)
-	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" NO)
+	option(GRAPHITE "Compile with graphite optimizations" YES)
+	option(IPAPTA "Compile with ipa-pta optimizations" YES)
+	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" YES)
 endif()
 
 add_executable(scriptbots

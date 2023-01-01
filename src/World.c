@@ -334,7 +334,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     // Divide for each agent
     health_add /= (float)num_to_dist_body;
 
-    float rep_sub = 3.0f * health_add;
+    float rep_sub = 5.0f * health_add;
 
     // printf("n: %d, carn: %f, h+: %f, r-: %f\n", num_to_dist_body, 1.0f -
     // a2->herbivore, health_add, rep_sub);
@@ -384,8 +384,8 @@ void world_update(struct World *world) {
 
   struct Agent *newMovieAgent = NULL;
   struct Agent *prevMovieAgent = NULL;
-  int32_t newOldest = -1;
-  int32_t prevOldest = -1;
+  int32_t newMostChildren = -1;
+  int32_t prevMostChildren = -1;
 
   // Some things need to be done single threaded
   for (int i = 0; i < world->agents.size; i++) {
@@ -401,11 +401,11 @@ void world_update(struct World *world) {
 
     if (world->movieMode) {
       if (a->selectflag) {
-        prevOldest = a->age;
+        prevMostChildren = a->numchildren;
         prevMovieAgent = a;
       } else {
-        if (a->age > newOldest) {
-          newOldest = a->age;
+        if (a->numchildren > newMostChildren) {
+          newMostChildren = a->numchildren;
           newMovieAgent = a;
         }
       }
@@ -415,7 +415,7 @@ void world_update(struct World *world) {
 
   if (newMovieAgent != NULL) {
     if (prevMovieAgent != NULL) {
-      if (prevOldest >= newOldest) {
+      if (prevMostChildren >= newMostChildren) {
         prevMovieAgent->selectflag = 1;
       } else {
         newMovieAgent->selectflag = 1;
@@ -815,7 +815,7 @@ void agent_output_processor(void *arg) {
 
     // Handle reproduction
     if (world->modcounter % 15 == 0 && a->repcounter < 0 &&
-        a->health > REP_MIN_HEALTH && randf(0, 1) < 0.1f) {
+        a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
@@ -1005,10 +1005,27 @@ void agent_input_processor(void *arg) {
           struct Vector2f v;
           vector2f_init(&v, 1.0f, 0.0f);
           vector2f_rotate(&v, a->angle);
+
           struct Vector2f tmp;
           vector2f_sub(&tmp, &a2->pos, &a->pos);
-          float diff = vector2f_angle_between(&v, &tmp);
-          if (fabsf(diff) < (float)M_PI / 6.0f) {
+          // float diffangle = vector2f_angle(&tmp);
+          float diff = fabsf(vector2f_angle_between(&v, &tmp));
+
+          // if (a->selectflag) {
+          //   printf("Collision check\n");
+          //   printf("  Pos a1:\t%f\t%f\n", a->pos.x, a->pos.y);
+          //   printf("  Pos a2:\t%f\t%f\n", a2->pos.x, a2->pos.y);
+          //   printf("  Diff Vec: %f\t%f\n", tmp.x, tmp.y);
+          //   printf("  Diff Angle: %f\n", diffangle);
+          //   printf("  Angle a: %f\n", a->angle);
+          //   printf("  Distance to a2: %f\n", d);
+          //   printf("  Angle diff to a2: %f\n", diff);
+          // }
+          
+          if (diff < (float)M_PI / 2.0f) {
+            // if (a->selectflag) {
+            //   printf("Hit at angle: %f\n", diff);
+            // }
             // bot i is also properly aligned!!! that's a hit
             float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
                         fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
@@ -1024,6 +1041,7 @@ void agent_input_processor(void *arg) {
             vector2f_init(&v2, 1.0f, 0.0f);
             vector2f_rotate(&v2, a2->angle);
             float adiff = vector2f_angle_between(&v, &v2);
+
             if (fabsf(adiff) < (float)M_PI / 2.0f) {
               // this was attack from the back. Retract spike of the other
               // agent (startle!) this is done so that the other agent cant

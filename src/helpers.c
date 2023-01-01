@@ -23,10 +23,11 @@ void init_thread_random() {
 
 inline float approx_atan2(float y, float x) {
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
+  // https://gist.github.com/volkansalma/2972237
   // Volkan SALMA
 
-  const float ONEQTR_PI = M_PI / 4.0;
-  const float THRQTR_PI = 3.0 * M_PI / 4.0;
+  const float ONEQTR_PI = (float) M_PI / 4.0f;
+  const float THRQTR_PI = 3.0f * (float) M_PI / 4.0f;
   float r, angle;
   float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
   if (x < 0.0f) {

@@ -29,7 +29,8 @@ struct Agent {
 
   float repcounter;       // when repcounter gets to 0, this bot reproduces
   int rep;                // If this agent will reproduce the next world update
-  int32_t gencount;       // generation counter
+  int64_t gencount;       // generation counter
+  int32_t numchildren;
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
   float soundmul; // sound multiplier of this bot. It can scream, or be very
                   // sneaky. This is actually always set to output 8

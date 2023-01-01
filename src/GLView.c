@@ -186,11 +186,9 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   case 'f':
     GLVIEW.drawfood = !GLVIEW.drawfood;
     break;
-    //  case 'a':
-    //    for (int32_t i = 0; i < 10; i++) {
-    //      world_addNewByCrossover(GLVIEW.base->world);
-    //    }
-    //    break;
+  case 'h':
+    world_addRandomBots(GLVIEW.base->world, 100);
+    break;
   case 'q':
     for (int32_t i = 0; i < 100; i++) {
       world_addCarnivore(GLVIEW.base->world);
@@ -371,15 +369,27 @@ void drawAgent(const struct Agent *agent) {
 
     yy += (ss * (BRAIN_DEPTH + 1) + 14);
 
-    sprintf(GLVIEW.buf2, "Generation: %i", agent->gencount);
+    sprintf(GLVIEW.buf2, "Health: %f", agent->health);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Pos: %f\t%f", agent->pos.x, agent->pos.y);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Angle: %f", agent->angle);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Children: %i", agent->numchildren);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
+                 1.0f);
+    yy += 14;
+    sprintf(GLVIEW.buf2, "Generation: %lli", agent->gencount);
     renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
                  1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Age: %i", agent->age);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
-    yy += 14;
-    sprintf(GLVIEW.buf2, "Health: %f", agent->health);
     renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
                  1.0f);
     yy += 14;
@@ -495,7 +505,7 @@ void drawAgent(const struct Agent *agent) {
   // print stats if zoomed in enough
   if (GLVIEW.scalemult > 0.7f) {
     // generation count
-    sprintf(GLVIEW.buf2, "%i", agent->gencount);
+    sprintf(GLVIEW.buf2, "%lli", agent->gencount);
     renderString(agent->pos.x - BOTRADIUS * 2,
                  agent->pos.y + 5.0f + BOTRADIUS * 2, GLUT_BITMAP_HELVETICA_12,
                  GLVIEW.buf2, 1.0f, 1.0f, 1.0f);

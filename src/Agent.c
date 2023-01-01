@@ -38,6 +38,7 @@ void agent_init(struct Agent *agent) {
   agent->repcounter =
       agent->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
       (1.0f - agent->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
+  agent->numchildren = 0;
 
   agent->MUTRATE1 = METAMUTRATE1;
   agent->MUTRATE2 = METAMUTRATE2;
@@ -82,6 +83,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
 
   vector2f_rotate(&fb, -child->angle);
   vector2f_add(&child->pos, &parent->pos, &fb);
+
+  parent->numchildren++;
 
   if (child->pos.x < 0)
     child->pos.x = WIDTH + child->pos.x;
@@ -161,7 +164,7 @@ void agent_process_health(struct Agent *agent) {
   // remove health based on wheel speed
   if (agent->boost) { // is using boost
     healthloss += (float)LOSS_SPEED * (float)BOTSPEED *
-                  (fabsf(agent->w1) + fabsf(agent->w2)) * (float)BOOSTSIZEMULT *
+                  ((fabsf(agent->w1) + fabsf(agent->w2)) / 2.0f) + (float)LOSS_BOOST *
                   agent->boost;
   } else { // no boost
     healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));
