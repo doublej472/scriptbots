@@ -126,7 +126,7 @@ static void world_update_food(struct World *world) {
             world_growFood(world, x, y);
 
             // Grow surrounding squares sometimes and only if well grown
-            if (randf(0, world->food[x][y]) > .1) {
+            if (randf(0, world->food[x][y]) > FOODMAX * 0.8F) {
               // Spread to surrounding squares
               world_growFood(world, x + 1, y - 1);
               world_growFood(world, x + 1, y);
@@ -323,7 +323,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     float health_add = 1.0f;
 
     // bonus for hunting in groups
-    health_add += 0.8f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
+    health_add += 0.5f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
 
     // Factor in age muliplier
     health_add *= agemult;
@@ -334,7 +334,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     // Divide for each agent
     health_add /= (float)num_to_dist_body;
 
-    float rep_sub = 5.0f * health_add;
+    float rep_sub = 4.0f * health_add;
 
     // printf("n: %d, carn: %f, h+: %f, r-: %f\n", num_to_dist_body, 1.0f -
     // a2->herbivore, health_add, rep_sub);
@@ -1030,27 +1030,30 @@ void agent_input_processor(void *arg) {
             float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
                         fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
 
-            a2->health -= DMG;
-            a->spikeLength = 0.0f; // retract spike back down
+            if (DMG > 0.01f) {
 
-            agent_initevent(
-                a, 10.0f * DMG, 1.0f, 1.0f,
-                0.0f); // yellow event means bot has spiked other bot. nice!
+              a2->health -= DMG;
+              a->spikeLength = 0.0f; // retract spike back down
 
-            struct Vector2f v2;
-            vector2f_init(&v2, 1.0f, 0.0f);
-            vector2f_rotate(&v2, a2->angle);
-            float adiff = vector2f_angle_between(&v, &v2);
+              agent_initevent(
+                  a, 10.0f * DMG, 1.0f, 1.0f,
+                  0.0f); // yellow event means bot has spiked other bot. nice!
 
-            if (fabsf(adiff) < (float)M_PI / 2.0f) {
-              // this was attack from the back. Retract spike of the other
-              // agent (startle!) this is done so that the other agent cant
-              // right away "by accident" attack this agent
-              a2->spikeLength = 0.0f;
+              struct Vector2f v2;
+              vector2f_init(&v2, 1.0f, 0.0f);
+              vector2f_rotate(&v2, a2->angle);
+              float adiff = vector2f_angle_between(&v, &v2);
+
+              if (fabsf(adiff) < (float)M_PI / 2.0f) {
+                // this was attack from the back. Retract spike of the other
+                // agent (startle!) this is done so that the other agent cant
+                // right away "by accident" attack this agent
+                a2->spikeLength = 0.0f;
+              }
+
+              a2->spiked =
+                  1; // set a flag saying that this agent was hit this turn
             }
-
-            a2->spiked =
-                1; // set a flag saying that this agent was hit this turn
           }
         }
       }
