@@ -227,6 +227,8 @@ void gl_processNormalKeys(unsigned char key, int32_t __x, int32_t __y) {
   }
 }
 
+static const int MILLS_PER_UPDATE = 250;
+
 void gl_handleIdle() {
   GLVIEW.modcounter++;
   if (!GLVIEW.paused)
@@ -235,12 +237,12 @@ void gl_handleIdle() {
   // show FPS
   int32_t currentTime = glutGet(GLUT_ELAPSED_TIME);
   GLVIEW.frames++;
-  if ((currentTime - GLVIEW.lastUpdate) >= 250) {
+  if ((currentTime - GLVIEW.lastUpdate) >= MILLS_PER_UPDATE) {
     int32_t num_herbs = world_numHerbivores(GLVIEW.base->world);
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf,
-            "FPS: %d NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
-            GLVIEW.frames * 4, world_numAgents(GLVIEW.base->world), num_carns,
+            "FPS: %.2f NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
+            GLVIEW.frames * (1000.0 / MILLS_PER_UPDATE), world_numAgents(GLVIEW.base->world), num_carns,
             num_herbs, GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
     GLVIEW.frames = 0;
@@ -385,7 +387,7 @@ void drawAgent(const struct Agent *agent) {
     renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
                  1.0f);
     yy += 14;
-    sprintf(GLVIEW.buf2, "Generation: %lli", agent->gencount);
+    sprintf(GLVIEW.buf2, "Generation: %jd", agent->gencount);
     renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
                  1.0f);
     yy += 14;
@@ -505,7 +507,7 @@ void drawAgent(const struct Agent *agent) {
   // print stats if zoomed in enough
   if (GLVIEW.scalemult > 0.7f) {
     // generation count
-    sprintf(GLVIEW.buf2, "%lli", agent->gencount);
+    sprintf(GLVIEW.buf2, "%jd", agent->gencount);
     renderString(agent->pos.x - BOTRADIUS * 2,
                  agent->pos.y + 5.0f + BOTRADIUS * 2, GLUT_BITMAP_HELVETICA_12,
                  GLVIEW.buf2, 1.0f, 1.0f, 1.0f);

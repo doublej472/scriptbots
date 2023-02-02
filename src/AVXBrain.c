@@ -7,10 +7,17 @@
 #include <stdlib.h>
 #include <time.h>
 
-static const float WEIGHT_RANGE = 3.0f;
-static const float BIAS_RANGE = 3.0f;
+// How much the connection weight can vary
+static const float WEIGHT_RANGE = 1.0f;
 
-// static inline float reduce_sum()
+// How much the bias can vary from init
+static const float BIAS_RANGE = 1.0f;
+
+// How much the bias can vary because of learning
+static const float LEARNED_BIAS_RANGE = 1.2f;
+
+// How much bias can change on a given brain evaluation
+static const float LEARN_RANGE = 0.10f;
 
 static inline __m256 exp256_ps(__m256 x) {
   __m256 t, f, p, r;
@@ -60,6 +67,9 @@ static inline __m256 exp256_ps(__m256 x) {
 
 static inline __m256 activation_function(__m256 x) {
   // printf("input before: %f\n", x[0]);
+  x = _mm256_max_ps(x, (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+  x = _mm256_min_ps(x, (__m256){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+  return x;
 
   const __m256 mm256one = _mm256_set1_ps(1.0f);
 
@@ -90,6 +100,15 @@ static inline __m256 activation_function(__m256 x) {
   return x;
 }
 
+void avxbrain_reset_offsets(struct AVXBrain *b) {
+  //printf("Offsets reset: ");
+  for (size_t i = 0; i < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; i++) {
+    //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n", b->biases_offset[i][0], b->biases_offset[i][1], b->biases_offset[i][2], b->biases_offset[i][3], b->biases_offset[i][4], b->biases_offset[i][5], b->biases_offset[i][6], b->biases_offset[i][7]);
+    b->biases_offset[i] = (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  }
+  //printf("\n");
+}
+
 void avxbrain_init(struct AVXBrain *b) {
   size_t neurons = (BRAIN_WIDTH * BRAIN_DEPTH) / 8;
   size_t weights = (BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH)) / 8;
@@ -107,13 +126,12 @@ void avxbrain_init(struct AVXBrain *b) {
 
   // Init biases and initial vals
   for (size_t i = 0; i < neurons; i++) {
-    alignas(32) float randvals[8] = {
-        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
-        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
-        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
-        randf(-BIAS_RANGE, BIAS_RANGE), randf(-BIAS_RANGE, BIAS_RANGE),
-    };
-    b->biases[i] = _mm256_load_ps((const float *)randvals);
+    for (int j = 0; j < 8; j++) {
+      b->biases[i][j] = randf(-BIAS_RANGE, BIAS_RANGE);
+      b->biases_learnrate[i][j] = randf(-LEARN_RANGE, LEARN_RANGE);
+    }
+    b->biases_offset[i] = (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    b->vals[i] = (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   }
 }
 
@@ -156,9 +174,21 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
       sum[j] = innersum[0] + innersum[1] + innersum[2] + innersum[3] + innersum[4] + innersum[5] + innersum[6] + innersum[7];
     }
 
-    b->vals[i] = _mm256_add_ps(sum, b->biases[i]);
-    
+    b->vals[i] = _mm256_add_ps(_mm256_add_ps(sum, b->biases[i]), b->biases_offset[i]);
+
+    // activation function
     b->vals[i] = activation_function(b->vals[i]);
+
+    // Center the output over -0.5, 0.5
+    __m256 bias_tmp = _mm256_sub_ps(b->vals[i], (__m256){0.5f,0.5f,0.5f,0.5f,0.5f,0.5f,0.5f,0.5f});
+    // Multiply by the learnrate
+    bias_tmp = _mm256_mul_ps(bias_tmp, b->biases_learnrate[i]);
+    // "learn"
+    b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
+    
+    // Clamp range
+    b->biases_offset[i] = _mm256_max_ps(b->biases[i], (__m256){-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE});
+    b->biases_offset[i] = _mm256_min_ps(b->biases[i], (__m256){LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE});
   }
 
   // For the rest of the hidden layers
@@ -183,9 +213,21 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
       sum[j] = innersum[0] + innersum[1] + innersum[2] + innersum[3] + innersum[4] + innersum[5] + innersum[6] + innersum[7];
     }
 
-    b->vals[i] = _mm256_add_ps(sum, b->biases[i]);
-    
+    b->vals[i] = _mm256_add_ps(_mm256_add_ps(sum, b->biases[i]), b->biases_offset[i]);
+
+    // activation function
     b->vals[i] = activation_function(b->vals[i]);
+
+    // Center the output over -0.5, 0.5
+    __m256 bias_tmp = _mm256_sub_ps(b->vals[i], (__m256){0.5f,0.5f,0.5f,0.5f,0.5f,0.5f,0.5f,0.5f});
+    // Multiply by the learnrate
+    bias_tmp = _mm256_mul_ps(bias_tmp, b->biases_learnrate[i]);
+    // "learn"
+    b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
+    
+    // Clamp range
+    b->biases_offset[i] = _mm256_max_ps(b->biases[i], (__m256){-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE,-LEARNED_BIAS_RANGE});
+    b->biases_offset[i] = _mm256_min_ps(b->biases[i], (__m256){LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE,LEARNED_BIAS_RANGE});
   }
 
   size_t output_layer = BRAIN_WIDTH * (BRAIN_DEPTH - 1) / 8;

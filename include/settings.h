@@ -12,11 +12,11 @@ extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
 // How many hidden layers this brain has
-#define BRAIN_DEPTH 3
+#define BRAIN_DEPTH 4
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 6)
+#define BRAIN_WIDTH (8 * 10)
 
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
@@ -47,7 +47,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 10000
+#define NUMBOTS 8000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -74,7 +74,7 @@ extern int32_t MAX_SECONDS;
 #define METAMUTRATE1 0.01f
 // what is the change in MUTRATE1 and 2 on reproduction
 #define METAMUTRATE2 0.15f
-#define OLD_AGE_THRESHOLD = 500
+#define OLD_AGE_THRESHOLD = 50000
 // at what age do they start lossing health for being old?
 
 // REPRODUCTION ----------------------------------------------
@@ -117,7 +117,7 @@ extern int32_t MAX_SECONDS;
 // how much does every agent consume?
 #define FOODWASTE 0.001f
 // how much food disapears if agent eats?
-#define FOODMAX 0.8f
+#define FOODMAX 0.7f
 // how much food per cell can there be at max?
 #define FOODADDFREQ 2
 // how often does random square get to full food?

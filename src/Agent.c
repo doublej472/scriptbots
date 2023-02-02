@@ -130,6 +130,7 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
   // mutate brain here
   memcpy(child->brain, parent->brain, sizeof(struct AVXBrain));
   avxbrain_mutate(child->brain, child->MUTRATE1, child->MUTRATE2);
+  avxbrain_reset_offsets(child->brain);
 }
 
 // void agent_crossover(struct Agent *target, const struct Agent *agent1,
