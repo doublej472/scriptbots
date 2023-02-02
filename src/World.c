@@ -1021,7 +1021,7 @@ void agent_input_processor(void *arg) {
           //   printf("  Distance to a2: %f\n", d);
           //   printf("  Angle diff to a2: %f\n", diff);
           // }
-          
+
           if (diff < (float)M_PI / 2.0f) {
             // if (a->selectflag) {
             //   printf("Hit at angle: %f\n", diff);

@@ -26,8 +26,8 @@ inline float approx_atan2(float y, float x) {
   // https://gist.github.com/volkansalma/2972237
   // Volkan SALMA
 
-  const float ONEQTR_PI = (float) M_PI / 4.0f;
-  const float THRQTR_PI = 3.0f * (float) M_PI / 4.0f;
+  const float ONEQTR_PI = (float)M_PI / 4.0f;
+  const float THRQTR_PI = 3.0f * (float)M_PI / 4.0f;
   float r, angle;
   float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
   if (x < 0.0f) {

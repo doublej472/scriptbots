@@ -242,8 +242,9 @@ void gl_handleIdle() {
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf,
             "FPS: %.2f NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
-            GLVIEW.frames * (1000.0 / MILLS_PER_UPDATE), world_numAgents(GLVIEW.base->world), num_carns,
-            num_herbs, GLVIEW.base->world->current_epoch);
+            GLVIEW.frames * (1000.0 / MILLS_PER_UPDATE),
+            world_numAgents(GLVIEW.base->world), num_carns, num_herbs,
+            GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
     GLVIEW.frames = 0;
     GLVIEW.lastUpdate = currentTime;

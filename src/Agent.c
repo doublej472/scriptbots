@@ -165,8 +165,8 @@ void agent_process_health(struct Agent *agent) {
   // remove health based on wheel speed
   if (agent->boost) { // is using boost
     healthloss += (float)LOSS_SPEED * (float)BOTSPEED *
-                  ((fabsf(agent->w1) + fabsf(agent->w2)) / 2.0f) + (float)LOSS_BOOST *
-                  agent->boost;
+                      ((fabsf(agent->w1) + fabsf(agent->w2)) / 2.0f) +
+                  (float)LOSS_BOOST * agent->boost;
   } else { // no boost
     healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));
   }
