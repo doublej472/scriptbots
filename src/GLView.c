@@ -354,18 +354,29 @@ void drawAgent(const struct Agent *agent) {
 
     for (int32_t j = 0; j < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; j++) {
       __m256 group = agent->brain->vals[j];
+      __m256 lbiasgroup = agent->brain->biases_offset[j];
       for (int32_t k = 0; k < 8; k++) {
         col = group[k];
+        float lbias = lbiasgroup[k];
+        // printf("lbias: %f\n", lbias);
+
+        float r = fmax((0.5f - lbias) * 2.0f, 0.0f);
+        float g = fmax((lbias - 0.5f) * 2.0f, 0.0f);
 
         int offx = ((j * 8 + k) % cols);
         int offy = ((j * 8 + k) / cols);
 
         glColor3f(col, col, col);
-
         glVertex3f(ss * offx, yy + ss * offy, 0.0f);
+        glVertex3f(ss * offx + (ss - 2), yy + ss * offy, 0.0f);
+        glVertex3f(ss * offx + (ss - 2), yy + ss * offy + ss, 0.0f);
+        glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
+
+        glColor3f(r, g, 0.0f);
+        glVertex3f(ss * offx + (ss - 2), yy + ss * offy, 0.0f);
         glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
         glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
-        glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
+        glVertex3f(ss * offx + (ss - 2), yy + ss * offy + ss, 0.0f);
       }
     }
     glEnd();

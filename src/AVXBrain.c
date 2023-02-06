@@ -8,61 +8,37 @@
 #include <time.h>
 
 // How much the connection weight can vary
-static const float WEIGHT_RANGE = 1.0f;
+static const float WEIGHT_RANGE = 0.8f;
 
 // How much the bias can vary from init
 static const float BIAS_RANGE = 1.0f;
 
 // How much the bias can vary because of learning
-static const float LEARNED_BIAS_RANGE = 1.2f;
+static const float LEARNED_BIAS_RANGE = 0.9f;
 
-// How much bias can change on a given brain evaluation
-static const float LEARN_RANGE = 0.10f;
+// How much bias can change / 2 on a given brain evaluation
+static const float LEARN_RANGE = 0.008f;
 
-static inline __m256 exp256_ps(__m256 x) {
-  __m256 t, f, p, r;
-  __m256i i, j;
-
-  const __m256 l2e = _mm256_set1_ps(1.442695041f);    /* log2(e) */
-  const __m256 l2h = _mm256_set1_ps(-6.93145752e-1f); /* -log(2)_hi */
-  const __m256 l2l = _mm256_set1_ps(-1.42860677e-6f); /* -log(2)_lo */
-  /* coefficients for core approximation to exp() in [-log(2)/2, log(2)/2] */
-  const __m256 c0 = _mm256_set1_ps(0.041944388f);
-  const __m256 c1 = _mm256_set1_ps(0.168006673f);
-  const __m256 c2 = _mm256_set1_ps(0.499999940f);
-  const __m256 c3 = _mm256_set1_ps(0.999956906f);
-  const __m256 c4 = _mm256_set1_ps(0.999999642f);
-
-  /* exp(x) = 2^i * e^f; i = rint (log2(e) * x), f = x - log(2) * i */
-  t = _mm256_mul_ps(x, l2e); /* t = log2(e) * x */
-  r = _mm256_round_ps(t, _MM_FROUND_TO_NEAREST_INT |
-                             _MM_FROUND_NO_EXC); /* r = rint (t) */
-
-  p = _mm256_mul_ps(r, l2h); /* log(2)_hi * r */
-  f = _mm256_add_ps(x, p);   /* x - log(2)_hi * r */
-  p = _mm256_mul_ps(r, l2l); /* log(2)_lo * r */
-  f = _mm256_add_ps(f, p);   /* f = x - log(2)_hi * r - log(2)_lo * r */
-
-  i = _mm256_cvtps_epi32(t); /* i = (int)rint(t) */
-
-  /* p ~= exp (f), -log(2)/2 <= f <= log(2)/2 */
-  p = c0; /* c0 */
-
-  p = _mm256_mul_ps(p, f);  /* c0*f */
-  p = _mm256_add_ps(p, c1); /* c0*f+c1 */
-  p = _mm256_mul_ps(p, f);  /* (c0*f+c1)*f */
-  p = _mm256_add_ps(p, c2); /* (c0*f+c1)*f+c2 */
-  p = _mm256_mul_ps(p, f);  /* ((c0*f+c1)*f+c2)*f */
-  p = _mm256_add_ps(p, c3); /* ((c0*f+c1)*f+c2)*f+c3 */
-  p = _mm256_mul_ps(p, f);  /* (((c0*f+c1)*f+c2)*f+c3)*f */
-  p = _mm256_add_ps(p, c4); /* (((c0*f+c1)*f+c2)*f+c3)*f+c4 ~= exp(f) */
-
-  /* exp(x) = 2^i * p */
-  j = _mm256_slli_epi32(i, 23); /* i << 23 */
-  r = _mm256_castsi256_ps(
-      _mm256_add_epi32(j, _mm256_castps_si256(p))); /* r = p * 2^i */
-
-  return r;
+static inline float sum8(__m256 x) {
+  // hiQuad = ( x7, x6, x5, x4 )
+  const __m128 hiQuad = _mm256_extractf128_ps(x, 1);
+  // loQuad = ( x3, x2, x1, x0 )
+  const __m128 loQuad = _mm256_castps256_ps128(x);
+  // sumQuad = ( x3 + x7, x2 + x6, x1 + x5, x0 + x4 )
+  const __m128 sumQuad = _mm_add_ps(loQuad, hiQuad);
+  // loDual = ( -, -, x1 + x5, x0 + x4 )
+  const __m128 loDual = sumQuad;
+  // hiDual = ( -, -, x3 + x7, x2 + x6 )
+  const __m128 hiDual = _mm_movehl_ps(sumQuad, sumQuad);
+  // sumDual = ( -, -, x1 + x3 + x5 + x7, x0 + x2 + x4 + x6 )
+  const __m128 sumDual = _mm_add_ps(loDual, hiDual);
+  // lo = ( -, -, -, x0 + x2 + x4 + x6 )
+  const __m128 lo = sumDual;
+  // hi = ( -, -, -, x1 + x3 + x5 + x7 )
+  const __m128 hi = _mm_shuffle_ps(sumDual, sumDual, 0x1);
+  // sum = ( -, -, -, x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7 )
+  const __m128 sum = _mm_add_ss(lo, hi);
+  return _mm_cvtss_f32(sum);
 }
 
 static inline __m256 activation_function(__m256 x) {
@@ -72,43 +48,11 @@ static inline __m256 activation_function(__m256 x) {
   x = _mm256_min_ps(x,
                     (__m256){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
   return x;
-
-  const __m256 mm256one = _mm256_set1_ps(1.0f);
-
-  // flip sign
-  x = _mm256_xor_ps(x, _mm256_set1_ps(-0.0f));
-
-  // exp part
-  x = exp256_ps(x);
-
-  //// https://www.musicdsp.org/en/latest/Other/222-fast-exp-approximations.html
-  // x = _mm256_add_ps(x, (__m256) {4.0f,4.0f,4.0f,4.0f,4.0f,4.0f,4.0f,4.0f});
-  // x = _mm256_mul_ps(x, x);
-  // x = _mm256_add_ps(x, (__m256)
-  // {12.0f,12.0f,12.0f,12.0f,12.0f,12.0f,12.0f,12.0f}); x = _mm256_mul_ps(x,
-  // x); x = _mm256_add_ps(x, (__m256)
-  // {24.0f,24.0f,24.0f,24.0f,24.0f,24.0f,24.0f,24.0f}); x = _mm256_mul_ps(x,
-  // x); x = _mm256_add_ps(x, (__m256)
-  // {24.0f,24.0f,24.0f,24.0f,24.0f,24.0f,24.0f,24.0f}); x = _mm256_mul_ps(x,
-  // (__m256)
-  // {0.041666666f,0.041666666f,0.041666666f,0.041666666f,0.041666666f,0.041666666f,0.041666666f,0.041666666f,});
-
-  // printf("exp after: %f\n", x[0]);
-  //  sigmoid part
-  x = _mm256_add_ps(x, mm256one);
-  x = _mm256_rcp_ps(x);
-
-  // printf("activation after: %f\n", x[0]);
-  return x;
 }
 
 void avxbrain_reset_offsets(struct AVXBrain *b) {
   // printf("Offsets reset: ");
   for (size_t i = 0; i < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; i++) {
-    // printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n",
-    // b->biases_offset[i][0], b->biases_offset[i][1], b->biases_offset[i][2],
-    // b->biases_offset[i][3], b->biases_offset[i][4], b->biases_offset[i][5],
-    // b->biases_offset[i][6], b->biases_offset[i][7]);
     b->biases_offset[i] =
         (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   }
@@ -188,25 +132,27 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
     // activation function
     b->vals[i] = activation_function(b->vals[i]);
 
-    // Center the output over -0.5, 0.5
-    __m256 bias_tmp = _mm256_sub_ps(
-        b->vals[i], (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f});
-    // Multiply by the learnrate
-    bias_tmp = _mm256_mul_ps(bias_tmp, b->biases_learnrate[i]);
-    // "learn"
+    // Get sum and multiply by the learnrate
+    __m256 bias_tmp = _mm256_mul_ps(
+        _mm256_sub_ps(b->vals[i],
+                      (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}),
+        b->biases_learnrate[i]);
+    // printf("biases_offset[0] before: %.5f", b->biases_offset[i][0]);
+    //  "learn"
     b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
 
     // Clamp range
     b->biases_offset[i] = _mm256_max_ps(
-        b->biases[i],
+        b->biases_offset[i],
         (__m256){-LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
                  -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
                  -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE});
     b->biases_offset[i] = _mm256_min_ps(
-        b->biases[i],
+        b->biases_offset[i],
         (__m256){LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
                  LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
                  LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE});
+    // printf(" after: %.5f\n", b->biases_offset[i][0]);
   }
 
   // For the rest of the hidden layers
@@ -238,22 +184,22 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
     // activation function
     b->vals[i] = activation_function(b->vals[i]);
 
-    // Center the output over -0.5, 0.5
-    __m256 bias_tmp = _mm256_sub_ps(
-        b->vals[i], (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f});
     // Multiply by the learnrate
-    bias_tmp = _mm256_mul_ps(bias_tmp, b->biases_learnrate[i]);
+    __m256 bias_tmp = _mm256_mul_ps(
+        _mm256_sub_ps(b->vals[i],
+                      (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}),
+        b->biases_learnrate[i]);
     // "learn"
     b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
 
     // Clamp range
     b->biases_offset[i] = _mm256_max_ps(
-        b->biases[i],
+        b->biases_offset[i],
         (__m256){-LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
                  -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
                  -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE});
     b->biases_offset[i] = _mm256_min_ps(
-        b->biases[i],
+        b->biases_offset[i],
         (__m256){LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
                  LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
                  LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE});
@@ -265,8 +211,11 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
     for (size_t j = 0; j < 8; j++) {
       size_t out_idx = i * 8 + j;
       if (out_idx < OUTPUTSIZE) {
-        (*outputs)[out_idx] =
+        float desired_output =
             fmaxf(fminf(b->vals[output_layer + i][j], 1.0f), 0.0f);
+        // Go 75% of the way to the desired output
+        (*outputs)[out_idx] =
+            (*outputs)[out_idx] * 0.33f + desired_output * 0.67f;
       }
     }
   }
@@ -280,6 +229,7 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
     size_t numbtomut = randi(1, 25);
+    size_t numlrtomut = randi(1, 25);
     size_t numwtomut = randi(1, 150);
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
@@ -301,6 +251,16 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
         brain->weights[idx / 8][idx % 8] = WEIGHT_RANGE;
       } else if (brain->weights[idx / 8][idx % 8] < -WEIGHT_RANGE) {
         brain->weights[idx / 8][idx % 8] = -WEIGHT_RANGE;
+      }
+    }
+    for (int i = 0; i < numlrtomut; i++) {
+      size_t idx = randi(0, biases);
+      brain->biases_learnrate[idx / 8][idx % 8] +=
+          randf(-mutaterate2, mutaterate2);
+      if (brain->biases_learnrate[idx / 8][idx % 8] > LEARN_RANGE) {
+        brain->biases_learnrate[idx / 8][idx % 8] = LEARN_RANGE;
+      } else if (brain->biases_learnrate[idx / 8][idx % 8] < -LEARN_RANGE) {
+        brain->biases_learnrate[idx / 8][idx % 8] = -LEARN_RANGE;
       }
     }
   }

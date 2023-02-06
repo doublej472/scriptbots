@@ -16,7 +16,7 @@ extern int32_t MAX_SECONDS;
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 10)
+#define BRAIN_WIDTH (8 * 8)
 
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
@@ -33,8 +33,8 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 250)
-#define HEIGHT (CZ * 200)
+#define WIDTH (CZ * 800)
+#define HEIGHT (CZ * 500)
 // computer window width and height
 #define WWIDTH 1400
 #define WHEIGHT 1000
@@ -47,7 +47,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 8000
+#define NUMBOTS 10000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -105,10 +105,8 @@ extern int32_t MAX_SECONDS;
 // (thermal sharing)
 
 // FOOD SETTINGS -----------------------------------------------
-#define FOOD_MODEL_RAND 1
-#define FOOD_MODEL_GROW 2
-
-#define FOOD_MODEL FOOD_MODEL_RAND
+// How many food squares to check every FOODADDFREQ?
+#define FOODSQUARES 5000
 // what kind of food appearance is to be used
 #define FOODGROWTH 0.0005f
 // how quickly does food grow on a square. only
@@ -117,9 +115,9 @@ extern int32_t MAX_SECONDS;
 // how much does every agent consume?
 #define FOODWASTE 0.001f
 // how much food disapears if agent eats?
-#define FOODMAX 0.7f
+#define FOODMAX 0.6f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 2
+#define FOODADDFREQ 60
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f
