@@ -17,15 +17,6 @@ static inline __m256 activation_function(__m256 x) {
   return x;
 }
 
-// Reset the "learned" bias offset
-void avxbrain_reset_offsets(struct AVXBrain *b) {
-  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
-    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
-      b->layers[i].groups[j].biases_offset = _mm256_set1_ps(0.0f);
-    }
-  }
-}
-
 void avxbrain_init(struct AVXBrain *b) {
   // For each neuron group
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
@@ -34,13 +25,9 @@ void avxbrain_init(struct AVXBrain *b) {
       // Zero inputs
       b->layers[i].inputs[j] = _mm256_set1_ps(0.0f);
 
-      // Zero bias offsets
-      ng->biases_offset = _mm256_set1_ps(0.0f);
-
-      // Set biases and bias learnrates
+      // Set biases
       for (size_t k = 0; k < 8; k++) {
         ng->biases[k] = randf(-BIAS_RANGE, BIAS_RANGE);
-        ng->biases_learnrate[k] = randf(-LEARN_RANGE, LEARN_RANGE);
       }
 
       // Set weights
@@ -89,23 +76,10 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
 
       // Apply biases
       __m256 finalsum =
-          _mm256_add_ps(_mm256_add_ps(sum, ng->biases), ng->biases_offset);
+          _mm256_add_ps(sum, ng->biases);
 
       // Send sum to activation function
       finalsum = activation_function(finalsum);
-
-      // Find what we should change the bias offset by
-      __m256 bias_tmp = _mm256_mul_ps(_mm256_sub_ps(sum, _mm256_set1_ps(0.5f)),
-                                      ng->biases_learnrate);
-
-      // "Learn"
-      ng->biases_offset = _mm256_add_ps(bias_tmp, ng->biases_offset);
-
-      // Clamp learned offset
-      ng->biases_offset =
-          _mm256_max_ps(ng->biases_offset, _mm256_set1_ps(-LEARNED_BIAS_RANGE));
-      ng->biases_offset =
-          _mm256_min_ps(ng->biases_offset, _mm256_set1_ps(LEARNED_BIAS_RANGE));
 
       // If we are on the last layer write to output, otherwise write to the
       // input of the next layer
@@ -128,7 +102,6 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
     size_t numbtomut = randf(0.0f, 0.2f) * biases;
-    size_t numlrtomut = randf(0.0f, 0.2f) * biases;
     size_t numwtomut = randf(0.0f, 0.2f) * weights;
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
@@ -149,23 +122,6 @@ void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
       }
 
       brain->layers[layer].groups[ng].biases[elem] = inval;
-    }
-    for (int i = 0; i < numlrtomut; i++) {
-      size_t layer = randi(0, BRAIN_DEPTH);
-      size_t ng = randi(0, BRAIN_WIDTH / 8);
-      size_t elem = randi(0, 8);
-
-      float inval = brain->layers[layer].groups[ng].biases_learnrate[elem];
-
-      inval += randf(-mutaterate2, mutaterate2);
-
-      if (inval > LEARN_RANGE) {
-        inval = LEARN_RANGE;
-      } else if (inval < -LEARN_RANGE) {
-        inval = -LEARN_RANGE;
-      }
-
-      brain->layers[layer].groups[ng].biases_learnrate[elem] = inval;
     }
     // mutate w
     for (int i = 0; i < numwtomut; i++) {

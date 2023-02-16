@@ -879,7 +879,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
 
     if (d < DIST * DIST) {
       // Get the real distance now
-      d = sqrt(d);
+      d = sqrtf(d);
 
       // smell
       smaccum += 0.3f * (DIST - d) / DIST;

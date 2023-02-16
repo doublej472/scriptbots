@@ -358,24 +358,14 @@ void drawAgent(const struct Agent *agent) {
         int32_t elem = k % 8;
 
         float col = agent->brain->layers[j].inputs[ng][elem];
-        float lbias = agent->brain->layers[j].groups[ng].biases_offset[elem];
-
-        float r = fmax((0.5f - lbias) * 2.0f, 0.0f);
-        float g = fmax((lbias - 0.5f) * 2.0f, 0.0f);
 
         int offx = k;
 
         glColor3f(col, col, col);
         glVertex3f(ss * offx, yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + (ss - 2), yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + (ss - 2), yy + ss * offy + ss, 0.0f);
+        glVertex3f(ss * offx + (ss), yy + ss * offy, 0.0f);
+        glVertex3f(ss * offx + (ss), yy + ss * offy + ss, 0.0f);
         glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
-
-        glColor3f(r, g, 0.0f);
-        glVertex3f(ss * offx + (ss - 2), yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + ss, yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + ss, yy + ss * offy + ss, 0.0f);
-        glVertex3f(ss * offx + (ss - 2), yy + ss * offy + ss, 0.0f);
       }
     }
     glEnd();

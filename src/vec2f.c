@@ -9,14 +9,14 @@ void vector2f_init(struct Vector2f *vec, float x, float y) {
 }
 
 float vector2f_length(struct Vector2f *vec) {
-  return sqrt(vec->x * vec->x + vec->y * vec->y);
+  return sqrtf(vec->x * vec->x + vec->y * vec->y);
 }
 
-float vector2f_dist(struct Vector2f *vec1, struct Vector2f *vec2) {
-  return sqrt(vector2f_dist2(vec1, vec2));
+inline float vector2f_dist(struct Vector2f *vec1, struct Vector2f *vec2) {
+  return sqrtf(vector2f_dist2(vec1, vec2));
 }
 
-float vector2f_dist2(struct Vector2f *vec1, struct Vector2f *vec2) {
+inline float vector2f_dist2(struct Vector2f *vec1, struct Vector2f *vec2) {
   return ((vec2->x - vec1->x) * (vec2->x - vec1->x)) +
          ((vec2->y - vec1->y) * (vec2->y - vec1->y));
 }

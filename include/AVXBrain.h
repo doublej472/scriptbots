@@ -15,16 +15,8 @@ static const float WEIGHT_RANGE = 0.8f;
 // How much the bias can vary from init
 static const float BIAS_RANGE = 1.0f;
 
-// How much the bias can vary because of learning
-static const float LEARNED_BIAS_RANGE = 0.9f;
-
-// How much bias can change / 2 on a given brain evaluation
-static const float LEARN_RANGE = 0.008f;
-
 struct AVXBrainGroup {
   alignas(32) __m256 biases;
-  alignas(32) __m256 biases_offset;
-  alignas(32) __m256 biases_learnrate;
   // This needs to point at every possible neuron on the previous layer
   alignas(32) __m256 weights[BRAIN_WIDTH];
 };
@@ -39,7 +31,6 @@ struct AVXBrain {
 };
 
 void avxbrain_init(struct AVXBrain *brain);
-void avxbrain_reset_offsets(struct AVXBrain *brain);
 void avxbrain_tick(struct AVXBrain *brain, float (*inputs)[INPUTSIZE],
                    float (*outputs)[OUTPUTSIZE]);
 void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,

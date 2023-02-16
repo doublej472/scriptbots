@@ -12,7 +12,7 @@ extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
 // How many hidden layers this brain has
-#define BRAIN_DEPTH 3
+#define BRAIN_DEPTH 4
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
@@ -47,7 +47,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 2500
+#define NUMBOTS 2000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -63,9 +63,9 @@ extern int32_t MAX_SECONDS;
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f
 // how much boost do agents get? when boost neuron is on
-#define DIST 300.0f
+#define DIST 200.0f
 // how far can the eyes see, ears hear, and nose smell on each bot?
-#define DIST_GROUPING 60.0f
+#define DIST_GROUPING 40.0f
 // how close must another agent be to get grouping health gain
 #define EYE_SENSITIVITY 2.0f
 // how sensitive are the eyes?
@@ -117,7 +117,7 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.6f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 10
+#define FOODADDFREQ 15
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f
