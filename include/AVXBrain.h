@@ -1,29 +1,41 @@
 #ifndef MLPBRAIN_H
 #define MLPBRAIN_H
-#include <immintrin.h>
 #include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include <simde/x86/avx.h>
+
 #include "helpers.h"
 #include "settings.h"
 
-struct AVXBrain {
-  alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
+// How much the connection weight can vary
+static const float WEIGHT_RANGE = 0.8f;
 
-  // for each neuron, we have BRAIN_WIDTH inputs that are individually weighted
-  // Also skip the first layer since that is the input layer
-  alignas(32) __m256 weights[(BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH)) / 8];
-  // for each neuron, bias output
-  alignas(32) __m256 biases[(BRAIN_WIDTH * BRAIN_DEPTH) / 8];
-  // For learning, what is the offset
-  alignas(32) __m256 biases_offset[(BRAIN_WIDTH * BRAIN_DEPTH) / 8];
-  // for each neuron, the amount bias offset can change through learning
-  alignas(32) __m256 biases_learnrate[(BRAIN_WIDTH * BRAIN_DEPTH) / 8];
-  // the output value of a given neuron
-  // Also includes outputs for the entire brain
-  alignas(32) __m256 vals[(BRAIN_WIDTH * BRAIN_DEPTH) / 8];
-  // float outputs[OUTPUTSIZE];
+// How much the bias can vary from init
+static const float BIAS_RANGE = 1.0f;
+
+// How much the bias can vary because of learning
+static const float LEARNED_BIAS_RANGE = 0.9f;
+
+// How much bias can change / 2 on a given brain evaluation
+static const float LEARN_RANGE = 0.008f;
+
+struct AVXBrainGroup {
+  alignas(32) __m256 biases;
+  alignas(32) __m256 biases_offset;
+  alignas(32) __m256 biases_learnrate;
+  // This needs to point at every possible neuron on the previous layer
+  alignas(32) __m256 weights[BRAIN_WIDTH];
+};
+
+struct AVXBrainLayer {
+  alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
+  alignas(32) struct AVXBrainGroup groups[BRAIN_WIDTH / 8];
+};
+
+struct AVXBrain {
+  alignas(32) struct AVXBrainLayer layers[BRAIN_DEPTH];
 };
 
 void avxbrain_init(struct AVXBrain *brain);

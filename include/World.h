@@ -54,7 +54,7 @@ struct World {
   size_t agent_grid[WORLD_GRID_LENGTH];
 };
 
-void world_init(struct World *world);
+void world_init(struct World *world, size_t numbots);
 void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);

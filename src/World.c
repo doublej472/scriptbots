@@ -1,4 +1,4 @@
-#include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -55,8 +55,10 @@ void world_flush_staging(struct World *world) {
   world->agents_staging.size = 0;
 }
 
-void world_init(struct World *world) {
-  memset(&world->agent_grid, '\0', sizeof(size_t) * WORLD_GRID_LENGTH);
+void world_init(struct World *world, size_t numbots) {
+  for (size_t i = 0; i < WORLD_GRID_LENGTH; i++) {
+    world->agent_grid[i] = 0;
+  }
 
   world->queue = malloc(sizeof(struct Queue));
   queue_init(world->queue);
@@ -73,13 +75,16 @@ void world_init(struct World *world) {
   // Track total running time:
   clock_gettime(CLOCK_MONOTONIC, &world->totalStartTime);
 
-  avec_init(&world->agents, NUMBOTS);
-  avec_init(&world->agents_staging, NUMBOTS);
+  avec_init(&world->agents, numbots);
+  avec_init(&world->agents_staging, numbots);
 
   // create the bots but with 20% more carnivores, to give them head start
-  printf("Adding bots, this may take a while...\n");
-  world_addRandomBots(world, (int32_t)NUMBOTS * .8);
-  for (int32_t i = 0; i < (int32_t)NUMBOTS * .2; ++i)
+  if (numbots > 100) {
+    printf("Adding bots, this may take a while...\n");
+  }
+
+  world_addRandomBots(world, (int32_t)numbots * .8);
+  for (int32_t i = 0; i < (int32_t)numbots * .2; ++i)
     world_addCarnivore(world);
 
   // inititalize food layer
@@ -971,7 +976,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
       }
 
       // Process collisions
-      if (d < BOTRADIUS * 2.0f) {
+      if (d < BOTRADIUS) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         struct Vector2f v;
@@ -994,39 +999,27 @@ void agent_set_inputs(struct World *world, struct Agent *a,
         //   printf("  Angle diff to a2: %f\n", diff);
         // }
 
-        if (diff < (float)M_PI / 2.0f) {
-          // if (a->selectflag) {
-          //   printf("Hit at angle: %f\n", diff);
-          // }
-          // bot i is also properly aligned!!! that's a hit
-          float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
-                      fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
+        // if (diff < (float)M_PI / 2.0f) {
+        //  if (a->selectflag) {
+        //    printf("Hit at angle: %f\n", diff);
+        //  }
+        //  bot i is also properly aligned!!! that's a hit
+        float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
+                    fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
 
-          if (DMG > 0.01f) {
+        // You have to hit hard for it to count
+        if (DMG > 1.50f) {
+          a2->health -= DMG;
+          a->spikeLength = 0.0f; // retract spike back down
 
-            a2->health -= DMG;
-            a->spikeLength = 0.0f; // retract spike back down
+          agent_initevent(
+              a, 10.0f * DMG, 1.0f, 1.0f,
+              0.0f); // yellow event means bot has spiked other bot. nice!
 
-            agent_initevent(
-                a, 10.0f * DMG, 1.0f, 1.0f,
-                0.0f); // yellow event means bot has spiked other bot. nice!
-
-            struct Vector2f v2;
-            vector2f_init(&v2, 1.0f, 0.0f);
-            vector2f_rotate(&v2, a2->angle);
-            float adiff = vector2f_angle_between(&v, &v2);
-
-            if (fabsf(adiff) < (float)M_PI / 2.0f) {
-              // this was attack from the back. Retract spike of the other
-              // agent (startle!) this is done so that the other agent cant
-              // right away "by accident" attack this agent
-              a2->spikeLength = 0.0f;
-            }
-
-            a2->spiked =
-                1; // set a flag saying that this agent was hit this turn
-          }
+          // set a flag saying that this agent was hit this turn
+          a2->spiked = 1;
         }
+        //}
       }
     }
   }

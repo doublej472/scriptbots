@@ -1,221 +1,120 @@
 #include "AVXBrain.h"
 #include "helpers.h"
-#include <immintrin.h>
 #include <math.h>
 #include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-// How much the connection weight can vary
-static const float WEIGHT_RANGE = 0.8f;
+#include <simde/x86/avx.h>
 
-// How much the bias can vary from init
-static const float BIAS_RANGE = 1.0f;
-
-// How much the bias can vary because of learning
-static const float LEARNED_BIAS_RANGE = 0.9f;
-
-// How much bias can change / 2 on a given brain evaluation
-static const float LEARN_RANGE = 0.008f;
-
-static inline float sum8(__m256 x) {
-  // hiQuad = ( x7, x6, x5, x4 )
-  const __m128 hiQuad = _mm256_extractf128_ps(x, 1);
-  // loQuad = ( x3, x2, x1, x0 )
-  const __m128 loQuad = _mm256_castps256_ps128(x);
-  // sumQuad = ( x3 + x7, x2 + x6, x1 + x5, x0 + x4 )
-  const __m128 sumQuad = _mm_add_ps(loQuad, hiQuad);
-  // loDual = ( -, -, x1 + x5, x0 + x4 )
-  const __m128 loDual = sumQuad;
-  // hiDual = ( -, -, x3 + x7, x2 + x6 )
-  const __m128 hiDual = _mm_movehl_ps(sumQuad, sumQuad);
-  // sumDual = ( -, -, x1 + x3 + x5 + x7, x0 + x2 + x4 + x6 )
-  const __m128 sumDual = _mm_add_ps(loDual, hiDual);
-  // lo = ( -, -, -, x0 + x2 + x4 + x6 )
-  const __m128 lo = sumDual;
-  // hi = ( -, -, -, x1 + x3 + x5 + x7 )
-  const __m128 hi = _mm_shuffle_ps(sumDual, sumDual, 0x1);
-  // sum = ( -, -, -, x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7 )
-  const __m128 sum = _mm_add_ss(lo, hi);
-  return _mm_cvtss_f32(sum);
-}
-
+// Clamped ReLu
+// Range of 0.0f to 1.0f
 static inline __m256 activation_function(__m256 x) {
   // printf("input before: %f\n", x[0]);
-  x = _mm256_max_ps(x,
-                    (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-  x = _mm256_min_ps(x,
-                    (__m256){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+  x = _mm256_max_ps(x, _mm256_set1_ps(0.0f));
+  x = _mm256_min_ps(x, _mm256_set1_ps(1.0f));
   return x;
 }
 
+// Reset the "learned" bias offset
 void avxbrain_reset_offsets(struct AVXBrain *b) {
-  // printf("Offsets reset: ");
-  for (size_t i = 0; i < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; i++) {
-    b->biases_offset[i] =
-        (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
+    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
+      b->layers[i].groups[j].biases_offset = _mm256_set1_ps(0.0f);
+    }
   }
-  // printf("\n");
 }
 
 void avxbrain_init(struct AVXBrain *b) {
-  size_t neurons = (BRAIN_WIDTH * BRAIN_DEPTH) / 8;
-  size_t weights = (BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH)) / 8;
+  // For each neuron group
+  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
+    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
+      struct AVXBrainGroup *ng = &b->layers[i].groups[j];
+      // Zero inputs
+      b->layers[i].inputs[j] = _mm256_set1_ps(0.0f);
 
-  // Init weights
-  for (size_t i = 0; i < weights; i++) {
-    alignas(32) float randvals[8] = {
-        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-        randf(-WEIGHT_RANGE, WEIGHT_RANGE), randf(-WEIGHT_RANGE, WEIGHT_RANGE),
-    };
-    b->weights[i] = _mm256_load_ps((const float *)randvals);
-  }
+      // Zero bias offsets
+      ng->biases_offset = _mm256_set1_ps(0.0f);
 
-  // Init biases and initial vals
-  for (size_t i = 0; i < neurons; i++) {
-    for (int j = 0; j < 8; j++) {
-      b->biases[i][j] = randf(-BIAS_RANGE, BIAS_RANGE);
-      b->biases_learnrate[i][j] = randf(-LEARN_RANGE, LEARN_RANGE);
+      // Set biases and bias learnrates
+      for (size_t k = 0; k < 8; k++) {
+        ng->biases[k] = randf(-BIAS_RANGE, BIAS_RANGE);
+        ng->biases_learnrate[k] = randf(-LEARN_RANGE, LEARN_RANGE);
+      }
+
+      // Set weights
+      for (size_t wg = 0; wg < BRAIN_WIDTH; wg++) {
+        for (size_t k = 0; k < 8; k++) {
+          ng->weights[wg][k] = randf(-WEIGHT_RANGE, WEIGHT_RANGE);
+        }
+      }
     }
-    b->biases_offset[i] =
-        (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    b->vals[i] = (__m256){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   }
 }
 
-void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
-                   float (*outputs)[OUTPUTSIZE]) {
-  // printf("input groups: %d\n", BRAIN_WIDTH / 8);
-  // printf("weight groups: %d\n", (BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH -
-  // 1)) / 8); printf("bias groups: %d\n", (BRAIN_WIDTH * BRAIN_DEPTH) / 8);
-  // printf("val groups: %d\n", (BRAIN_WIDTH * BRAIN_DEPTH) / 8);
+void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
+                   float (*brain_outputs)[OUTPUTSIZE]) {
+  // Set the inputs for the first layer
+  for (int i = 0; i < INPUTSIZE; i++) {
+    b->layers[0].inputs[i / 8][i % 8] = (*brain_inputs)[i];
+  }
 
-  // Number of weights per layer, neurons / biases per layer is BRAIN_WIDTH
-  for (size_t i = 0; i < (BRAIN_WIDTH / 8); i++) {
-    for (size_t j = 0; j < 8; j++) {
-      size_t input_idx = i * 8 + j;
-      if (input_idx >= INPUTSIZE) {
-        b->inputs[i][j] = 0.0f;
+  // Tick the brain!
+  // For each layer
+  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
+    // Store the layer inputs in inputs variable
+    struct AVXBrainLayer *layer = &b->layers[i];
+
+    // For each brain group (~group of 8 neurons)
+    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
+      struct AVXBrainGroup *ng = &layer->groups[j];
+      __m256 sum = _mm256_set1_ps(0.0f);
+
+      // For each individual neuron
+      for (size_t k = 0; k < 8; k++) {
+        __m256 innersum = _mm256_set1_ps(0.0f);
+
+        // For each input group
+        for (size_t l = 0; l < BRAIN_WIDTH / 8; l++) {
+          innersum = _mm256_add_ps(
+              _mm256_mul_ps(layer->inputs[l], ng->weights[(l * 8) + k]),
+              innersum);
+        }
+
+        // Let compiler optimize this instead of trying to make horizontal sum work
+        sum[k] = innersum[0] + innersum[1] + innersum[2] + innersum[3] +
+                 innersum[4] + innersum[5] + innersum[6] + innersum[7];
+      }
+
+      // Apply biases
+      __m256 finalsum =
+          _mm256_add_ps(_mm256_add_ps(sum, ng->biases), ng->biases_offset);
+
+      // Send sum to activation function
+      finalsum = activation_function(finalsum);
+
+      // Find what we should change the bias offset by
+      __m256 bias_tmp = _mm256_mul_ps(_mm256_sub_ps(sum, _mm256_set1_ps(0.5f)),
+                                      ng->biases_learnrate);
+
+      // "Learn"
+      ng->biases_offset = _mm256_add_ps(bias_tmp, ng->biases_offset);
+
+      // Clamp learned offset
+      ng->biases_offset =
+          _mm256_max_ps(ng->biases_offset, _mm256_set1_ps(-LEARNED_BIAS_RANGE));
+      ng->biases_offset =
+          _mm256_min_ps(ng->biases_offset, _mm256_set1_ps(LEARNED_BIAS_RANGE));
+
+      // If we are on the last layer write to output, otherwise write to the
+      // input of the next layer
+      if (i == BRAIN_DEPTH - 1) {
+        for (size_t k = 0; k < 8; k++) {
+          (*brain_outputs)[j * 8 + k] = finalsum[k];
+        }
       } else {
-        b->inputs[i][j] = (*inputs)[input_idx];
-      }
-    }
-  }
-  // Run input layer manually
-  //
-  // For each group of 8 neurons
-  for (size_t i = 0; i < BRAIN_WIDTH / 8; i++) {
-    // What is the current depth
-    __m256 sum = _mm256_set1_ps(0.0f);
-
-    // For each neuron
-    for (int j = 0; j < 8; j++) {
-      __m256 innersum = _mm256_set1_ps(0.0f);
-      // for each group of 8 inputs
-      for (int k = 0; k < BRAIN_WIDTH / 8; k++) {
-        size_t input_group_idx = k;
-        size_t weight_group_idx = i * (BRAIN_WIDTH / 8) + j * 8 + k;
-        innersum = _mm256_add_ps(_mm256_mul_ps(b->inputs[input_group_idx],
-                                               b->weights[weight_group_idx]),
-                                 innersum);
-      }
-      sum[j] = innersum[0] + innersum[1] + innersum[2] + innersum[3] +
-               innersum[4] + innersum[5] + innersum[6] + innersum[7];
-    }
-
-    b->vals[i] =
-        _mm256_add_ps(_mm256_add_ps(sum, b->biases[i]), b->biases_offset[i]);
-
-    // activation function
-    b->vals[i] = activation_function(b->vals[i]);
-
-    // Get sum and multiply by the learnrate
-    __m256 bias_tmp = _mm256_mul_ps(
-        _mm256_sub_ps(b->vals[i],
-                      (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}),
-        b->biases_learnrate[i]);
-    // printf("biases_offset[0] before: %.5f", b->biases_offset[i][0]);
-    //  "learn"
-    b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
-
-    // Clamp range
-    b->biases_offset[i] = _mm256_max_ps(
-        b->biases_offset[i],
-        (__m256){-LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
-                 -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
-                 -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE});
-    b->biases_offset[i] = _mm256_min_ps(
-        b->biases_offset[i],
-        (__m256){LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
-                 LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
-                 LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE});
-    // printf(" after: %.5f\n", b->biases_offset[i][0]);
-  }
-
-  // For the rest of the hidden layers
-  // For each group of 8 neurons
-  for (size_t i = (BRAIN_WIDTH / 8); i < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; i++) {
-    // What is the current depth
-    __m256 sum = _mm256_set1_ps(0.0f);
-
-    size_t prev_layer = (i / (BRAIN_WIDTH / 8)) - 1;
-
-    // For each neuron
-    for (int j = 0; j < 8; j++) {
-      __m256 innersum = _mm256_set1_ps(0.0f);
-      // for each group of 8 inputs
-      for (int k = 0; k < BRAIN_WIDTH / 8; k++) {
-        size_t val_group_idx = prev_layer * (BRAIN_WIDTH / 8) + j;
-        size_t weight_group_idx = i * (BRAIN_WIDTH / 8) + j * 8 + k;
-        innersum = _mm256_add_ps(
-            _mm256_mul_ps(b->vals[val_group_idx], b->weights[weight_group_idx]),
-            innersum);
-      }
-      sum[j] = innersum[0] + innersum[1] + innersum[2] + innersum[3] +
-               innersum[4] + innersum[5] + innersum[6] + innersum[7];
-    }
-
-    b->vals[i] =
-        _mm256_add_ps(_mm256_add_ps(sum, b->biases[i]), b->biases_offset[i]);
-
-    // activation function
-    b->vals[i] = activation_function(b->vals[i]);
-
-    // Multiply by the learnrate
-    __m256 bias_tmp = _mm256_mul_ps(
-        _mm256_sub_ps(b->vals[i],
-                      (__m256){0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}),
-        b->biases_learnrate[i]);
-    // "learn"
-    b->biases_offset[i] = _mm256_add_ps(b->biases_offset[i], bias_tmp);
-
-    // Clamp range
-    b->biases_offset[i] = _mm256_max_ps(
-        b->biases_offset[i],
-        (__m256){-LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
-                 -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE,
-                 -LEARNED_BIAS_RANGE, -LEARNED_BIAS_RANGE});
-    b->biases_offset[i] = _mm256_min_ps(
-        b->biases_offset[i],
-        (__m256){LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
-                 LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE,
-                 LEARNED_BIAS_RANGE, LEARNED_BIAS_RANGE});
-  }
-
-  size_t output_layer = BRAIN_WIDTH * (BRAIN_DEPTH - 1) / 8;
-
-  for (size_t i = 0; i < BRAIN_WIDTH / 8; i++) {
-    for (size_t j = 0; j < 8; j++) {
-      size_t out_idx = i * 8 + j;
-      if (out_idx < OUTPUTSIZE) {
-        float desired_output =
-            fmaxf(fminf(b->vals[output_layer + i][j], 1.0f), 0.0f);
-        // Go 75% of the way to the desired output
-        (*outputs)[out_idx] =
-            (*outputs)[out_idx] * 0.33f + desired_output * 0.67f;
+        b->layers[i + 1].inputs[j] = finalsum;
       }
     }
   }
@@ -223,45 +122,69 @@ void avxbrain_tick(struct AVXBrain *b, float (*inputs)[INPUTSIZE],
 
 void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
                      float mutaterate2) {
-  size_t biases = BRAIN_WIDTH * BRAIN_DEPTH;
-  size_t weights = BRAIN_WIDTH * BRAIN_WIDTH * (BRAIN_DEPTH - 1);
+  size_t biases = BRAIN_WIDTH * 8 * BRAIN_DEPTH;
+  size_t weights = BRAIN_DEPTH * BRAIN_WIDTH * 8 * BRAIN_WIDTH;
 
   // printf("Trying mutate\n");
   if (randf(0.0f, 1.0f) > mutaterate) {
-    size_t numbtomut = randi(1, 25);
-    size_t numlrtomut = randi(1, 25);
-    size_t numwtomut = randi(1, 150);
+    size_t numbtomut = randf(0.0f, 0.2f) * biases;
+    size_t numlrtomut = randf(0.0f, 0.2f) * biases;
+    size_t numwtomut = randf(0.0f, 0.2f) * weights;
     // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
     // printf("Will mutate\n");
 
     for (int i = 0; i < numbtomut; i++) {
-      size_t idx = randi(0, biases);
-      brain->biases[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
-      if (brain->biases[idx / 8][idx % 8] > BIAS_RANGE) {
-        brain->biases[idx / 8][idx % 8] = BIAS_RANGE;
-      } else if (brain->biases[idx / 8][idx % 8] < -BIAS_RANGE) {
-        brain->biases[idx / 8][idx % 8] = -BIAS_RANGE;
+      size_t layer = randi(0, BRAIN_DEPTH);
+      size_t ng = randi(0, BRAIN_WIDTH / 8);
+      size_t elem = randi(0, 8);
+
+      float inval = brain->layers[layer].groups[ng].biases[elem];
+
+      inval += randf(-mutaterate2, mutaterate2);
+
+      if (inval > BIAS_RANGE) {
+        inval = BIAS_RANGE;
+      } else if (inval < -BIAS_RANGE) {
+        inval = -BIAS_RANGE;
       }
+
+      brain->layers[layer].groups[ng].biases[elem] = inval;
+    }
+    for (int i = 0; i < numlrtomut; i++) {
+      size_t layer = randi(0, BRAIN_DEPTH);
+      size_t ng = randi(0, BRAIN_WIDTH / 8);
+      size_t elem = randi(0, 8);
+
+      float inval = brain->layers[layer].groups[ng].biases_learnrate[elem];
+
+      inval += randf(-mutaterate2, mutaterate2);
+
+      if (inval > LEARN_RANGE) {
+        inval = LEARN_RANGE;
+      } else if (inval < -LEARN_RANGE) {
+        inval = -LEARN_RANGE;
+      }
+
+      brain->layers[layer].groups[ng].biases_learnrate[elem] = inval;
     }
     // mutate w
     for (int i = 0; i < numwtomut; i++) {
-      size_t idx = randi(0, weights);
-      brain->weights[idx / 8][idx % 8] += randf(-mutaterate2, mutaterate2);
-      if (brain->weights[idx / 8][idx % 8] > WEIGHT_RANGE) {
-        brain->weights[idx / 8][idx % 8] = WEIGHT_RANGE;
-      } else if (brain->weights[idx / 8][idx % 8] < -WEIGHT_RANGE) {
-        brain->weights[idx / 8][idx % 8] = -WEIGHT_RANGE;
+      size_t layer = randi(0, BRAIN_DEPTH);
+      size_t ng = randi(0, BRAIN_WIDTH / 8);
+      size_t wg = randi(0, BRAIN_WIDTH);
+      size_t elem = randi(0, 8);
+
+      float inval = brain->layers[layer].groups[ng].weights[wg][elem];
+
+      inval += randf(-mutaterate2, mutaterate2);
+
+      if (inval > WEIGHT_RANGE) {
+        inval = WEIGHT_RANGE;
+      } else if (inval < -WEIGHT_RANGE) {
+        inval = -WEIGHT_RANGE;
       }
-    }
-    for (int i = 0; i < numlrtomut; i++) {
-      size_t idx = randi(0, biases);
-      brain->biases_learnrate[idx / 8][idx % 8] +=
-          randf(-mutaterate2, mutaterate2);
-      if (brain->biases_learnrate[idx / 8][idx % 8] > LEARN_RANGE) {
-        brain->biases_learnrate[idx / 8][idx % 8] = LEARN_RANGE;
-      } else if (brain->biases_learnrate[idx / 8][idx % 8] < -LEARN_RANGE) {
-        brain->biases_learnrate[idx / 8][idx % 8] = -LEARN_RANGE;
-      }
+
+      brain->layers[layer].groups[ng].weights[wg][elem] = inval;
     }
   }
 }

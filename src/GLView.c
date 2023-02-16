@@ -349,22 +349,21 @@ void drawAgent(const struct Agent *agent) {
     yy += ss * 2;
 
     // draw brain. Eventually move this to brain class?
-    int cols = BRAIN_WIDTH;
     ss = 8;
 
-    for (int32_t j = 0; j < (BRAIN_WIDTH * BRAIN_DEPTH) / 8; j++) {
-      __m256 group = agent->brain->vals[j];
-      __m256 lbiasgroup = agent->brain->biases_offset[j];
-      for (int32_t k = 0; k < 8; k++) {
-        col = group[k];
-        float lbias = lbiasgroup[k];
-        // printf("lbias: %f\n", lbias);
+    for (int32_t j = 0; j < BRAIN_DEPTH; j++) {
+      int offy = j;
+      for (int32_t k = 0; k < BRAIN_WIDTH; k++) {
+        int32_t ng = k / 8;
+        int32_t elem = k % 8;
+
+        float col = agent->brain->layers[j].inputs[ng][elem];
+        float lbias = agent->brain->layers[j].groups[ng].biases_offset[elem];
 
         float r = fmax((0.5f - lbias) * 2.0f, 0.0f);
         float g = fmax((lbias - 0.5f) * 2.0f, 0.0f);
 
-        int offx = ((j * 8 + k) % cols);
-        int offy = ((j * 8 + k) / cols);
+        int offx = k;
 
         glColor3f(col, col, col);
         glVertex3f(ss * offx, yy + ss * offy, 0.0f);

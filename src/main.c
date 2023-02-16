@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
   }
 
   struct World *world = malloc(sizeof(struct World));
-  world_init(world);
+  world_init(world, loadWorldFromFile == 1 ? 0 : NUMBOTS);
   base_init(&base, world);
 
   signal(SIGINT, signal_handler);

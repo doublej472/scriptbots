@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.18)
 project(scriptbots)
 
 option(USE_OPENGL "Compile with OpenGL gui" YES)
@@ -73,7 +73,7 @@ if (BUILD_TESTS)
 	        src/mtwister.c
 		tests/vec2f.c
 	)
-	target_link_options(test_vec2f PRIVATE -lm)
+	target_link_libraries(test_vec2f PRIVATE m)
 	target_include_directories(test_vec2f PRIVATE ./include)
 endif()
 
@@ -88,19 +88,22 @@ if (USE_OPENGL)
 		find_package(GLEW REQUIRED)
 		find_package(GLUT REQUIRED)
 
-		add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
-		target_link_libraries(scriptbots GLEW::GLEW GLUT::GLUT)
+    add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
+    target_link_libraries(scriptbots PRIVATE GLEW::GLEW GLUT::GLUT m)
 		target_sources(scriptbots PRIVATE src/GLView.c)
 	else()
 		find_package(OpenGL REQUIRED)
 		find_package(GLUT REQUIRED)
 
-		add_dependencies(scriptbots OpenGL::OpenGL GLUT::GLUT)
-		target_link_libraries(scriptbots OpenGL::OpenGL GLUT::GLUT)
+    add_dependencies(scriptbots OpenGL::OpenGL GLUT::GLUT)
+    target_link_libraries(scriptbots PRIVATE OpenGL::OpenGL GLUT::GLUT m)
 		target_sources(scriptbots PRIVATE src/GLView.c)
 	endif()
 endif()
 
+include(cmake/simde.cmake)
+target_link_libraries(scriptbots PRIVATE simde::simde)
+
 target_compile_options(scriptbots PRIVATE -Wall)
-target_link_options(scriptbots PRIVATE -lm -pthread)
+target_link_options(scriptbots PRIVATE -pthread)
 target_include_directories(scriptbots PRIVATE ./include)
