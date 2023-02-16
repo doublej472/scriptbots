@@ -12,11 +12,11 @@ extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
 // How many hidden layers this brain has
-#define BRAIN_DEPTH 4
+#define BRAIN_DEPTH 3
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 6)
+#define BRAIN_WIDTH (8 * 4)
 
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
@@ -47,7 +47,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 1500
+#define NUMBOTS 2500
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -63,9 +63,9 @@ extern int32_t MAX_SECONDS;
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f
 // how much boost do agents get? when boost neuron is on
-#define DIST 200.0f
+#define DIST 300.0f
 // how far can the eyes see, ears hear, and nose smell on each bot?
-#define DIST_GROUPING 40.0f
+#define DIST_GROUPING 60.0f
 // how close must another agent be to get grouping health gain
 #define EYE_SENSITIVITY 2.0f
 // how sensitive are the eyes?
@@ -106,9 +106,9 @@ extern int32_t MAX_SECONDS;
 
 // FOOD SETTINGS -----------------------------------------------
 // How many food squares to check every FOODADDFREQ?
-#define FOODSQUARES 300
+#define FOODSQUARES 800
 // what kind of food appearance is to be used
-#define FOODGROWTH 0.001f
+#define FOODGROWTH 0.0005f
 // how quickly does food grow on a square. only
 // used with FOOD_MODEL_GROW
 #define FOODINTAKE 0.00225f
@@ -117,7 +117,7 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.6f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 60
+#define FOODADDFREQ 10
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f
