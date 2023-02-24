@@ -351,23 +351,23 @@ void drawAgent(const struct Agent *agent) {
     // draw brain. Eventually move this to brain class?
     ss = 8;
 
-    for (int32_t j = 0; j < BRAIN_DEPTH; j++) {
-      int offy = j;
-      for (int32_t k = 0; k < BRAIN_WIDTH; k++) {
-        int32_t ng = k / 8;
-        int32_t elem = k % 8;
+    //for (int32_t j = 0; j < BRAIN_DEPTH; j++) {
+    //  int offy = j;
+    //  for (int32_t k = 0; k < BRAIN_WIDTH; k++) {
+    //    int32_t ng = k / 8;
+    //    int32_t elem = k % 8;
 
-        float col = agent->brain->layers[j].inputs[ng][elem];
+    //    float col = agent->brain->layers[j].inputs[ng][elem];
 
-        int offx = k;
+    //    int offx = k;
 
-        glColor3f(col, col, col);
-        glVertex3f(ss * offx, yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + (ss), yy + ss * offy, 0.0f);
-        glVertex3f(ss * offx + (ss), yy + ss * offy + ss, 0.0f);
-        glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
-      }
-    }
+    //    glColor3f(col, col, col);
+    //    glVertex3f(ss * offx, yy + ss * offy, 0.0f);
+    //    glVertex3f(ss * offx + (ss), yy + ss * offy, 0.0f);
+    //    glVertex3f(ss * offx + (ss), yy + ss * offy + ss, 0.0f);
+    //    glVertex3f(ss * offx, yy + ss * offy + ss, 0.0f);
+    //  }
+    //}
     glEnd();
 
     yy += (ss * (BRAIN_DEPTH + 1) + 14);

@@ -730,7 +730,7 @@ void agent_output_processor(void *arg) {
     a->red = a->out[2];
     a->gre = a->out[3];
     a->blu = a->out[4];
-    a->boost = a->out[6] > 0.5;
+    a->boost = a->out[6] > 0.7;
     a->soundmul = a->out[7];
     a->give = a->out[8];
 
@@ -796,9 +796,9 @@ void agent_output_processor(void *arg) {
 
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    float f = world->food[cx][cy];
 
-    if (f > 0 && a->health < 2 && a->herbivore > 0.1f) {
+    if (a->herbivore > 0.1f && a->health < 2 && world->food[cx][cy] > 0.0001f) {
+      float f = world->food[cx][cy];
       // agent eats the food
       float itk = fminf(f, FOODINTAKE);
       float speedmul =
@@ -986,7 +986,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
         struct Vector2f tmp;
         vector2f_sub(&tmp, &a2->pos, &a->pos);
         // float diffangle = vector2f_angle(&tmp);
-        float diff = fabsf(vector2f_angle_between(&v, &tmp));
+        //float diff = fabsf(vector2f_angle_between(&v, &tmp));
 
         // if (a->selectflag) {
         //   printf("Collision check\n");

@@ -22,7 +22,6 @@ struct AVXBrainGroup {
 };
 
 struct AVXBrainLayer {
-  alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
   alignas(32) struct AVXBrainGroup groups[BRAIN_WIDTH / 8];
 };
 

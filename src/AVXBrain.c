@@ -22,9 +22,6 @@ void avxbrain_init(struct AVXBrain *b) {
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
     for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
       struct AVXBrainGroup *ng = &b->layers[i].groups[j];
-      // Zero inputs
-      b->layers[i].inputs[j] = _mm256_set1_ps(0.0f);
-
       // Set biases
       for (size_t k = 0; k < 8; k++) {
         ng->biases[k] = randf(-BIAS_RANGE, BIAS_RANGE);
@@ -42,9 +39,15 @@ void avxbrain_init(struct AVXBrain *b) {
 
 void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
                    float (*brain_outputs)[OUTPUTSIZE]) {
+
+  alignas(32) __m256 internal_state[BRAIN_WIDTH / 8];
+  for (int i = 0; i < BRAIN_WIDTH / 8; i++) {
+    internal_state[i] = _mm256_set1_ps(0.0f);
+  }
+
   // Set the inputs for the first layer
   for (int i = 0; i < INPUTSIZE; i++) {
-    b->layers[0].inputs[i / 8][i % 8] = (*brain_inputs)[i];
+    internal_state[i / 8][i % 8] = (*brain_inputs)[i];
   }
 
   // Tick the brain!
@@ -52,6 +55,11 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
     // Store the layer inputs in inputs variable
     struct AVXBrainLayer *layer = &b->layers[i];
+
+    alignas(32) __m256 layer_output[BRAIN_WIDTH / 8];
+    for (int j = 0; j < BRAIN_WIDTH / 8; j++) {
+      layer_output[j] = _mm256_set1_ps(0.0f);
+    }
 
     // For each brain group (~group of 8 neurons)
     for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
@@ -65,7 +73,7 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
         // For each input group
         for (size_t l = 0; l < BRAIN_WIDTH / 8; l++) {
           innersum = _mm256_add_ps(
-              _mm256_mul_ps(layer->inputs[l], ng->weights[(l * 8) + k]),
+              _mm256_mul_ps(internal_state[l], ng->weights[(l * 8) + k]),
               innersum);
         }
 
@@ -75,20 +83,18 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
       }
 
       // Apply biases
-      __m256 finalsum =
+      layer_output[j] =
           _mm256_add_ps(sum, ng->biases);
 
       // Send sum to activation function
-      finalsum = activation_function(finalsum);
-
-      // If we are on the last layer write to output, otherwise write to the
-      // input of the next layer
-      if (i == BRAIN_DEPTH - 1) {
+      layer_output[j] = activation_function(layer_output[j]);
+    }
+    // If we are on the last layer write to output
+    if (i == BRAIN_DEPTH - 1) {
+      for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
         for (size_t k = 0; k < 8; k++) {
-          (*brain_outputs)[j * 8 + k] = finalsum[k];
+          (*brain_outputs)[j * 8 + k] = layer_output[j][k];
         }
-      } else {
-        b->layers[i + 1].inputs[j] = finalsum;
       }
     }
   }
