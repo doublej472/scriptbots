@@ -56,7 +56,7 @@ void world_flush_staging(struct World *world) {
 }
 
 void world_init(struct World *world, size_t numbots) {
-  for (size_t i = 0; i < WORLD_GRID_LENGTH; i++) {
+  for (size_t i = 0; i < AGENT_BUCKETS; i++) {
     world->agent_grid[i] = 0;
   }
 
@@ -184,88 +184,60 @@ static void world_update_gui(struct World *world) {
   }
 }
 
-static int32_t check_grid_position(struct World *world, struct Agent *a,
-                                   struct Agent_d *close_agents, size_t x,
-                                   size_t y, int32_t num_close_agents) {
-  // If this is outside the grid then ignore
-  if (x < 0 || x >= WORLD_GRID_WIDTH || y < 0 || y >= WORLD_GRID_HEIGHT) {
-    return 0;
-  }
+struct BucketList {
+  size_t buckets[9];
+};
 
-  int32_t init_close_agents = num_close_agents;
-  size_t this_grid_index = x + y * WORLD_GRID_WIDTH;
+static size_t get_bucket_from_pos(int64_t x, int64_t y) {
+  // ~48 bit primes
+  const uint64_t PRIME_1 = 214058479909259;
+  const uint64_t PRIME_2 = 242433689293403;
 
-  size_t start = 0;
-  if (this_grid_index != 0) {
-    start = world->agent_grid[this_grid_index - 1];
-  }
+  // Reinterpret the value as uint64_t
+  uint64_t this_grid_xu = *(uint64_t *)&x;
+  uint64_t this_grid_yu = *(uint64_t *)&y;
 
-  for (size_t i = start; i < world->agent_grid[this_grid_index]; i++) {
-    if (num_close_agents >= NUMBOTS_CLOSE) {
-      break;
-    }
-    struct Agent *a2 = world->agents.agents[i];
-    if (a == a2) {
-      continue;
-    }
+  uint64_t hash = (this_grid_xu * PRIME_1) + (this_grid_yu * PRIME_2);
+  size_t agent_bucket = hash % AGENT_BUCKETS;
 
-    // printf("Checking agent at index: %li\n", i);
-
-    float d = vector2f_dist2(&a->pos, &a2->pos);
-
-    // If we are too far away, don't even consider this agent
-    if (d > DIST * DIST) {
-      continue;
-    }
-
-    close_agents[num_close_agents].agent = a2;
-    close_agents[num_close_agents].dist2 = d;
-    num_close_agents++;
-  }
-
-  return num_close_agents - init_close_agents;
+  return agent_bucket;
 }
 
-int32_t world_get_close_agents(struct World *world, size_t index,
-                               struct Agent_d *close_agents) {
-  struct Agent *a = world->agents.agents[index];
-  int32_t num_close_agents = 0;
+static struct BucketList get_buckets_from_pos(float x, float y) {
+  // Integer truncation means this cuts off at the whole number boundary
+  int64_t this_grid_x = (int64_t) (x / DIST);
+  int64_t this_grid_y = (int64_t) (y / DIST);
 
-  size_t this_grid_x = (size_t)a->pos.x / WORLD_GRID_SIZE;
-  size_t this_grid_y = (size_t)a->pos.y / WORLD_GRID_SIZE;
+  size_t bucket_idx = 0;
+  struct BucketList blist;
+  // Check a 3x3 grid around our position
+  for (int64_t xoff = -1; xoff <= 1; xoff++) {
+    for (int64_t yoff = -1; yoff <= 1; yoff++) {
+      blist.buckets[bucket_idx] = get_bucket_from_pos(this_grid_x + xoff, this_grid_y + yoff);
+      bucket_idx++;
+    }
+  }
 
-  // Check 3x3 grid position around our current grid position
-  // Check current grid position first, so we can guarantee we will find close
-  // agents
+  return blist;
+}
 
-  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
-                                          this_grid_y, num_close_agents);
+struct AgentRange {
+  size_t start;
+  size_t end;
+};
 
-  // Then check direct borders
-  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
-                                          this_grid_y - 1, num_close_agents);
-  num_close_agents += check_grid_position(world, a, close_agents, this_grid_x,
-                                          this_grid_y + 1, num_close_agents);
-  num_close_agents += check_grid_position(
-      world, a, close_agents, this_grid_x - 1, this_grid_y, num_close_agents);
-  num_close_agents += check_grid_position(
-      world, a, close_agents, this_grid_x + 1, this_grid_y, num_close_agents);
+static struct AgentRange get_agent_range(struct World *world, size_t bucket_idx) {
+  struct AgentRange ret;
 
-  // Then check corners
-  num_close_agents +=
-      check_grid_position(world, a, close_agents, this_grid_x - 1,
-                          this_grid_y - 1, num_close_agents);
-  num_close_agents +=
-      check_grid_position(world, a, close_agents, this_grid_x - 1,
-                          this_grid_y + 1, num_close_agents);
-  num_close_agents +=
-      check_grid_position(world, a, close_agents, this_grid_x + 1,
-                          this_grid_y - 1, num_close_agents);
-  num_close_agents +=
-      check_grid_position(world, a, close_agents, this_grid_x + 1,
-                          this_grid_y + 1, num_close_agents);
+  if (bucket_idx == 0) {
+    ret.start = 0;
+  } else {
+    ret.start = world->agent_grid[bucket_idx-1];
+  }
 
-  return num_close_agents;
+  ret.end = world->agent_grid[bucket_idx];
+
+  return ret;
 }
 
 void world_dist_dead_agent(struct World *world, size_t i) {
@@ -273,40 +245,46 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   // since the close_agents array is sorted, just get the index where we
   // should stop distributing the body, then the number of carnivores around
 
-  struct Agent_d close_agents[NUMBOTS_CLOSE];
-  int num_close_agents = world_get_close_agents(world, i, close_agents);
+  struct Agent *a = world->agents.agents[i];
+
+  struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
 
   struct Agent *dist_agents[FOOD_DISTRIBUTION_MAX];
   int num_to_dist_body = 0;
 
-  struct Agent *a = world->agents.agents[i];
+  // For each bucket
+  for (size_t j = 0; j < 9; j++) {
+    size_t bucket = buckets_to_check.buckets[j];
+    struct AgentRange agent_range = get_agent_range(world, bucket);
 
-  for (size_t j = 0; j < num_close_agents; j++) {
+    // For each agent
+    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
+      struct Agent *a2 = world->agents.agents[agent_idx];
+
+      // Ignore ourselves
+      if (a == a2) {
+        continue;
+      }
+
+      float dist2 = vector2f_dist2(&a->pos, &a2->pos);
+      if (dist2 <= FOOD_DISTRIBUTION_RADIUS*FOOD_DISTRIBUTION_RADIUS) {
+        // Only distribute to alive agents that are > 90% carnivores
+        if (a2->herbivore < 0.1f && a2->health > 0.0f) {
+          dist_agents[num_to_dist_body] = a2;
+          num_to_dist_body++;
+
+          if (num_to_dist_body >= FOOD_DISTRIBUTION_MAX) {
+            break;
+          }
+        }
+      }
+    }
+
+    // TODO Double break, not a fan but whatever
     if (num_to_dist_body >= FOOD_DISTRIBUTION_MAX) {
       break;
     }
-    struct Agent *a2 = close_agents[j].agent;
-    float d = close_agents[j].dist2;
-
-    // Dont distribute to ourselves
-    if (a == a2) {
-      continue;
-    }
-
-    // If we are too far away, don't even consider this agent
-    if (d > FOOD_DISTRIBUTION_RADIUS * FOOD_DISTRIBUTION_RADIUS) {
-      continue;
-    }
-
-    // Only distribute to alive agents that are > 90% carnivores
-    if (a2->herbivore < 0.1f && a2->health > 0.0f) {
-      dist_agents[num_to_dist_body++] = a2;
-    }
   }
-
-  // if (num_to_dist_body > 0) {
-  //   printf("start dist: age: %d\n", a->age);
-  // }
 
   for (size_t j = 0; j < num_to_dist_body; j++) {
     struct Agent *a2 = dist_agents[j];
@@ -322,7 +300,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     float health_add = 1.0f;
 
     // bonus for hunting in groups
-    health_add += 0.5f * (num_to_dist_body / FOOD_DISTRIBUTION_MAX);
+    health_add += fmaxf(0.5f * (num_to_dist_body / 8.0f), 0.5f);
 
     // Factor in age muliplier
     health_add *= agemult;
@@ -346,12 +324,6 @@ void world_dist_dead_agent(struct World *world, size_t i) {
 
     agent_initevent(a2, health_add * 50.0f, 1.0f, 0.0f,
                     0.0f); // red means they ate! nice
-  }
-
-  if (num_to_dist_body == 0) {
-    // if no agents are around to eat it, it becomes regular food
-    world->food[(int32_t)a->pos.x / CZ][(int32_t)a->pos.y / CZ] =
-        FOOD_DEAD * FOODMAX; // since it was dying it is not much food
   }
 }
 
@@ -643,7 +615,7 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
 int32_t world_numHerbivores(struct World *world) {
   int32_t numherb = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i]->herbivore > 0.5)
+    if (world->agents.agents[i]->herbivore > 0.5f)
       numherb++;
   }
 
@@ -653,7 +625,7 @@ int32_t world_numHerbivores(struct World *world) {
 int32_t world_numCarnivores(struct World *world) {
   int32_t numcarn = 0;
   for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i]->herbivore <= 0.5)
+    if (world->agents.agents[i]->herbivore <= 0.5f)
       numcarn++;
   }
 
@@ -669,21 +641,22 @@ int32_t world_numAgents(struct World *world) {
 }
 
 void world_sortGrid(struct World *world) {
-  // printf("\nagents_size: %li\n", world->agents.size);
   for (size_t i = 1; i < world->agents.size; i++) {
     struct Agent *key_agent = world->agents.agents[i];
 
-    size_t key_grid_x = (size_t)key_agent->pos.x / WORLD_GRID_SIZE;
-    size_t key_grid_y = (size_t)key_agent->pos.y / WORLD_GRID_SIZE;
-    size_t key_grid_index = key_grid_y * WORLD_GRID_WIDTH + key_grid_x;
+    // Integer truncation means this cuts off at the whole number boundary
+    int64_t this_grid_x = (int64_t) (key_agent->pos.x / DIST);
+    int64_t this_grid_y = (int64_t) (key_agent->pos.y / DIST);
+    size_t key_grid_index = get_bucket_from_pos(this_grid_x, this_grid_y);
 
     long j = i - 1;
     while (j >= 0) {
       struct Agent *a2 = world->agents.agents[j];
 
-      size_t next_grid_x = (size_t)a2->pos.x / WORLD_GRID_SIZE;
-      size_t next_grid_y = (size_t)a2->pos.y / WORLD_GRID_SIZE;
-      size_t next_grid_index = next_grid_y * WORLD_GRID_WIDTH + next_grid_x;
+      // Integer truncation means this cuts off at the whole number boundary
+      int64_t next_grid_x = (int64_t) (a2->pos.x / DIST);
+      int64_t next_grid_y = (int64_t) (a2->pos.y / DIST);
+      size_t next_grid_index = get_bucket_from_pos(next_grid_x, next_grid_y);
 
       if (next_grid_index <= key_grid_index) {
         break;
@@ -701,16 +674,17 @@ void world_sortGrid(struct World *world) {
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
 
-    size_t grid_x = (size_t)a->pos.x / WORLD_GRID_SIZE;
-    size_t grid_y = (size_t)a->pos.y / WORLD_GRID_SIZE;
-    size_t grid_index = grid_y * WORLD_GRID_WIDTH + grid_x;
+    // Integer truncation means this cuts off at the whole number boundary
+    int64_t grid_x = (int64_t) (a->pos.x / DIST);
+    int64_t grid_y = (int64_t) (a->pos.y / DIST);
+    size_t grid_index = get_bucket_from_pos(grid_x, grid_y);
 
     while (grid_index > current_grid_index) {
       world->agent_grid[current_grid_index++] = i;
     }
   }
 
-  while (current_grid_index < WORLD_GRID_LENGTH) {
+  while (current_grid_index < AGENT_BUCKETS) {
     world->agent_grid[current_grid_index] =
         world->agent_grid[current_grid_index - 1];
     current_grid_index++;
@@ -727,10 +701,10 @@ void agent_output_processor(void *arg) {
 
     a->w1 = a->out[0]; //-(2*a->out[0]-1);
     a->w2 = a->out[1]; //-(2*a->out[1]-1);
-    a->red = a->out[2];
-    a->gre = a->out[3];
-    a->blu = a->out[4];
-    a->boost = a->out[6] > 0.5;
+    a->red = fmaxf(a->out[2], 0.15f);
+    a->gre = fmaxf(a->out[3], 0.15f);
+    a->blu = fmaxf(a->out[4], 0.15f);
+    a->boost = a->out[6] > 0.5f;
     a->soundmul = a->out[7];
     a->give = a->out[8];
 
@@ -782,21 +756,14 @@ void agent_output_processor(void *arg) {
               if (a->pos.y<0) a->pos.y= HEIGHT+a->pos.y;
               if (a->pos.y>=HEIGHT) a->pos.y= a->pos.y-HEIGHT;*/
 
-    // have peetree dish borders
-    if (a->pos.x - BOTRADIUS < 0)
-      a->pos.x = BOTRADIUS;
-    if (a->pos.x + BOTRADIUS > WIDTH)
-      a->pos.x = WIDTH - BOTRADIUS;
-    if (a->pos.y - BOTRADIUS < 0)
-      a->pos.y = BOTRADIUS;
-    if (a->pos.y + BOTRADIUS > HEIGHT)
-      a->pos.y = HEIGHT - BOTRADIUS;
-
     // process food intake
 
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    float f = world->food[cx][cy];
+    float f = 0.0f;
+    if (cx >= 0 && cx < world->FW && cy >= 0 && cy < world->FH) {
+      f = world->food[cx][cy];
+    }
 
     if (f > 0 && a->health < 2 && a->herbivore > 0.1f) {
       // agent eats the food
@@ -833,13 +800,13 @@ void agent_output_processor(void *arg) {
 }
 
 void agent_set_inputs(struct World *world, struct Agent *a,
-                      int num_close_agents, struct Agent_d *close_agents) {
+                      struct BucketList buckets_to_check) {
   // General settings
   // says that agent was not hit this turn
   a->spiked = 0;
 
   // process indicator used in drawing
-  a->indicator = fmax(a->indicator - 1.0f, 0.0f);
+  a->indicator = fmaxf(a->indicator - 1.0f, 0.0f);
 
   // Update agents age
   if (world->modcounter % 100 == 0)
@@ -848,7 +815,10 @@ void agent_set_inputs(struct World *world, struct Agent *a,
   // FOOD
   int32_t cx = (int32_t)a->pos.x / CZ;
   int32_t cy = (int32_t)a->pos.y / CZ;
-  a->in[4] = world->food[cx][cy] / FOODMAX;
+  a->in[4] = 0.0f;
+  if (cx >= 0 && cx < world->FW && cy >= 0 && cy < world->FH) {
+    a->in[4] = world->food[cx][cy] / FOODMAX;
+  }
 
   // SOUND SMELL EYES
   float p1 = 0;
@@ -870,14 +840,26 @@ void agent_set_inputs(struct World *world, struct Agent *a,
   float health_gain = 0;
 
   // SMELL SOUND EYES
-  for (int j = 0; j < num_close_agents; j++) {
+  // For each bucket
+  for (size_t j = 0; j < 9; j++) {
+    size_t bucket = buckets_to_check.buckets[j];
+    struct AgentRange agent_range = get_agent_range(world, bucket);
 
-    struct Agent *a2 = close_agents[j].agent;
+    // For each agent
+    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
+      struct Agent *a2 = world->agents.agents[agent_idx];
 
-    // standard distance formula (more fine grain)
-    float d = close_agents[j].dist2;
+      // Ignore ourselves
+      if (a == a2) {
+        continue;
+      }
 
-    if (d < DIST * DIST) {
+      float d = vector2f_dist2(&a->pos, &a2->pos);
+
+      if (d > DIST*DIST) {
+        continue;
+      }
+
       // Get the real distance now
       d = sqrtf(d);
 
@@ -976,7 +958,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
       }
 
       // Process collisions
-      if (d < BOTRADIUS) {
+      if (d < BOTRADIUS*1.9f) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
         struct Vector2f v;
@@ -1019,7 +1001,6 @@ void agent_set_inputs(struct World *world, struct Agent *a,
           // set a flag saying that this agent was hit this turn
           a2->spiked = 1;
         }
-        //}
       }
     }
   }
@@ -1032,14 +1013,6 @@ void agent_set_inputs(struct World *world, struct Agent *a,
 
   if (a->health > 2) // limit the amount of health
     a->health = 2;
-
-  // TOUCH (wall)
-  if (a->pos.x < 2 || a->pos.x > WIDTH - 3 || a->pos.y < 2 ||
-      a->pos.y > HEIGHT - 3)
-    // they are very close to the wall (1 or 2 pixels)
-    a->touch = 1;
-  else
-    a->touch = 0;
 
   // temperature varies from 0 to 1 across screen.
   // it is 0 at equator (in middle), and 1 on edges. Agents can sense
@@ -1079,6 +1052,7 @@ void agent_input_processor(void *arg) {
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
     struct Agent *a = world->agents.agents[i];
+    struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
 
     // printf("&world->agents.size: %zu\n", world->agents.size);
     // for (size_t j = 0; j < world->agents.size; j++) {
@@ -1090,11 +1064,7 @@ void agent_input_processor(void *arg) {
     // printf("index: %zu\n", i);
     // printf("sizeof: %zu\n", sizeof(struct Agent));
     // printf("pointer: %p\n", (void*) &world->agents.agents[i]);
-
-    struct Agent_d close_agents[NUMBOTS_CLOSE];
-    int num_close_agents = world_get_close_agents(world, i, close_agents);
-
-    agent_set_inputs(world, a, num_close_agents, close_agents);
+    agent_set_inputs(world, a, buckets_to_check);
 
     // printf("Got %d close agents\n", num_close_agents);
 

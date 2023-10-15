@@ -242,7 +242,7 @@ void gl_handleIdle() {
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
     sprintf(GLVIEW.buf,
             "FPS: %.2f NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
-            GLVIEW.frames * (1000.0 / MILLS_PER_UPDATE),
+            GLVIEW.frames * (1000.0f / MILLS_PER_UPDATE),
             world_numAgents(GLVIEW.base->world), num_carns, num_herbs,
             GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
@@ -533,29 +533,29 @@ void drawAgent(const struct Agent *agent) {
 }
 
 void glview_draw(struct World *world, int32_t drawfood) {
-  glBegin(GL_QUADS);
-  glColor3f(1.0f, 0.5f, 0.0f);
-  // Left wall
-  glVertex3f(-5.0f, -5.0f, 0);
-  glVertex3f(0.0f, -5.0f, 0);
-  glVertex3f(0.0f, HEIGHT + 5.0f, 0);
-  glVertex3f(-5.0f, HEIGHT + 5.0f, 0);
-  // Right wall
-  glVertex3f(WIDTH + 5.0f, -5.0f, 0);
-  glVertex3f(WIDTH, -5.0f, 0);
-  glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
-  glVertex3f(WIDTH + 5.0f, HEIGHT + 5.0f, 0);
-  // Top wall
-  glVertex3f(0.0f, -5.0f, 0);
-  glVertex3f(0.0f, 0.0f, 0);
-  glVertex3f(WIDTH, 0.0f, 0);
-  glVertex3f(WIDTH, -5.0f, 0);
-  // Bottom wall
-  glVertex3f(0.0f, HEIGHT + 5.0f, 0);
-  glVertex3f(0.0f, HEIGHT, 0);
-  glVertex3f(WIDTH, HEIGHT, 0);
-  glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
-  glEnd();
+  // glBegin(GL_QUADS);
+  // glColor3f(1.0f, 0.5f, 0.0f);
+  // // Left wall
+  // glVertex3f(-5.0f, -5.0f, 0);
+  // glVertex3f(0.0f, -5.0f, 0);
+  // glVertex3f(0.0f, HEIGHT + 5.0f, 0);
+  // glVertex3f(-5.0f, HEIGHT + 5.0f, 0);
+  // // Right wall
+  // glVertex3f(WIDTH + 5.0f, -5.0f, 0);
+  // glVertex3f(WIDTH, -5.0f, 0);
+  // glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
+  // glVertex3f(WIDTH + 5.0f, HEIGHT + 5.0f, 0);
+  // // Top wall
+  // glVertex3f(0.0f, -5.0f, 0);
+  // glVertex3f(0.0f, 0.0f, 0);
+  // glVertex3f(WIDTH, 0.0f, 0);
+  // glVertex3f(WIDTH, -5.0f, 0);
+  // // Bottom wall
+  // glVertex3f(0.0f, HEIGHT + 5.0f, 0);
+  // glVertex3f(0.0f, HEIGHT, 0);
+  // glVertex3f(WIDTH, HEIGHT, 0);
+  // glVertex3f(WIDTH, HEIGHT + 5.0f, 0);
+  // glEnd();
 
   if (drawfood) {
     glBegin(GL_QUADS);

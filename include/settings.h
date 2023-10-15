@@ -12,7 +12,7 @@ extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
 
 // How many hidden layers this brain has
-#define BRAIN_DEPTH 4
+#define BRAIN_DEPTH 3
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
@@ -51,7 +51,7 @@ extern int32_t MAX_SECONDS;
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
-#define NUMBOTS_CLOSE 32
+#define NUMBOTS_CLOSE 256
 // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10.0f
 // for drawing

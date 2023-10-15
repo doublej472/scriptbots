@@ -8,10 +8,7 @@
 #include "settings.h"
 #include "vec.h"
 
-#define WORLD_GRID_SIZE ((size_t)DIST)
-#define WORLD_GRID_HEIGHT ((size_t)(HEIGHT / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_WIDTH ((size_t)(WIDTH / WORLD_GRID_SIZE) + 1)
-#define WORLD_GRID_LENGTH ((size_t)(WORLD_GRID_WIDTH * WORLD_GRID_HEIGHT))
+#define AGENT_BUCKETS (1024*2)
 
 struct AgentQueueItem {
   struct World *world;
@@ -49,9 +46,8 @@ struct World {
   // they get pushed to the agents array
   struct AVec agents_staging;
 
-  // value represents one past the index of the last element in the current grid
-  // position Grid position calculated like (y*WORLD_GRID_WIDTH + x)
-  size_t agent_grid[WORLD_GRID_LENGTH];
+  // value represents one past the index of the last element in the bucket lookup
+  size_t agent_grid[AGENT_BUCKETS];
 };
 
 void world_init(struct World *world, size_t numbots);

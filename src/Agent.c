@@ -90,14 +90,14 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
 
   parent->numchildren++;
 
-  if (child->pos.x < 0)
-    child->pos.x = WIDTH + child->pos.x;
-  if (child->pos.x >= WIDTH)
-    child->pos.x = child->pos.x - WIDTH;
-  if (child->pos.y < 0)
-    child->pos.y = HEIGHT + child->pos.y;
-  if (child->pos.y >= HEIGHT)
-    child->pos.y = child->pos.y - HEIGHT;
+  // if (child->pos.x < 0)
+  //   child->pos.x = WIDTH + child->pos.x;
+  // if (child->pos.x >= WIDTH)
+  //   child->pos.x = child->pos.x - WIDTH;
+  // if (child->pos.y < 0)
+  //   child->pos.y = HEIGHT + child->pos.y;
+  // if (child->pos.y >= HEIGHT)
+  //   child->pos.y = child->pos.y - HEIGHT;
 
   child->gencount = parent->gencount + 1;
   child->repcounter =

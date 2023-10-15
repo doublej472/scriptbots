@@ -17,8 +17,8 @@ inline float vector2f_dist(struct Vector2f *vec1, struct Vector2f *vec2) {
 }
 
 inline float vector2f_dist2(struct Vector2f *vec1, struct Vector2f *vec2) {
-  return ((vec2->x - vec1->x) * (vec2->x - vec1->x)) +
-         ((vec2->y - vec1->y) * (vec2->y - vec1->y));
+  return (vec2->x - vec1->x) * (vec2->x - vec1->x) +
+         (vec2->y - vec1->y) * (vec2->y - vec1->y);
 }
 
 float vector2f_angle(struct Vector2f *vec) {
