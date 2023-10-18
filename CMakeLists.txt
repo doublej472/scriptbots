@@ -9,7 +9,9 @@ option(ASAN "Compile with address sanitation enabled" NO)
 option(TRAP_NAN "Make program exit on math errors" NO)
 option(FASTMATH "Compile with fast math optimizations (untested)" NO)
 
+
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	option(GPROF "Compile with -pg" NO)
 	option(GRAPHITE "Compile with graphite optimizations" YES)
 	option(IPAPTA "Compile with ipa-pta optimizations" YES)
 	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" YES)
@@ -31,6 +33,11 @@ add_executable(scriptbots
 
 if (TRAP_NAN)
 	add_compile_definitions(TRAP_NAN)
+endif()
+
+if (GPROF)
+	target_link_options(scriptbots PRIVATE -pg)
+	target_compile_options(scriptbots PRIVATE -pg)
 endif()
 
 if (ASAN)

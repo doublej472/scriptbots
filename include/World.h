@@ -50,6 +50,8 @@ struct World {
   size_t agent_grid[AGENT_BUCKETS];
 };
 
+static void world_update_food(struct World *world);
+
 void world_init(struct World *world, size_t numbots);
 void world_flush_staging(struct World *world);
 void world_printState(struct World *world);

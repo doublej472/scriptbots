@@ -87,17 +87,21 @@ void world_init(struct World *world, size_t numbots) {
   for (int32_t i = 0; i < (int32_t)numbots * .2; ++i)
     world_addCarnivore(world);
 
-  // inititalize food layer
+  printf("Initializing food...\n");
   for (size_t x = 0; x < world->FW; x++) {
     for (size_t y = 0; y < world->FH; y++) {
 
       float rand1 = randf(0, 1);
-      if (rand1 > .90) {
+      if (rand1 > .95f) {
         world->food[x][y] = rand1 * FOODMAX;
       } else {
         world->food[x][y] = 0;
       }
     }
+  }
+
+  for (int i = 0; i < 800; i++) {
+    world_update_food(world);
   }
 
   // Decide if world if closed based on settings.h
@@ -300,7 +304,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     float health_add = 1.0f;
 
     // bonus for hunting in groups
-    health_add += fmaxf(0.5f * (num_to_dist_body / 8.0f), 0.5f);
+    health_add += fminf(0.5f * (num_to_dist_body / 8.0f), 0.5f);
 
     // Factor in age muliplier
     health_add *= agemult;
@@ -889,14 +893,11 @@ void agent_set_inputs(struct World *world, struct Agent *a,
       // left and right eyes
       float leyeangle = a->angle - PI8;
       float reyeangle = a->angle + PI8;
-      float backangle = a->angle + (float)M_PI;
       float forwangle = a->angle;
       if (leyeangle < (float)-M_PI)
         leyeangle += 2.0f * (float)M_PI;
       if (reyeangle > (float)M_PI)
         reyeangle -= 2.0f * (float)M_PI;
-      if (backangle > (float)M_PI)
-        backangle -= 2.0f * (float)M_PI;
       float diff1 = leyeangle - ang;
       if (fabsf(diff1) > (float)M_PI)
         diff1 = 2.0f * (float)M_PI - fabsf(diff1);
@@ -961,45 +962,42 @@ void agent_set_inputs(struct World *world, struct Agent *a,
       if (d < BOTRADIUS*1.9f) {
         // these two are in collision and agent i has extended spike and is
         // going decent fast!
-        struct Vector2f v;
-        vector2f_init(&v, 1.0f, 0.0f);
-        vector2f_rotate(&v, a->angle);
 
         struct Vector2f tmp;
         vector2f_sub(&tmp, &a2->pos, &a->pos);
-        // float diffangle = vector2f_angle(&tmp);
-        float diff = fabsf(vector2f_angle_between(&v, &tmp));
 
-        // if (a->selectflag) {
-        //   printf("Collision check\n");
-        //   printf("  Pos a1:\t%f\t%f\n", a->pos.x, a->pos.y);
-        //   printf("  Pos a2:\t%f\t%f\n", a2->pos.x, a2->pos.y);
-        //   printf("  Diff Vec: %f\t%f\n", tmp.x, tmp.y);
-        //   printf("  Diff Angle: %f\n", diffangle);
-        //   printf("  Angle a: %f\n", a->angle);
-        //   printf("  Distance to a2: %f\n", d);
-        //   printf("  Angle diff to a2: %f\n", diff);
-        // }
+        float diffangle = vector2f_angle(&tmp);
+        float diff = a->angle - diffangle;
 
-        // if (diff < (float)M_PI / 2.0f) {
-        //  if (a->selectflag) {
-        //    printf("Hit at angle: %f\n", diff);
-        //  }
-        //  bot i is also properly aligned!!! that's a hit
-        float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
-                    fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
+        diff = fabsf(fmodf(diff, (float)M_PI));
 
-        // You have to hit hard for it to count
-        if (DMG > 1.50f) {
-          a2->health -= DMG;
-          a->spikeLength = 0.0f; // retract spike back down
+        if (diff < (float)M_PI / 4.0f) {
+          if (0) {
+            printf("Collision Detected!\n");
+            printf("  Pos a1:\t%f\t%f\n", a->pos.x, a->pos.y);
+            printf("  Pos a2:\t%f\t%f\n", a2->pos.x, a2->pos.y);
+            printf("  Diff Vec:\t%f\t%f\n", tmp.x, tmp.y);
+            printf("  Diff Angle:\t%f\n", diffangle);
+            printf("  Angle a:\t%f\n", a->angle);
+            printf("  Diff:\t\t%f\n", diff);
+            printf("  Distance to a2:\t%f\n", d);
+          }
+          //  bot i is also properly aligned!!! that's a hit
+          float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
+                      fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
 
-          agent_initevent(
-              a, 10.0f * DMG, 1.0f, 1.0f,
-              0.0f); // yellow event means bot has spiked other bot. nice!
+          // You have to hit hard for it to count
+          if (DMG > 1.25f) {
+            a2->health -= DMG;
+            a->spikeLength = fmaxf(a->spikeLength - DMG, 0.0f); // retract spike back down
 
-          // set a flag saying that this agent was hit this turn
-          a2->spiked = 1;
+            agent_initevent(
+                a, 10.0f * DMG, 1.0f, 1.0f,
+                0.0f); // yellow event means bot has spiked other bot. nice!
+
+            // set a flag saying that this agent was hit this turn
+            a2->spiked = 1;
+          }
         }
       }
     }
