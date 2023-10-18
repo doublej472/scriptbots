@@ -5,7 +5,7 @@
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <sysinfoapi.h>
-#elif __linux__
+#elif __linux__ || __APPLE__
 #include <unistd.h>
 #endif
 
@@ -111,7 +111,7 @@ inline long get_nprocs() {
   SYSTEM_INFO sysinfo;
   GetSystemInfo(&sysinfo);
   return sysinfo.dwNumberOfProcessors;
-#elif __linux__
+#elif __linux__ || __APPLE__
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
@@ -119,7 +119,7 @@ inline long get_nprocs() {
 void *alloc_aligned(size_t alignment, size_t size) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   return _aligned_malloc(size, alignment);
-#elif __linux__
+#elif __linux__ || __APPLE__
   return aligned_alloc(alignment, size);
 #else
 #error "No aligned alloc available!!!"
@@ -129,7 +129,7 @@ void *alloc_aligned(size_t alignment, size_t size) {
 void free_brain(void *f) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   _aligned_free(f);
-#elif __linux__
+#elif __linux__ || __APPLE__
   free(f);
 #else
 #error "No aligned free available!!!"

@@ -17,6 +17,10 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" YES)
 endif()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+endif()
+
 add_executable(scriptbots
 	src/vec2f.c
 	src/queue.c
@@ -69,8 +73,8 @@ if (MARCH_NATIVE)
 	target_link_options(scriptbots PRIVATE -march=native)
 	target_compile_options(scriptbots PRIVATE -march=native)
 else()
-	target_link_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
-	target_compile_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
+	target_link_options(scriptbots PRIVATE -mcpu=apple-m1)
+	target_compile_options(scriptbots PRIVATE -mcpu=apple-m1)
 endif()
 
 if (BUILD_TESTS)
@@ -97,6 +101,13 @@ if (USE_OPENGL)
 
     add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
     target_link_libraries(scriptbots PRIVATE GLEW::GLEW GLUT::GLUT m)
+		target_sources(scriptbots PRIVATE src/GLView.c)
+  elseif(MACOSX)
+		find_package(GLEW REQUIRED)
+		find_package(FreeGLUT REQUIRED)
+
+    add_dependencies(scriptbots GLEW::GLEW FreeGLUT::freeglut)
+    target_link_libraries(scriptbots PRIVATE GLEW::GLEW FreeGLUT::freeglut m)
 		target_sources(scriptbots PRIVATE src/GLView.c)
 	else()
 		find_package(OpenGL REQUIRED)
