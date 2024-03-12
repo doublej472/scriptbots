@@ -10,10 +10,10 @@
 
 // Clamped ReLu
 // Range of 0.0f to 1.0f
-static inline __m256 activation_function(__m256 x) {
+static inline simde__m256 activation_function(simde__m256 x) {
   // printf("input before: %f\n", x[0]);
-  x = _mm256_max_ps(x, _mm256_set1_ps(0.0f));
-  x = _mm256_min_ps(x, _mm256_set1_ps(1.0f));
+  x = simde_mm256_max_ps(x, simde_mm256_set1_ps(0.0f));
+  x = simde_mm256_min_ps(x, simde_mm256_set1_ps(1.0f));
   return x;
 }
 
@@ -23,7 +23,7 @@ void avxbrain_init(struct AVXBrain *b) {
     for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
       struct AVXBrainGroup *ng = &b->layers[i].groups[j];
       // Zero inputs
-      b->layers[i].inputs[j] = _mm256_set1_ps(0.0f);
+      b->layers[i].inputs[j] = simde_mm256_set1_ps(0.0f);
 
       // Set biases
       for (size_t k = 0; k < 8; k++) {
@@ -56,16 +56,16 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
     // For each brain group (~group of 8 neurons)
     for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
       struct AVXBrainGroup *ng = &layer->groups[j];
-      __m256 sum = _mm256_set1_ps(0.0f);
+      simde__m256 sum = simde_mm256_set1_ps(0.0f);
 
       // For each individual neuron
       for (size_t k = 0; k < 8; k++) {
-        __m256 innersum = _mm256_set1_ps(0.0f);
+        simde__m256 innersum = simde_mm256_set1_ps(0.0f);
 
         // For each input group
         for (size_t l = 0; l < BRAIN_WIDTH / 8; l++) {
-          innersum = _mm256_add_ps(
-              _mm256_mul_ps(layer->inputs[l], ng->weights[(l * 8) + k]),
+          innersum = simde_mm256_add_ps(
+              simde_mm256_mul_ps(layer->inputs[l], ng->weights[(l * 8) + k]),
               innersum);
         }
 
@@ -75,8 +75,8 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
       }
 
       // Apply biases
-      __m256 finalsum =
-          _mm256_add_ps(sum, ng->biases);
+      simde__m256 finalsum =
+          simde_mm256_add_ps(sum, ng->biases);
 
       // Send sum to activation function
       finalsum = activation_function(finalsum);

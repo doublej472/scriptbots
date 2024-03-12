@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 void agent_init(struct Agent *agent) {
   vector2f_init(&agent->pos, randf(0, WIDTH), randf(0, HEIGHT));

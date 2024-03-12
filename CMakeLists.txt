@@ -1,23 +1,19 @@
-cmake_minimum_required(VERSION 3.18)
-project(scriptbots)
+cmake_minimum_required(VERSION 3.24)
+project(scriptbots C)
+
+# Disable GLFW tests, examples, and docss
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+
+# Include external libraries
+include(cmake/simde.cmake)
 
 option(USE_OPENGL "Compile with OpenGL gui" YES)
 option(BUILD_TESTS "Compile tests" NO)
-option(USE_LTO "Compile with LTO optimizations" YES)
-option(MARCH_NATIVE "Compile with -march=native" NO)
-option(ASAN "Compile with address sanitation enabled" NO)
-option(TRAP_NAN "Make program exit on math errors" NO)
-option(FASTMATH "Compile with fast math optimizations (untested)" NO)
+option(USE_LTO "Compile with LTO optimizations" NO)
 
-
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-	option(GPROF "Compile with -pg" NO)
-	option(GRAPHITE "Compile with graphite optimizations" YES)
-	option(IPAPTA "Compile with ipa-pta optimizations" YES)
-	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" YES)
-endif()
-
-add_executable(scriptbots
+add_executable(${PROJECT_NAME}
 	src/vec2f.c
 	src/queue.c
 	src/vec.c
@@ -29,88 +25,62 @@ add_executable(scriptbots
 	src/World.c
 	src/lock.c
 	src/mtwister.c
+	include/Agent.h
+	include/AVXBrain.h
+	include/Base.h
+	include/helpers.h
+	include/lock.h
+	include/mtwister.h
+	include/queue.h
+	include/settings.h
+	include/vec.h
+	include/vec2f.h
+	include/World.h
 )
-
-if (TRAP_NAN)
-	add_compile_definitions(TRAP_NAN)
-endif()
-
-if (GPROF)
-	target_link_options(scriptbots PRIVATE -pg)
-	target_compile_options(scriptbots PRIVATE -pg)
-endif()
-
-if (ASAN)
-	target_link_options(scriptbots PRIVATE -fsanitize=address)
-	target_compile_options(scriptbots PRIVATE -fsanitize=address)
-endif()
-
-if (FASTMATH)
-	target_link_options(scriptbots PRIVATE -ffast-math)
-	target_compile_options(scriptbots PRIVATE -ffast-math)
-endif()
-
-if (DEVIRTLTO)
-	target_link_options(scriptbots PRIVATE -fdevirtualize-at-ltrans)
-	target_compile_options(scriptbots PRIVATE -fdevirtualize-at-ltrans)
-endif()
-
-if (IPAPTA)
-	target_link_options(scriptbots PRIVATE -fipa-pta)
-	target_compile_options(scriptbots PRIVATE -fipa-pta)
-endif()
-
-if (GRAPHITE)
-	target_link_options(scriptbots PRIVATE -fgraphite-identity -floop-nest-optimize)
-	target_compile_options(scriptbots PRIVATE -fgraphite-identity -floop-nest-optimize)
-endif()
-
-if (MARCH_NATIVE)
-	target_link_options(scriptbots PRIVATE -march=native)
-	target_compile_options(scriptbots PRIVATE -march=native)
-else()
-	target_link_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
-	target_compile_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
-endif()
 
 if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
 		src/helpers.c
-	        src/mtwister.c
+		src/mtwister.c
 		tests/vec2f.c
+		include/Agent.h
+		include/AVXBrain.h
+		include/Base.h
+		include/GLView.h
+		include/helpers.h
+		include/lock.h
+		include/mtwister.h
+		include/queue.h
+		include/settings.h
+		include/vec.h
+		include/vec2f.h
+		include/World.h
 	)
 	target_link_libraries(test_vec2f PRIVATE m)
 	target_include_directories(test_vec2f PRIVATE ./include)
 endif()
 
 if (USE_LTO)
-	set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 if (USE_OPENGL)
 	add_compile_definitions(OPENGL)
 
-	if(WIN32)
-		find_package(GLEW REQUIRED)
-		find_package(GLUT REQUIRED)
-
-    add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
-    target_link_libraries(scriptbots PRIVATE GLEW::GLEW GLUT::GLUT m)
-		target_sources(scriptbots PRIVATE src/GLView.c)
-	else()
-		find_package(OpenGL REQUIRED)
-		find_package(GLUT REQUIRED)
-
-    add_dependencies(scriptbots OpenGL::OpenGL GLUT::GLUT)
-    target_link_libraries(scriptbots PRIVATE OpenGL::OpenGL GLUT::GLUT m)
-		target_sources(scriptbots PRIVATE src/GLView.c)
-	endif()
+	target_sources(${PROJECT_NAME} PRIVATE include/GLView.h src/GLView.c)
 endif()
 
-include(cmake/simde.cmake)
-target_link_libraries(scriptbots PRIVATE simde::simde)
+include(cmake/glfw.cmake)
+include(cmake/glad.cmake)
+include(cmake/glm.cmake)
 
-target_compile_options(scriptbots PRIVATE -Wall)
-target_link_options(scriptbots PRIVATE -pthread)
-target_include_directories(scriptbots PRIVATE ./include)
+glad_add_library(glad_gl STATIC API gl:core=3.3)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw cglm glad_gl)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${simde_SOURCE_DIR})
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY C_STANDARD 17)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ./include)

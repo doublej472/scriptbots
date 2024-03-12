@@ -16,13 +16,13 @@ static const float WEIGHT_RANGE = 0.8f;
 static const float BIAS_RANGE = 1.0f;
 
 struct AVXBrainGroup {
-  alignas(32) __m256 biases;
+  alignas(32) simde__m256 biases;
   // This needs to point at every possible neuron on the previous layer
-  alignas(32) __m256 weights[BRAIN_WIDTH];
+  alignas(32) simde__m256 weights[BRAIN_WIDTH];
 };
 
 struct AVXBrainLayer {
-  alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
+  alignas(32) simde__m256 inputs[BRAIN_WIDTH / 8];
   alignas(32) struct AVXBrainGroup groups[BRAIN_WIDTH / 8];
 };
 
