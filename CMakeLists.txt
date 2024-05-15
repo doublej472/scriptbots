@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.28)
 project(scriptbots)
 
 option(USE_OPENGL "Compile with OpenGL gui" YES)
@@ -9,12 +9,11 @@ option(ASAN "Compile with address sanitation enabled" NO)
 option(TRAP_NAN "Make program exit on math errors" NO)
 option(FASTMATH "Compile with fast math optimizations (untested)" NO)
 
-
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	option(GPROF "Compile with -pg" NO)
-	option(GRAPHITE "Compile with graphite optimizations" YES)
-	option(IPAPTA "Compile with ipa-pta optimizations" YES)
-	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" YES)
+	option(GRAPHITE "Compile with graphite optimizations" NO)
+	option(IPAPTA "Compile with ipa-pta optimizations" NO)
+	option(DEVIRTLTO "Compile with LTO devirtualization optimizations" NO)
 endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -33,6 +32,18 @@ add_executable(scriptbots
 	src/World.c
 	src/lock.c
 	src/mtwister.c
+	include/settings.h
+	include/vec.h
+	include/mtwister.h
+	include/lock.h
+	include/Agent.h
+	include/World.h
+	include/vec2f.h
+	include/helpers.h
+	include/AVXBrain.h
+	include/queue.h
+	include/GLView.h
+	include/Base.h
 )
 
 if (TRAP_NAN)
@@ -73,19 +84,36 @@ if (MARCH_NATIVE)
 	target_link_options(scriptbots PRIVATE -march=native)
 	target_compile_options(scriptbots PRIVATE -march=native)
 else()
-	target_link_options(scriptbots PRIVATE -mcpu=apple-m1)
-	target_compile_options(scriptbots PRIVATE -mcpu=apple-m1)
+	if (MACOSX)
+		target_link_options(scriptbots PRIVATE -mcpu=apple-m1)
+		target_compile_options(scriptbots PRIVATE -mcpu=apple-m1)
+	else()
+		target_link_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
+		target_compile_options(scriptbots PRIVATE -march=x86-64-v2 -mavx)
+	endif()
 endif()
 
 if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
 		src/helpers.c
-	        src/mtwister.c
+		src/mtwister.c
 		tests/vec2f.c
+		include/settings.h
+		include/vec.h
+		include/mtwister.h
+		include/lock.h
+		include/Agent.h
+		include/World.h
+		include/vec2f.h
+		include/helpers.h
+		include/AVXBrain.h
+		include/queue.h
+		include/GLView.h
+		include/Base.h
 	)
 	target_link_libraries(test_vec2f PRIVATE m)
-	target_include_directories(test_vec2f PRIVATE ./include)
+	target_include_directories(test_vec2f PUBLIC ./include)
 endif()
 
 if (USE_LTO)
@@ -102,7 +130,7 @@ if (USE_OPENGL)
     add_dependencies(scriptbots GLEW::GLEW GLUT::GLUT)
     target_link_libraries(scriptbots PRIVATE GLEW::GLEW GLUT::GLUT m)
 		target_sources(scriptbots PRIVATE src/GLView.c)
-  elseif(MACOSX)
+    elseif(MACOSX)
 		find_package(GLEW REQUIRED)
 		find_package(FreeGLUT REQUIRED)
 
@@ -124,4 +152,4 @@ target_link_libraries(scriptbots PRIVATE simde::simde)
 
 target_compile_options(scriptbots PRIVATE -Wall)
 target_link_options(scriptbots PRIVATE -pthread)
-target_include_directories(scriptbots PRIVATE ./include)
+target_include_directories(scriptbots PUBLIC ./include)

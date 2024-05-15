@@ -8,7 +8,7 @@ include(FetchContent)
 FetchContent_Declare(
     simde
     GIT_REPOSITORY https://github.com/simd-everywhere/simde.git
-    GIT_TAG 3465b57c68ed4d5bef6678507541369c36548c7e
+    GIT_TAG fdbd6b2616e8ec2509c3ad7087c2e4d36c0a5f5d
 )
 FetchContent_MakeAvailable(simde)
 

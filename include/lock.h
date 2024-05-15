@@ -5,7 +5,7 @@
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <synchapi.h>
 #include <windows.h>
-#elif __linux__
+#elif __linux__ || __APPLE__
 #include <pthread.h>
 #endif
 
@@ -14,7 +14,7 @@
 struct Lock {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   SRWLOCK win_lock;
-#elif __linux__
+#elif __linux__ || __APPLE__
   pthread_mutex_t lin_lock;
 #endif
 };
@@ -22,7 +22,7 @@ struct Lock {
 struct LockCondition {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   CONDITION_VARIABLE win_cond;
-#elif __linux__
+#elif __linux__ || __APPLE__
   pthread_cond_t lin_cond;
 #endif
 };

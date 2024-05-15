@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #include "World.h"
 #include "helpers.h"
@@ -90,17 +91,11 @@ void world_init(struct World *world, size_t numbots) {
   printf("Initializing food...\n");
   for (size_t x = 0; x < world->FW; x++) {
     for (size_t y = 0; y < world->FH; y++) {
-
-      float rand1 = randf(0, 1);
-      if (rand1 > .95f) {
-        world->food[x][y] = rand1 * FOODMAX;
-      } else {
-        world->food[x][y] = 0;
-      }
+      world->food[x][y] = 0;
     }
   }
 
-  for (int i = 0; i < 800; i++) {
+  for (int i = 0; i < 1000; i++) {
     world_update_food(world);
   }
 
@@ -171,10 +166,16 @@ static void world_update_gui(struct World *world) {
   float totaldeltat = (float)ts_totaldelta.tv_sec +
                       ((float)ts_totaldelta.tv_nsec / 1000000000.0f);
 
-  printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i - FPS: "
+  int32_t carnivores = world_numCarnivores(world);
+  int32_t herbivores = world_numHerbivores(world);
+
+  printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i (C: %i H: %i) - FPS: "
          "%.1f - Time: %.2f sec     \r",
          world->current_epoch, world->modcounter / 100,
-         (int32_t)world->agents.size, (float)reportInterval / deltat,
+         (int32_t)world->agents.size,
+         carnivores,
+         herbivores,
+         (float)reportInterval / deltat,
          totaldeltat);
   fflush(stdout);
 
@@ -698,10 +699,14 @@ void world_sortGrid(struct World *world) {
 
 void agent_output_processor(void *arg) {
   struct AgentQueueItem *aqi = (struct AgentQueueItem *)arg;
+  assert(aqi != NULL);
   struct World *world = aqi->world;
+  assert(world != NULL);
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
+    assert(aqi->start <= i < aqi->end);
     struct Agent *a = world->agents.agents[i];
+    assert(a != NULL);
 
     a->w1 = a->out[0]; //-(2*a->out[0]-1);
     a->w2 = a->out[1]; //-(2*a->out[1]-1);
@@ -711,6 +716,12 @@ void agent_output_processor(void *arg) {
     a->boost = a->out[6] > 0.5f;
     a->soundmul = a->out[7];
     a->give = a->out[8];
+
+    float greadj = fmaxf(0.0f, a->herbivore - 0.5f);
+    float redadj = fmaxf(0.0f, 0.5f - a->herbivore);
+
+    a->gre = fminf(a->gre + greadj, 1.0f);
+    a->red = fminf(a->red + redadj, 1.0f);
 
     // spike length should slowly tend towards out[5]
     float g = a->out[5];

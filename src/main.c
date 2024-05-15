@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 // For detecting keyboard:
 #include <fcntl.h>
@@ -56,6 +57,8 @@ void *worker_thread(void *arg) {
 
   while (1) {
     struct QueueItem qi = queue_dequeue(queue);
+    assert(qi.data != NULL);
+    assert(qi.function != NULL);
     qi.function(qi.data);
     queue_workdone(queue);
   }

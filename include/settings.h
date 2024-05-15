@@ -16,7 +16,7 @@ extern int32_t MAX_SECONDS;
 
 // MUST BE MULTIPLE OF 8 real inputs and outputs
 // Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 4)
+#define BRAIN_WIDTH (8 * 3)
 
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
@@ -36,14 +36,14 @@ extern int32_t MAX_SECONDS;
 #define WIDTH (CZ * 300)
 #define HEIGHT (CZ * 200)
 // computer window width and height
-#define WWIDTH 1400
-#define WHEIGHT 1000
+#define WWIDTH 1280
+#define WHEIGHT 720
 
 #define CLOSED 0
 // world is closed and no new agents are added
 
 // REPORTING --------------------------------------------------
-#define REPORTS_PER_EPOCH 50
+#define REPORTS_PER_EPOCH 100
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
@@ -63,7 +63,7 @@ extern int32_t MAX_SECONDS;
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f
 // how much boost do agents get? when boost neuron is on
-#define DIST 200.0f
+#define DIST 300.0f
 // how far can the eyes see, ears hear, and nose smell on each bot?
 #define DIST_GROUPING 40.0f
 // how close must another agent be to get grouping health gain
@@ -106,9 +106,9 @@ extern int32_t MAX_SECONDS;
 
 // FOOD SETTINGS -----------------------------------------------
 // How many food squares to check every FOODADDFREQ?
-#define FOODSQUARES 800
+#define FOODSQUARES 120
 // what kind of food appearance is to be used
-#define FOODGROWTH 0.0005f
+#define FOODGROWTH 0.003f
 // how quickly does food grow on a square. only
 // used with FOOD_MODEL_GROW
 #define FOODINTAKE 0.00225f
@@ -117,13 +117,13 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.6f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 15
+#define FOODADDFREQ 20
 // how often does random square get to full food?
 // (the lower the more often food is added)
 #define FOOD_DEAD 0.1f
 // what percent of FOOD MAX does a dead agent create that is not eaten by
 // carnivores?
-#define FOOD_MEAT_VALUE 0.75f
+#define FOOD_MEAT_VALUE 0.80f
 // percentage that health is transferred to another agent when eaten
 
 // how much is transfered between two agents trading food? per iteration
