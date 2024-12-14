@@ -33,8 +33,8 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 3000)
-#define HEIGHT (CZ * 1000)
+#define WIDTH (CZ * 300)
+#define HEIGHT (CZ * 200)
 // computer window width and height
 #define WWIDTH 1920
 #define WHEIGHT 1080
