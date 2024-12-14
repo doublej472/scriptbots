@@ -21,10 +21,10 @@ extern int32_t MAX_SECONDS;
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
 // on the next brain tick
-#define PLANSIZE (BRAIN_WIDTH - 19)
+#define PLANSIZE (BRAIN_WIDTH - 18)
 
 // 19 and 18 here represent "real" inputs and outputs
-#define INPUTSIZE (19 + PLANSIZE)
+#define INPUTSIZE (18 + PLANSIZE)
 #define OUTPUTSIZE (18 + PLANSIZE)
 
 // WORLD / WINDOW SETTINGS -------------------------------------
@@ -33,11 +33,11 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 300)
-#define HEIGHT (CZ * 200)
+#define WIDTH (CZ * 3000)
+#define HEIGHT (CZ * 1000)
 // computer window width and height
-#define WWIDTH 1280
-#define WHEIGHT 720
+#define WWIDTH 1920
+#define WHEIGHT 1080
 
 #define CLOSED 0
 // world is closed and no new agents are added
@@ -47,11 +47,11 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 2000
+#define NUMBOTS 10000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
-#define NUMBOTS_CLOSE 256
+#define NUMBOTS_CLOSE 128
 // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10.0f
 // for drawing
@@ -63,9 +63,9 @@ extern int32_t MAX_SECONDS;
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f
 // how much boost do agents get? when boost neuron is on
-#define DIST 300.0f
+#define DIST 400.0f
 // how far can the eyes see, ears hear, and nose smell on each bot?
-#define DIST_GROUPING 40.0f
+#define DIST_GROUPING 60.0f
 // how close must another agent be to get grouping health gain
 #define EYE_SENSITIVITY 2.0f
 // how sensitive are the eyes?
@@ -94,21 +94,23 @@ extern int32_t MAX_SECONDS;
 // loss of health from shouting
 #define LOSS_SPEED 0.00005f
 // loss of health for movement speed
-#define LOSS_BOOST 0.00030f
+#define LOSS_BOOST 0.00080f
 // loss of health for boosting
 #define LOSS_TEMP 0.00005f
 // loss of health from temperature distribution across world
 #define LOSS_AGE 0.00015f
 // loss of health from old age
-#define GAIN_GROUPING 0.00003f
+#define GAIN_GROUPING 0.00002f
 // addition of health for each bot near it, as a ratio of closeness
 // (thermal sharing)
 
 // FOOD SETTINGS -----------------------------------------------
-// How many food squares to check every FOODADDFREQ?
-#define FOODSQUARES 120
+// How many frames to tick food on world init?
+#define FOOD_INIT_TICKS 200000
+// How many food squares to check every step?
+#define FOODSQUARES 10
 // what kind of food appearance is to be used
-#define FOODGROWTH 0.003f
+#define FOODGROWTH 0.050f
 // how quickly does food grow on a square. only
 // used with FOOD_MODEL_GROW
 #define FOODINTAKE 0.00225f
@@ -117,10 +119,10 @@ extern int32_t MAX_SECONDS;
 // how much food disapears if agent eats?
 #define FOODMAX 0.6f
 // how much food per cell can there be at max?
-#define FOODADDFREQ 20
+#define FOODADDFREQ 1000
 // how often does random square get to full food?
 // (the lower the more often food is added)
-#define FOOD_DEAD 0.1f
+#define FOOD_DEAD 0.0f
 // what percent of FOOD MAX does a dead agent create that is not eaten by
 // carnivores?
 #define FOOD_MEAT_VALUE 0.80f
@@ -133,7 +135,7 @@ extern int32_t MAX_SECONDS;
 #define FOOD_SHARING_DISTANCE 40.0f
 
 // when bot is killed, how far is its body distributed?
-#define FOOD_DISTRIBUTION_RADIUS DIST
+#define FOOD_DISTRIBUTION_RADIUS (DIST * 0.65f)
 
 // max number of agents to distribute to
 #define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE

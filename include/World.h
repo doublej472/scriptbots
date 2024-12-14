@@ -29,11 +29,8 @@ struct World {
   int32_t FH;
   int32_t fx;
   int32_t fy;
-  float food[WIDTH / CZ][HEIGHT / CZ];
   // if environment is closed, then no random bots are added per time interval
   int32_t closed;
-
-  int32_t touch;
 
   struct timespec startTime; // used for tracking fps
   struct timespec
@@ -48,11 +45,10 @@ struct World {
 
   // value represents one past the index of the last element in the bucket lookup
   size_t agent_grid[AGENT_BUCKETS];
+  float food[WIDTH / CZ][HEIGHT / CZ];
 };
 
-static void world_update_food(struct World *world);
-
-void world_init(struct World *world, size_t numbots);
+void world_init(struct World *world, int loadFromFile);
 void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);

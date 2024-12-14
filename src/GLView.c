@@ -416,6 +416,7 @@ void drawAgent(const struct Agent *agent) {
     renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
                  1.0f);
 
+
     glPopMatrix();
   }
 

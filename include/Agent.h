@@ -7,10 +7,9 @@
 #include "vec2f.h"
 
 struct Agent {
-  int32_t touch; // is bot close to wall?
   int32_t boost; // is this agent boosting
   int32_t spiked;
-  int32_t hybrid; // is this agent result of crossover?
+  int32_t attacked_this_frame;
 
   struct Vector2f pos;
 

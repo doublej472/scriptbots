@@ -12,9 +12,10 @@ void agent_init(struct Agent *agent) {
   vector2f_init(&agent->pos, randf(0, WIDTH), randf(0, HEIGHT));
   agent->angle = randf(-M_PI, M_PI);
   agent->health = 1.0f + randf(0, 0.1f);
-  agent->touch = 0;
   agent->age = 0;
   agent->spikeLength = 0;
+  agent->spiked = 0;
+  agent->attacked_this_frame = 0;
   agent->red = 0;
   agent->gre = 0;
   agent->blu = 0;
@@ -32,7 +33,6 @@ void agent_init(struct Agent *agent) {
   agent->ig = 0;
   agent->ib = 0;
   agent->temperature_preference = randf(0, 1);
-  agent->hybrid = 0;
   agent->herbivore = randf(0, 1);
   agent->rep = 0;
   agent->repcounter =
@@ -42,8 +42,6 @@ void agent_init(struct Agent *agent) {
 
   agent->MUTRATE1 = METAMUTRATE1;
   agent->MUTRATE2 = METAMUTRATE2;
-
-  agent->spiked = 0;
 
   for (size_t i = 0; i < INPUTSIZE; i++) {
     agent->in[i] = 0.0f;
@@ -117,7 +115,7 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
   if (child->MUTRATE2 < 0.02f) {
     child->MUTRATE2 = 0.02f;
   }
-  child->herbivore = cap(randn(parent->herbivore, 0.03f));
+  child->herbivore = cap(randn(parent->herbivore, 0.1f));
   if (randf(0, 1) < child->MUTRATE1 * 5.0f)
     child->clockf1 = randn(child->clockf1, child->MUTRATE2);
   if (child->clockf1 < 2.0f)
@@ -161,8 +159,8 @@ void agent_process_health(struct Agent *agent) {
   // process bots health
   float healthloss = LOSS_BASE; // base amount of health lost every turn for
                                 // being alive
-  if (agent->age > 500.0f) {
-    healthloss += ((float)LOSS_AGE * (((float)agent->age - 500.0f) / 250.0f));
+  if (agent->age > 800.0f) {
+    healthloss += ((float)LOSS_AGE * (((float)agent->age - 800.0f) / 250.0f));
   }
 
   // remove health based on wheel speed
