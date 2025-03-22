@@ -14,18 +14,33 @@ extern int32_t MAX_SECONDS;
 // How many hidden layers this brain has
 #define BRAIN_DEPTH 3
 
-// MUST BE MULTIPLE OF 8 real inputs and outputs
-// Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 3)
+// How many neuron groups exist in a given layer, exact number depends on
+// datatype
+#define BRAIN_WIDTH 3
+
+// How many elements are in a given vector
+#define BRAIN_ELEMENTS_PER_VECTOR (sizeof(AVXBrainVector) / 8)
+
+// How many elments are on a given layer
+#define BRAIN_WIDTH_ELEMENTS (BRAIN_WIDTH * BRAIN_ELEMENTS_PER_VECTOR)
+
+// How many weights does the brain have (number of neurons * inputs)
+#define BRAIN_WEIGHTS (BRAIN_WIDTH_ELEMENTS * BRAIN_WIDTH)
 
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
 // on the next brain tick
-#define PLANSIZE (BRAIN_WIDTH - 19)
+#define BRAIN_PLANSIZE (BRAIN_WIDTH_ELEMENTS - 19)
 
 // 19 and 18 here represent "real" inputs and outputs
-#define INPUTSIZE (19 + PLANSIZE)
-#define OUTPUTSIZE (18 + PLANSIZE)
+#define BRAIN_INPUT_SIZE (19 + BRAIN_PLANSIZE)
+#define BRAIN_OUTPUT_SIZE (18 + BRAIN_PLANSIZE)
+
+// How much the connection weight can vary
+#define BRAIN_WEIGHT_RANGE 0.8f
+
+// How much the bias can vary from init
+#define BRAIN_BIAS_RANGE 1.0f
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 #define CZ 50

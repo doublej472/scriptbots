@@ -4,143 +4,163 @@
 #include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <simde/x86/avx.h>
+#include <simde/x86/avx512.h>
+
+#include "AVXBrain.h"
 
 // Clamped ReLu
 // Range of 0.0f to 1.0f
-static inline __m256 activation_function(__m256 x) {
+static inline simde__m512 activation_function(simde__m512 x) {
   // printf("input before: %f\n", x[0]);
-  x = _mm256_max_ps(x, _mm256_set1_ps(0.0f));
-  x = _mm256_min_ps(x, _mm256_set1_ps(1.0f));
+  x = simde_mm512_max_ps(x, simde_mm512_set1_ps(0.0f));
+  x = simde_mm512_min_ps(x, simde_mm512_set1_ps(1.0f));
   return x;
 }
 
-void avxbrain_init(struct AVXBrain *b) {
-  // For each neuron group
+void avxbrain_init_zero(struct AVXBrain *b) {
+  // For each layer
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
-    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
-      struct AVXBrainGroup *ng = &b->layers[i].groups[j];
-      // Zero inputs
-      b->layers[i].inputs[j] = _mm256_set1_ps(0.0f);
+    // Set inputs
+    for (size_t j = 0; j < BRAIN_WIDTH; j++) {
+      b->layers[i].inputs[j] = simde_mm512_set1_ps(0.0f);
+    }
 
+    for (size_t j = 0; j < BRAIN_WIDTH; j++) {
       // Set biases
-      for (size_t k = 0; k < 8; k++) {
-        ng->biases[k] = randf(-BIAS_RANGE, BIAS_RANGE);
-      }
+      b->layers[i].biases[j] = simde_mm512_set1_ps(0.0f);
+    }
 
-      // Set weights
-      for (size_t wg = 0; wg < BRAIN_WIDTH; wg++) {
-        for (size_t k = 0; k < 8; k++) {
-          ng->weights[wg][k] = randf(-WEIGHT_RANGE, WEIGHT_RANGE);
-        }
+    // set weights
+    for (size_t j = 0; j < BRAIN_WEIGHTS; j++) {
+      b->layers[i].weights[j] = simde_mm512_set1_ps(0.0f);
+    }
+  }
+}
+
+void avxbrain_init_random(struct AVXBrain *b) {
+  // For each layer
+  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
+    for (size_t j = 0; j < BRAIN_WIDTH; j++) {
+      b->layers[i].inputs[j] = simde_mm512_set1_ps(0.0f);
+    }
+
+    for (size_t j = 0; j < BRAIN_WIDTH; j++) {
+      // Set biases
+      for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
+        b->layers[i].biases[j][k] =
+            (randf(0.0f, 1.0f) - 0.5f) * BRAIN_BIAS_RANGE * 2;
+      }
+    }
+
+    for (size_t j = 0; j < BRAIN_WEIGHTS; j++) {
+      for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
+        b->layers[i].weights[j][k] =
+            (randf(0.0f, 1.0f) - 0.5f) * BRAIN_WEIGHT_RANGE * 2;
       }
     }
   }
 }
 
-void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[INPUTSIZE],
-                   float (*brain_outputs)[OUTPUTSIZE]) {
+void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[BRAIN_INPUT_SIZE],
+                   float (*brain_outputs)[BRAIN_OUTPUT_SIZE]) {
   // Set the inputs for the first layer
-  for (int i = 0; i < INPUTSIZE; i++) {
-    b->layers[0].inputs[i / 8][i % 8] = (*brain_inputs)[i];
+  for (int i = 0; i < BRAIN_INPUT_SIZE; i++) {
+    b->layers[0]
+        .inputs[i / BRAIN_ELEMENTS_PER_VECTOR][i % BRAIN_ELEMENTS_PER_VECTOR] =
+        (*brain_inputs)[i];
   }
 
-  // Tick the brain!
+  // Tick the brain
   // For each layer
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
     // Store the layer inputs in inputs variable
     struct AVXBrainLayer *layer = &b->layers[i];
 
-    // For each brain group (~group of 8 neurons)
-    for (size_t j = 0; j < BRAIN_WIDTH / 8; j++) {
-      struct AVXBrainGroup *ng = &layer->groups[j];
-      __m256 sum = _mm256_set1_ps(0.0f);
+    simde__m512 sum[BRAIN_WIDTH] = {simde_mm512_set1_ps(0.0f)};
 
-      // For each individual neuron
-      for (size_t k = 0; k < 8; k++) {
-        __m256 innersum = _mm256_set1_ps(0.0f);
+    // For each input
+    for (size_t j = 0; j < BRAIN_WIDTH_ELEMENTS; j++) {
+      // The current input value we are working with
+      simde__m512 input =
+          simde_mm512_set1_ps(layer->inputs[j / BRAIN_ELEMENTS_PER_VECTOR]
+                                           [j % BRAIN_ELEMENTS_PER_VECTOR]);
 
-        // For each input group
-        for (size_t l = 0; l < BRAIN_WIDTH / 8; l++) {
-          innersum = _mm256_add_ps(
-              _mm256_mul_ps(layer->inputs[l], ng->weights[(l * 8) + k]),
-              innersum);
-        }
-
-        // Let compiler optimize this instead of trying to make horizontal sum work
-        sum[k] = innersum[0] + innersum[1] + innersum[2] + innersum[3] +
-                 innersum[4] + innersum[5] + innersum[6] + innersum[7];
+      // For each group of weights
+      for (size_t k = 0; k < BRAIN_WIDTH; k++) {
+        sum[k] = simde_mm512_add_ps(
+            simde_mm512_mul_ps(input, layer->weights[(j * BRAIN_WIDTH) + k]),
+            sum[k]);
       }
+    }
+    for (size_t k = 0; k < BRAIN_WIDTH; k++) {
+      // Biases
+      sum[k] = simde_mm512_add_ps(sum[k], layer->biases[k]);
+      // Activation
 
-      // Apply biases
-      __m256 finalsum =
-          _mm256_add_ps(sum, ng->biases);
+      sum[k] = activation_function(sum[k]);
+    }
 
-      // Send sum to activation function
-      finalsum = activation_function(finalsum);
-
-      // If we are on the last layer write to output, otherwise write to the
-      // input of the next layer
-      if (i == BRAIN_DEPTH - 1) {
-        for (size_t k = 0; k < 8; k++) {
-          (*brain_outputs)[j * 8 + k] = finalsum[k];
-        }
-      } else {
-        b->layers[i + 1].inputs[j] = finalsum;
+    // If we are on the last layer write to output, otherwise write to the
+    // input of the next layer
+    if (i == BRAIN_DEPTH - 1) {
+      for (size_t j = 0; j < BRAIN_OUTPUT_SIZE; j++) {
+        (*brain_outputs)[j] =
+            sum[j / BRAIN_ELEMENTS_PER_VECTOR][j % BRAIN_ELEMENTS_PER_VECTOR];
+      }
+    } else {
+      for (size_t j = 0; j < BRAIN_WIDTH; j++) {
+        b->layers[i + 1].inputs[j] = sum[j];
       }
     }
   }
 }
 
-void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
-                     float mutaterate2) {
-  size_t biases = BRAIN_WIDTH * 8 * BRAIN_DEPTH;
-  size_t weights = BRAIN_DEPTH * BRAIN_WIDTH * 8 * BRAIN_WIDTH;
+/// <summary>
+///   Mutate the brain
+/// </summary>
+/// <param name="brain">pointer to AVXBrain</param>
+/// <param name="mutaterate">chance for a given element to mutate</param>
+/// <param name="mutaterate2">magnitute of each mutation</param>
+void avxbrain_mutate(struct AVXBrain *b, float mutaterate, float mutaterate2) {
+  // For each layer
+  for (size_t i = 0; i < BRAIN_DEPTH; i++) {
 
-  // printf("Trying mutate\n");
-  if (randf(0.0f, 1.0f) > mutaterate) {
-    size_t numbtomut = randf(0.0f, 0.2f) * biases;
-    size_t numwtomut = randf(0.0f, 0.2f) * weights;
-    // printf("m1: %f, m2: %f\n", mutaterate, mutaterate2);
-    // printf("Will mutate\n");
+    // For biases
+    for (size_t j = 0; j < BRAIN_WIDTH; j++) {
+      for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
+        if (randf(0.0f, 1.0f) < mutaterate) {
+          float in = b->layers[i].biases[j][k];
+          in += (randf(0.0f, 1.0f) - 0.5f) * mutaterate2 * 2;
+          if (in > BRAIN_BIAS_RANGE) {
+            in = BRAIN_BIAS_RANGE;
+          } else if (in < -BRAIN_BIAS_RANGE) {
+            in = -BRAIN_BIAS_RANGE;
+          }
 
-    for (int i = 0; i < numbtomut; i++) {
-      size_t layer = randi(0, BRAIN_DEPTH);
-      size_t ng = randi(0, BRAIN_WIDTH / 8);
-      size_t elem = randi(0, 8);
-
-      float inval = brain->layers[layer].groups[ng].biases[elem];
-
-      inval += randf(-mutaterate2, mutaterate2);
-
-      if (inval > BIAS_RANGE) {
-        inval = BIAS_RANGE;
-      } else if (inval < -BIAS_RANGE) {
-        inval = -BIAS_RANGE;
+          b->layers[i].biases[j][k] = in;
+        }
       }
-
-      brain->layers[layer].groups[ng].biases[elem] = inval;
     }
-    // mutate w
-    for (int i = 0; i < numwtomut; i++) {
-      size_t layer = randi(0, BRAIN_DEPTH);
-      size_t ng = randi(0, BRAIN_WIDTH / 8);
-      size_t wg = randi(0, BRAIN_WIDTH);
-      size_t elem = randi(0, 8);
 
-      float inval = brain->layers[layer].groups[ng].weights[wg][elem];
+    // For weights
+    for (size_t j = 0; j < BRAIN_WEIGHTS; j++) {
+      for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
+        if (randf(0.0f, 1.0f) < mutaterate) {
+          float in = b->layers[i].weights[j][k];
+          in += (randf(0.0f, 1.0f) - 0.5f) * mutaterate2 * 2;
+          if (in > BRAIN_WEIGHT_RANGE) {
+            in = BRAIN_WEIGHT_RANGE;
+          } else if (in < -BRAIN_WEIGHT_RANGE) {
+            in = -BRAIN_WEIGHT_RANGE;
+          }
 
-      inval += randf(-mutaterate2, mutaterate2);
-
-      if (inval > WEIGHT_RANGE) {
-        inval = WEIGHT_RANGE;
-      } else if (inval < -WEIGHT_RANGE) {
-        inval = -WEIGHT_RANGE;
+          b->layers[i].weights[j][k] = in;
+        }
       }
-
-      brain->layers[layer].groups[ng].weights[wg][elem] = inval;
     }
   }
 }

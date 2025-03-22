@@ -45,16 +45,16 @@ void agent_init(struct Agent *agent) {
 
   agent->spiked = 0;
 
-  for (size_t i = 0; i < INPUTSIZE; i++) {
+  for (size_t i = 0; i < BRAIN_INPUT_SIZE; i++) {
     agent->in[i] = 0.0f;
   }
-  for (size_t i = 0; i < OUTPUTSIZE; i++) {
+  for (size_t i = 0; i < BRAIN_OUTPUT_SIZE; i++) {
     agent->out[i] = 0.0f;
   }
 
   agent->brain = alloc_aligned(32, sizeof(struct AVXBrain));
 
-  avxbrain_init(agent->brain);
+  avxbrain_init_random(agent->brain);
 }
 
 void agent_print(struct Agent *agent) {

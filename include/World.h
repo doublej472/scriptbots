@@ -8,7 +8,7 @@
 #include "settings.h"
 #include "vec.h"
 
-#define AGENT_BUCKETS (1024*2)
+#define AGENT_BUCKETS (1024 * 2)
 
 struct AgentQueueItem {
   struct World *world;
@@ -46,11 +46,10 @@ struct World {
   // they get pushed to the agents array
   struct AVec agents_staging;
 
-  // value represents one past the index of the last element in the bucket lookup
+  // value represents one past the index of the last element in the bucket
+  // lookup
   size_t agent_grid[AGENT_BUCKETS];
 };
-
-static void world_update_food(struct World *world);
 
 void world_init(struct World *world, size_t numbots);
 void world_flush_staging(struct World *world);

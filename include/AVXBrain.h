@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <simde/x86/avx.h>
+#include <simde/x86/avx512.h>
 
 #include "helpers.h"
 #include "settings.h"
@@ -15,24 +16,24 @@ static const float WEIGHT_RANGE = 0.8f;
 // How much the bias can vary from init
 static const float BIAS_RANGE = 1.0f;
 
-struct AVXBrainGroup {
-  alignas(32) __m256 biases;
-  // This needs to point at every possible neuron on the previous layer
-  alignas(32) __m256 weights[BRAIN_WIDTH];
+// Internal vector type for brain
+typedef simde__m512 AVXBrainVector;
+
+struct SIMDE_AVX512_ALIGN AVXBrainLayer {
+  AVXBrainVector SIMDE_AVX512_ALIGN inputs[BRAIN_WIDTH];
+  AVXBrainVector SIMDE_AVX512_ALIGN biases[BRAIN_WIDTH];
+  // Each BRAIN_WIDTH stride maps to a single input / bias
+  AVXBrainVector SIMDE_AVX512_ALIGN weights[BRAIN_WEIGHTS];
 };
 
-struct AVXBrainLayer {
-  alignas(32) __m256 inputs[BRAIN_WIDTH / 8];
-  alignas(32) struct AVXBrainGroup groups[BRAIN_WIDTH / 8];
+struct SIMDE_AVX512_ALIGN AVXBrain {
+  struct SIMDE_AVX512_ALIGN AVXBrainLayer layers[BRAIN_DEPTH];
 };
 
-struct AVXBrain {
-  alignas(32) struct AVXBrainLayer layers[BRAIN_DEPTH];
-};
-
-void avxbrain_init(struct AVXBrain *brain);
-void avxbrain_tick(struct AVXBrain *brain, float (*inputs)[INPUTSIZE],
-                   float (*outputs)[OUTPUTSIZE]);
+void avxbrain_init_zero(struct AVXBrain *brain);
+void avxbrain_init_random(struct AVXBrain *brain);
+void avxbrain_tick(struct AVXBrain *brain, float (*inputs)[BRAIN_INPUT_SIZE],
+                   float (*outputs)[BRAIN_OUTPUT_SIZE]);
 void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
                      float mutaterate2);
 
