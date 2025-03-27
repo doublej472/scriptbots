@@ -7,25 +7,8 @@
 // Global variables
 extern int32_t VERBOSE;
 extern int32_t HEADLESS;
-extern int32_t NUM_THREADS;
 extern int32_t MAX_EPOCHS;
 extern int32_t MAX_SECONDS;
-
-// How many hidden layers this brain has
-#define BRAIN_DEPTH 3
-
-// MUST BE MULTIPLE OF 8 real inputs and outputs
-// Essentially how many neurons are in a given layer
-#define BRAIN_WIDTH (8 * 3)
-
-// How many inputs / outputs are dedicated to planning
-// which means this number of outputs will be copied to inputs
-// on the next brain tick
-#define PLANSIZE (BRAIN_WIDTH - 19)
-
-// 19 and 18 here represent "real" inputs and outputs
-#define INPUTSIZE (19 + PLANSIZE)
-#define OUTPUTSIZE (18 + PLANSIZE)
 
 // WORLD / WINDOW SETTINGS -------------------------------------
 #define CZ 50

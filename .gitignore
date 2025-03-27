@@ -11,3 +11,4 @@ build-clang/
 b/
 CMakeCache.txt
 CMakeFiles/
+.vs/
