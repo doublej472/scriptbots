@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "Base.h"
+#include "helpers.h"
 #include "lock.h"
 
 void base_init(struct Base *base, struct World *world) { base->world = world; }

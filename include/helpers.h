@@ -3,8 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "mtwister.h"
-
 void init_thread_random();
 
 float approx_atan2(float y, float x);

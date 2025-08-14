@@ -49,8 +49,8 @@ struct Agent {
   float
       temperature_preference; // what temperature does this agent like? [0 to 1]
 
-  float in[BRAIN_INPUT_SIZE]; // input: 2 eyes, sensors for R,G,B,proximity
-                              // each, then Sound, Smell, Health
+  float in[BRAIN_INPUT_SIZE];   // input: 2 eyes, sensors for R,G,B,proximity
+                                // each, then Sound, Smell, Health
   float out[BRAIN_OUTPUT_SIZE]; // output: Left, Right, R, G, B, SPIKE
   struct AVXBrain *brain;
 };

@@ -7,7 +7,6 @@
 #include <simde/x86/avx.h>
 #include <simde/x86/avx512.h>
 
-#include "helpers.h"
 #include "settings.h"
 
 // How much the connection weight can vary

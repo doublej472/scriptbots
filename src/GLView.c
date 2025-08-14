@@ -6,7 +6,6 @@
 #include "Base.h"
 #include "GLView.h"
 #include "World.h"
-#include "queue.h"
 
 void renderString(float x, float y, void *font, const char *string, float r,
                   float g, float b) {
