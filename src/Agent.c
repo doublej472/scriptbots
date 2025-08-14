@@ -52,7 +52,7 @@ void agent_init(struct Agent *agent) {
     agent->out[i] = 0.0f;
   }
 
-  agent->brain = alloc_aligned(32, sizeof(struct AVXBrain));
+  agent->brain = alloc_aligned(64, sizeof(struct AVXBrain));
 
   avxbrain_init_random(agent->brain);
 }

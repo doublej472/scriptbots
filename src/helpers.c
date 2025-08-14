@@ -45,11 +45,11 @@ inline float approx_atan2(float y, float x) {
 }
 
 // uniform random in [a,b)
-inline float randf(float a, float b) { return (b - a) * genRand(&mtrand) + a; }
+inline float randf(float a, float b) { return (b - a) * genRand() + a; }
 
 // uniform random int32_t in [a,b)
 inline int32_t randi(int32_t a, int32_t b) {
-  return (genRandLong(&mtrand) % (b - a)) + a;
+  return (genRandLong() % (b - a)) + a;
 }
 
 // normalvariate random N(mu, sigma)
@@ -59,8 +59,8 @@ float randn(float mu, float sigma) {
   float polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
-      var1 = 2.0f * genRand(&mtrand) - 1.0f;
-      var2 = 2.0f * genRand(&mtrand) - 1.0f;
+      var1 = 2.0f * genRand() - 1.0f;
+      var2 = 2.0f * genRand() - 1.0f;
       rsquared = var1 * var1 + var2 * var2;
     } while (rsquared >= 1.0f || rsquared == 0.0f);
     polar = sqrtf(-2.0f * logf(rsquared) / rsquared);
