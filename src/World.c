@@ -559,7 +559,11 @@ void world_writeReport(struct World *world) {
     // Average Age:
     total_age += world->agents.agents[i]->age;
   }
-  avg_age = total_age / world->agents.size;
+  if (world->agents.size > 0) {
+    avg_age = total_age / world->agents.size;
+  } else {
+    avg_age = 0;
+  }
 
   // Compute Standard Devitation of every weight in every agents brain
   double total_std_dev = 0;

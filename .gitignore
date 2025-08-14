@@ -7,7 +7,7 @@ build/
 build-clang/
 *.csv
 *.dat
-.vscode/
+.cache/
 b/
 CMakeCache.txt
 CMakeFiles/

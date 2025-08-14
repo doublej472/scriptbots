@@ -82,29 +82,6 @@ inline float cap(float a) {
   return a;
 }
 
-// inline float fast_exp_iter(float x) {
-//   for (int i = 0; i < 8; i++) {
-//     x *= x;
-//   }
-//   return x;
-// }
-
-// // Fast exp(), not accurate
-// inline float fast_exp(float x) {
-//   x = fast_exp_iter(1.0f + x / 1024);
-
-//   return x;
-// }
-
-// inline float fast_exp(float a) {
-//   union {
-//     float f;
-//     int x;
-//   } u;
-//   u.x = (int)(12102203 * a + 1064866805);
-//   return u.f;
-// }
-
 // Get number of processors in the system
 inline long get_nprocs() {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
