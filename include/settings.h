@@ -89,7 +89,7 @@ extern int32_t MAX_SECONDS;
 #define METAMUTRATE1 0.01f
 // what is the change in MUTRATE1 and 2 on reproduction
 #define METAMUTRATE2 0.15f
-#define OLD_AGE_THRESHOLD = 50000
+#define OLD_AGE_THRESHOLD 50000
 // at what age do they start lossing health for being old?
 
 // REPRODUCTION ----------------------------------------------
