@@ -1,6 +1,5 @@
 #include "AVXBrain.h"
 #include "helpers.h"
-#include <math.h>
 #include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +15,7 @@
 // Range of 0.0f to 1.0f
 static inline simde__m512 activation_function(simde__m512 x) {
   // printf("input before: %f\n", x[0]);
-  x = simde_mm512_max_ps(x, simde_mm512_set1_ps(0.0f));
+  x = simde_mm512_max_ps(x, simde_mm512_setzero_ps());
   x = simde_mm512_min_ps(x, simde_mm512_set1_ps(1.0f));
   return x;
 }
@@ -26,17 +25,17 @@ void avxbrain_init_zero(struct AVXBrain *b) {
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
     // Set inputs
     for (size_t j = 0; j < BRAIN_WIDTH; j++) {
-      b->layers[i].inputs[j] = simde_mm512_set1_ps(0.0f);
+      b->layers[i].inputs[j] = simde_mm512_setzero_ps();
     }
 
     for (size_t j = 0; j < BRAIN_WIDTH; j++) {
       // Set biases
-      b->layers[i].biases[j] = simde_mm512_set1_ps(0.0f);
+      b->layers[i].biases[j] = simde_mm512_setzero_ps();
     }
 
     // set weights
     for (size_t j = 0; j < BRAIN_WEIGHTS; j++) {
-      b->layers[i].weights[j] = simde_mm512_set1_ps(0.0f);
+      b->layers[i].weights[j] = simde_mm512_setzero_ps();
     }
   }
 }
@@ -45,7 +44,7 @@ void avxbrain_init_random(struct AVXBrain *b) {
   // For each layer
   for (size_t i = 0; i < BRAIN_DEPTH; i++) {
     for (size_t j = 0; j < BRAIN_WIDTH; j++) {
-      b->layers[i].inputs[j] = simde_mm512_set1_ps(0.0f);
+      b->layers[i].inputs[j] = simde_mm512_setzero_ps();
     }
 
     for (size_t j = 0; j < BRAIN_WIDTH; j++) {
@@ -80,7 +79,7 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[BRAIN_INPUT_SIZE],
     // Store the layer inputs in inputs variable
     struct AVXBrainLayer *layer = &b->layers[i];
 
-    simde__m512 sum[BRAIN_WIDTH] = {simde_mm512_set1_ps(0.0f)};
+    simde__m512 sum[BRAIN_WIDTH] = {simde_mm512_setzero_ps()};
 
     // For each input
     for (size_t j = 0; j < BRAIN_WIDTH_ELEMENTS; j++) {

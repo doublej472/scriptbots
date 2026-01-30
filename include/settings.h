@@ -30,10 +30,10 @@ extern int32_t MAX_SECONDS;
 // How many inputs / outputs are dedicated to planning
 // which means this number of outputs will be copied to inputs
 // on the next brain tick
-#define BRAIN_PLANSIZE (BRAIN_WIDTH_ELEMENTS - 19)
+#define BRAIN_PLANSIZE (BRAIN_WIDTH_ELEMENTS - 18)
 
 // 19 and 18 here represent "real" inputs and outputs
-#define BRAIN_INPUT_SIZE (19 + BRAIN_PLANSIZE)
+#define BRAIN_INPUT_SIZE (18 + BRAIN_PLANSIZE)
 #define BRAIN_OUTPUT_SIZE (18 + BRAIN_PLANSIZE)
 
 // How much the connection weight can vary
@@ -48,8 +48,8 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 300)
-#define HEIGHT (CZ * 200)
+#define WIDTH (CZ * 400)
+#define HEIGHT (CZ * 300)
 // computer window width and height
 #define WWIDTH 1280
 #define WHEIGHT 720
@@ -111,8 +111,6 @@ extern int32_t MAX_SECONDS;
 // loss of health for movement speed
 #define LOSS_BOOST 0.00030f
 // loss of health for boosting
-#define LOSS_TEMP 0.00005f
-// loss of health from temperature distribution across world
 #define LOSS_AGE 0.00015f
 // loss of health from old age
 #define GAIN_GROUPING 0.00003f
@@ -156,6 +154,6 @@ extern int32_t MAX_SECONDS;
 // GEOMETRIC CALCULATION CONSTATNS (DO NOT CHANGE)
 #define PI8 ((float)(M_PI / 8.0f / 2.0f)) // pi/8/2
 #define PI38 (3.0f * PI8)                 // 3pi/8/2
-#define reportInterval (10000 / REPORTS_PER_EPOCH)
+#define reportInterval (10000.0f / REPORTS_PER_EPOCH)
 
 #endif

@@ -344,7 +344,7 @@ void world_update(struct World *world) {
   }
 
   // Update GUI every REPORTS_PER_EPOCH amount:
-  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % reportInterval == 0)) {
+  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % (int32_t)reportInterval == 0)) {
     world_update_gui(world);
   }
 
@@ -1031,12 +1031,6 @@ void agent_set_inputs(struct World *world, struct Agent *a,
   if (a->health > 2) // limit the amount of health
     a->health = 2;
 
-  // temperature varies from 0 to 1 across screen.
-  // it is 0 at equator (in middle), and 1 on edges. Agents can sense
-  // discomfort
-  float dd = 2.0f * fabsf(a->pos.x / WIDTH - 0.5f);
-  float discomfort = fabsf(dd - a->temperature_preference);
-
   a->in[0] = cap(p1);
   a->in[1] = cap(r1);
   a->in[2] = cap(g1);
@@ -1052,14 +1046,13 @@ void agent_set_inputs(struct World *world, struct Agent *a,
   a->in[13] = fabsf(sinf(world->modcounter / a->clockf2));
   a->in[14] = cap(hearaccum); // HEARING (other agents shouting)
   a->in[15] = cap(blood);
-  a->in[16] = cap(discomfort);
-  a->in[17] = cap(a->touch);
+  a->in[16] = cap(a->touch);
   if (randf(0, 1) > 0.95f) {
-    a->in[18] = randf(0, 1); // random input for bot
+    a->in[17] = randf(0, 1); // random input for bot
   }
 
-  for (int i = 19; i < BRAIN_INPUT_SIZE; i++) {
-    a->in[i] = a->out[i - 1];
+  for (int i = 18; i < BRAIN_INPUT_SIZE && i <BRAIN_OUTPUT_SIZE; i++) {
+    a->in[i] = a->out[i];
   }
 }
 
