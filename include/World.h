@@ -7,24 +7,14 @@
 #include "queue.h"
 #include "settings.h"
 #include "vec.h"
+#include "Food.h"
 
 #define AGENT_BUCKETS (1024 * 2)
-#define FOOD_SQUARES_WIDTH (WIDTH / CZ)
-#define FOOD_SQUARES_HEIGHT (HEIGHT / CZ)
-#define TOTAL_FOOD_SQUARES (FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT)
 
 struct AgentQueueItem {
   struct World *world;
   size_t start;
   size_t end;
-};
-
-struct FoodGrid {
-  int32_t FW;
-  int32_t FH;
-  float food[FOOD_SQUARES_WIDTH][FOOD_SQUARES_HEIGHT];
-  uint32_t food_sorted[TOTAL_FOOD_SQUARES];
-  uint32_t food_pivot;
 };
 
 struct World {

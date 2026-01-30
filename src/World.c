@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "vec.h"
 #include "vec2f.h"
+#include "Food.h"
 
 #define BATCH_SIZE 64
 
@@ -24,43 +25,11 @@ static void timespec_diff(struct timespec *result, struct timespec *start, struc
   }
 }
 
-// Grow food around square
-// Returns amount that was grown
-static float foodGrid_growFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float amt) {
-  // check if food square is inside the world
-  if (x >= 0 && x < foodGrid->FW && y >= 0 && y < foodGrid->FH && foodGrid->food[x][y] < FOODMAX) {
-    foodGrid->food[x][y] += amt;
-    if (foodGrid->food[x][y] > FOODMAX) {
-      float sub = foodGrid->food[x][y] - FOODMAX;
-      foodGrid->food[x][y] -= sub;
-      amt -= sub;
-    }
-    return amt;
-  }
-  return 0.0f;
-}
-
-static void sortFoodGrid(struct FoodGrid *foodGrid) {
-  size_t head = 0;
-  size_t tail = TOTAL_FOOD_SQUARES - 1;
-
-  for (uint32_t i = 0; i < TOTAL_FOOD_SQUARES; i++) {
-    uint32_t x = i % (WIDTH / CZ);
-    uint32_t y = i / (WIDTH / CZ);
-
-    if (foodGrid->food[x][y] > 0.0001f) {
-      foodGrid->food_sorted[head++] = i;
-    } else {
-      foodGrid->food_sorted[tail--] = i;
-    }
-  }
-
-  foodGrid->food_pivot = head;
-}
-
 static void world_update_food(struct World *world) {
-  sortFoodGrid(&world->foodGrid);
-  // printf("food_pivot: %d\n", world->foodGrid.food_pivot);
+  // if (world->modcounter % 20 == 0) {
+  //   printf("food_pivot: %d\n", world->foodGrid.food_pivot);
+  // }
+  
   float food_to_add = FOODMAX * 0.5f;
 
   if (world->foodGrid.food_pivot == 0) {
@@ -82,7 +51,7 @@ static void world_update_food(struct World *world) {
     // Grow current square
     food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, fminf(FOODGROWTH,food_to_add));
     // Grow surrounding squares only if well grown
-    if (world->foodGrid.food[fx][fy] > FOODMAX * 0.7f) {
+    if (world->foodGrid.food[fx][fy].amt > FOODMAX * 0.7f) {
       // Spread to random square nearby
       size_t fxx = randi(fx - 1, fx + 2);
       size_t fyy = randi(fy - 1, fy + 2);
@@ -109,11 +78,16 @@ static void world_update_gui(struct World *world) {
 
   int32_t carnivores = world_numCarnivores(world);
   int32_t herbivores = world_numHerbivores(world);
+  float total_food = 0.0f;
+  for (size_t i = 0; i < world->foodGrid.food_pivot; i++) {
+    uint32_t x = world->foodGrid.food_sorted[i] % FOOD_SQUARES_WIDTH;
+    uint32_t y = world->foodGrid.food_sorted[i] / FOOD_SQUARES_WIDTH;
+    total_food += world->foodGrid.food[x][y].amt;
+  }
 
-  printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i (C: %i H: "
-         "%i) - FPS: "
-         "%.1f - Time: %.2f sec     \r",
+  printf("\rEpoch: %d | Next: %d%% | Agents: %i (C: %i H: %i) | Food: %.2f | FPS: %.1f | Time: %.2f sec       ",
          world->current_epoch, world->modcounter / 100, (int32_t)world->agents.size, carnivores, herbivores,
+          total_food,
          (float)reportInterval / deltat, totaldeltat);
   fflush(stdout);
 
@@ -218,8 +192,6 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   world->modcounter = 0;
   world->current_epoch = 0;
   world->numAgentsAdded = 0;
-  world->foodGrid.FW = WIDTH / CZ;
-  world->foodGrid.FH = HEIGHT / CZ;
 
   clock_gettime(CLOCK_MONOTONIC, &world->startTime);
   // Track total running time:
@@ -237,11 +209,7 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   for (int32_t i = 0; i < (int32_t)numbots * .2; ++i)
     world_addCarnivore(world);
 
-  for (size_t x = 0; x < world->foodGrid.FW; x++) {
-    for (size_t y = 0; y < world->foodGrid.FH; y++) {
-      world->foodGrid.food[x][y] = 0;
-    }
-  }
+  foodGrid_init(&world->foodGrid);
 
   if (initFood) {
     printf("Initializing food..");
@@ -255,11 +223,6 @@ void world_init(struct World *world, int initFood, size_t numbots) {
     }
     printf("\n");
   }
-
-  for (size_t i = 0; i < TOTAL_FOOD_SQUARES; i++) {
-    world->foodGrid.food_sorted[i] = 0;
-  }
-  world->foodGrid.food_pivot = 0;
 
   // Decide if world if closed based on settings.h
   world->closed = CLOSED;
@@ -803,19 +766,16 @@ void agent_output_processor(void *arg) {
 
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    float f = 0.0f;
-    if (cx >= 0 && cx < world->foodGrid.FW && cy >= 0 && cy < world->foodGrid.FH) {
-      f = world->foodGrid.food[cx][cy];
-    }
 
-    if (f > 0 && a->health < 2 && a->herbivore > 0.1f) {
+
+    if (foodGrid_getFoodAmount(&world->foodGrid, cx, cy) > 0.0f && a->health < 2 && a->herbivore > 0.1f) {
       // agent eats the food
-      float itk = fminf(f, FOODINTAKE);
+      float to_take = FOODINTAKE;
       float speedmul = (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * 0.5f + 0.5f;
-      itk = itk * speedmul * a->herbivore * a->herbivore;
+      to_take = to_take * speedmul * a->herbivore * a->herbivore;
+      float itk = foodGrid_takeFood(&world->foodGrid, cx, cy, to_take);
       a->health += itk;
       a->repcounter -= 3 * itk;
-      world->foodGrid.food[cx][cy] -= fminf(f, itk);
     }
 
     a->rep = 0;
@@ -854,8 +814,8 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   int32_t cx = (int32_t)a->pos.x / CZ;
   int32_t cy = (int32_t)a->pos.y / CZ;
   a->in[4] = 0.0f;
-  if (cx >= 0 && cx < world->foodGrid.FW && cy >= 0 && cy < world->foodGrid.FH) {
-    a->in[4] = world->foodGrid.food[cx][cy] / FOODMAX;
+  if (cx >= 0 && cx < FOOD_SQUARES_WIDTH && cy >= 0 && cy < FOOD_SQUARES_HEIGHT) {
+    a->in[4] = world->foodGrid.food[cx][cy].amt / FOODMAX;
   }
 
   // SOUND SMELL EYES

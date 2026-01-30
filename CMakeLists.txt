@@ -34,6 +34,7 @@ add_executable(scriptbots
 	src/World.c
 	src/lock.c
 	src/mtwister.c
+	src/Food.c
 	include/settings.h
 	include/vec.h
 	include/mtwister.h
@@ -46,6 +47,7 @@ add_executable(scriptbots
 	include/queue.h
 	include/GLView.h
 	include/Base.h
+	include/Food.h
 )
 
 if (TRAP_NAN)

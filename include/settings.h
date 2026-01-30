@@ -43,7 +43,7 @@ extern int32_t MAX_SECONDS;
 #define BRAIN_BIAS_RANGE 1.0f
 
 // WORLD / WINDOW SETTINGS -------------------------------------
-#define CZ 50
+#define CZ 64
 // cell size in pixels, for food squares. Should divide well into Width Height
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
