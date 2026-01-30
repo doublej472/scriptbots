@@ -34,8 +34,8 @@ void init_glview(int32_t argc, char **argv) {
   GLVIEW.modcounter = 0;
   GLVIEW.lastUpdate = 0;
   GLVIEW.frames = 0;
-  GLVIEW.xtranslate = -WIDTH / 2;
-  GLVIEW.ytranslate = -HEIGHT / 2;
+  GLVIEW.xtranslate = -(WIDTH / 2.0f);
+  GLVIEW.ytranslate = -(HEIGHT / 2.0f);
   GLVIEW.scalemult = 0.4; // 1.0;
   GLVIEW.downb[0] = 0;
   GLVIEW.downb[1] = 0;
@@ -528,8 +528,8 @@ void glview_draw(struct World *world, int32_t drawfood) {
 
   if (drawfood) {
     glBegin(GL_QUADS);
-    for (int32_t i = 0; i < world->FW; i++) {
-      for (int32_t j = 0; j < world->FH; j++) {
+    for (int32_t i = 0; i < world->foodGrid.FW; i++) {
+      for (int32_t j = 0; j < world->foodGrid.FH; j++) {
         // Determine if food is off screen, give some wiggle room
         float asx = ((i * CZ) + GLVIEW.xtranslate) * (GLVIEW.scalemult);
         float asy = ((j * CZ) + GLVIEW.ytranslate) * (GLVIEW.scalemult);
@@ -540,7 +540,7 @@ void glview_draw(struct World *world, int32_t drawfood) {
           continue;
         }
 
-        float f = world->food[i][j] / FOODMAX;
+        float f = world->foodGrid.food[i][j] / FOODMAX;
 
         if (GLVIEW.drawfood && f > 0.00001f) {
           glColor3f(0.02f, 0.02f + f * 0.8f, 0.02f);

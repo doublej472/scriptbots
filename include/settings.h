@@ -48,8 +48,8 @@ extern int32_t MAX_SECONDS;
 
 // const int32_t WIDTH = 2000;  //width and height of simulation world
 // const int32_t HEIGHT = 1500;
-#define WIDTH (CZ * 400)
-#define HEIGHT (CZ * 300)
+#define WIDTH (CZ * 700)
+#define HEIGHT (CZ * 700)
 // computer window width and height
 #define WWIDTH 1280
 #define WHEIGHT 720
@@ -62,7 +62,7 @@ extern int32_t MAX_SECONDS;
 // number of times to record data and output status info, per epoch
 
 // BOT PROPERTIES ---------------------------------------------
-#define NUMBOTS 2000
+#define NUMBOTS 20000
 // initially
 #define NUMBOTS_MIN 20
 // for open world, the threshold to start adding bots
@@ -78,7 +78,7 @@ extern int32_t MAX_SECONDS;
 // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f
 // how much boost do agents get? when boost neuron is on
-#define DIST 300.0f
+#define DIST 350.0f
 // how far can the eyes see, ears hear, and nose smell on each bot?
 #define DIST_GROUPING 40.0f
 // how close must another agent be to get grouping health gain
@@ -121,7 +121,7 @@ extern int32_t MAX_SECONDS;
 // How many food squares to check every FOODADDFREQ?
 #define FOODSQUARES 120
 // what kind of food appearance is to be used
-#define FOODGROWTH 0.003f
+#define FOODGROWTH 0.10f
 // how quickly does food grow on a square. only
 // used with FOOD_MODEL_GROW
 #define FOODINTAKE 0.00225f

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <sysinfoapi.h>
@@ -49,7 +50,12 @@ inline float approx_atan2(float y, float x) {
 inline float randf(float a, float b) { return (b - a) * genRand() + a; }
 
 // uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) { return (genRandLong() % (b - a)) + a; }
+inline int32_t randi(int32_t a, int32_t b) {
+  assert(b >= a);
+  if (b <= a) {
+    return a;
+  }
+  return (genRandLong() % (b - a)) + a; }
 
 // normalvariate random N(mu, sigma)
 float randn(float mu, float sigma) {

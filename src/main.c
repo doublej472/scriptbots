@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
   }
 
   struct World *world = malloc(sizeof(struct World));
-  world_init(world, loadWorldFromFile == 1 ? 0 : NUMBOTS);
+  world_init(world, loadWorldFromFile == 1 ? 0 : 1, loadWorldFromFile == 1 ? 0 : NUMBOTS);
   base_init(&base, world);
 
   signal(SIGINT, signal_handler);
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
 
     // check if epoch is greater than passed parameter
     if (base.world->current_epoch > MAX_EPOCHS)
-      printf("\nWarning: the loaded file has an epoch later than the specefied "
+      printf("\nWarning: the loaded file has an epoch later than the specified "
              "end time parameter\n");
   }
 

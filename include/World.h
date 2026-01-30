@@ -9,11 +9,22 @@
 #include "vec.h"
 
 #define AGENT_BUCKETS (1024 * 2)
+#define FOOD_SQUARES_WIDTH (WIDTH / CZ)
+#define FOOD_SQUARES_HEIGHT (HEIGHT / CZ)
+#define TOTAL_FOOD_SQUARES (FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT)
 
 struct AgentQueueItem {
   struct World *world;
   size_t start;
   size_t end;
+};
+
+struct FoodGrid {
+  int32_t FW;
+  int32_t FH;
+  float food[FOOD_SQUARES_WIDTH][FOOD_SQUARES_HEIGHT];
+  uint32_t food_sorted[TOTAL_FOOD_SQUARES];
+  uint32_t food_pivot;
 };
 
 struct World {
@@ -25,11 +36,8 @@ struct World {
                           // per reporting iteration
 
   // food
-  int32_t FW;
-  int32_t FH;
-  int32_t fx;
-  int32_t fy;
-  float food[WIDTH / CZ][HEIGHT / CZ];
+  struct FoodGrid foodGrid;
+
   // if environment is closed, then no random bots are added per time interval
   int32_t closed;
 
@@ -50,7 +58,7 @@ struct World {
   size_t agent_grid[AGENT_BUCKETS];
 };
 
-void world_init(struct World *world, size_t numbots);
+void world_init(struct World *world, int initFood, size_t numbots);
 void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);
