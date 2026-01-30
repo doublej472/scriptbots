@@ -38,11 +38,8 @@ void avec_push_back(struct AVec *vec, struct Agent *a) {
 void avec_shrink(struct AVec *vec, size_t size) {
   int newsize = size > vec->size ? size : vec->size;
 
-  vec->agents =
-      (struct Agent **)realloc(vec->agents, sizeof(struct Agent *) * newsize);
+  vec->agents = (struct Agent **)realloc(vec->agents, sizeof(struct Agent *) * newsize);
   vec->allocated = newsize;
 }
 
-inline struct Agent *avec_get(struct AVec *vec, size_t idx) {
-  return vec->agents[idx];
-}
+inline struct Agent *avec_get(struct AVec *vec, size_t idx) { return vec->agents[idx]; }

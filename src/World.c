@@ -13,8 +13,7 @@
 
 #define BATCH_SIZE 64
 
-static void timespec_diff(struct timespec *result, struct timespec *start,
-                          struct timespec *stop) {
+static void timespec_diff(struct timespec *result, struct timespec *start, struct timespec *stop) {
   if ((stop->tv_nsec - start->tv_nsec) < 0) {
     result->tv_sec = stop->tv_sec - start->tv_sec - 1;
     result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
@@ -27,8 +26,7 @@ static void timespec_diff(struct timespec *result, struct timespec *start,
 // Grow food around square
 static void world_growFood(struct World *world, int32_t x, int32_t y) {
   // check if food square is inside the world
-  if (x >= 0 && x < world->FW && y >= 0 && y < world->FH &&
-      world->food[x][y] < FOODMAX) {
+  if (x >= 0 && x < world->FW && y >= 0 && y < world->FH && world->food[x][y] < FOODMAX) {
     world->food[x][y] += FOODGROWTH;
   }
 }
@@ -77,10 +75,8 @@ static void world_update_gui(struct World *world) {
   timespec_diff(&ts_delta, &world->startTime, &endTime);
   timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
 
-  float deltat =
-      (float)ts_delta.tv_sec + ((float)ts_delta.tv_nsec / 1000000000.0f);
-  float totaldeltat = (float)ts_totaldelta.tv_sec +
-                      ((float)ts_totaldelta.tv_nsec / 1000000000.0f);
+  float deltat = (float)ts_delta.tv_sec + ((float)ts_delta.tv_nsec / 1000000000.0f);
+  float totaldeltat = (float)ts_totaldelta.tv_sec + ((float)ts_totaldelta.tv_nsec / 1000000000.0f);
 
   int32_t carnivores = world_numCarnivores(world);
   int32_t herbivores = world_numHerbivores(world);
@@ -88,8 +84,7 @@ static void world_update_gui(struct World *world) {
   printf("Simulation Running... Epoch: %d - Next: %d%% - Agents: %i (C: %i H: "
          "%i) - FPS: "
          "%.1f - Time: %.2f sec     \r",
-         world->current_epoch, world->modcounter / 100,
-         (int32_t)world->agents.size, carnivores, herbivores,
+         world->current_epoch, world->modcounter / 100, (int32_t)world->agents.size, carnivores, herbivores,
          (float)reportInterval / deltat, totaldeltat);
   fflush(stdout);
 
@@ -97,8 +92,7 @@ static void world_update_gui(struct World *world) {
 
   // Check if simulation needs to end
 
-  if (world->current_epoch >= MAX_EPOCHS ||
-      (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
+  if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
     world->stopSim = 1;
   }
 }
@@ -132,8 +126,7 @@ static struct BucketList get_buckets_from_pos(float x, float y) {
   // Check a 3x3 grid around our position
   for (int64_t xoff = -1; xoff <= 1; xoff++) {
     for (int64_t yoff = -1; yoff <= 1; yoff++) {
-      blist.buckets[bucket_idx] =
-          get_bucket_from_pos(this_grid_x + xoff, this_grid_y + yoff);
+      blist.buckets[bucket_idx] = get_bucket_from_pos(this_grid_x + xoff, this_grid_y + yoff);
       bucket_idx++;
     }
   }
@@ -146,8 +139,7 @@ struct AgentRange {
   size_t end;
 };
 
-static struct AgentRange get_agent_range(struct World *world,
-                                         size_t bucket_idx) {
+static struct AgentRange get_agent_range(struct World *world, size_t bucket_idx) {
   struct AgentRange ret;
 
   if (bucket_idx == 0) {
@@ -263,8 +255,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     struct AgentRange agent_range = get_agent_range(world, bucket);
 
     // For each agent
-    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end;
-         agent_idx++) {
+    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
       struct Agent *a2 = world->agents.agents[agent_idx];
 
       // Ignore ourselves
@@ -422,8 +413,7 @@ void world_update(struct World *world) {
 }
 
 void world_setInputsRunBrain(struct World *world) {
-  struct AgentQueueItem
-      agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
   for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
     size_t start = (i * BATCH_SIZE);
     size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
@@ -445,8 +435,7 @@ void world_setInputsRunBrain(struct World *world) {
 }
 
 void world_processOutputs(struct World *world) {
-  struct AgentQueueItem
-      agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
+  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
   for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
     size_t start = (i * BATCH_SIZE);
     size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
@@ -539,8 +528,7 @@ void world_writeReport(struct World *world) {
   int32_t topcarn = 0;
   int32_t total_age = 0;
   int32_t avg_age;
-  float epoch_decimal =
-      (float)world->modcounter / 10000.0f + (float)world->current_epoch;
+  float epoch_decimal = (float)world->modcounter / 10000.0f + (float)world->current_epoch;
 
   // Count number of herb, carn and top of each
   for (size_t i = 0; i < world->agents.size; i++) {
@@ -549,11 +537,9 @@ void world_writeReport(struct World *world) {
     else
       numcarn++;
 
-    if (world->agents.agents[i]->herbivore > 0.5f &&
-        world->agents.agents[i]->gencount > topherb)
+    if (world->agents.agents[i]->herbivore > 0.5f && world->agents.agents[i]->gencount > topherb)
       topherb = world->agents.agents[i]->gencount;
-    if (world->agents.agents[i]->herbivore < 0.5f &&
-        world->agents.agents[i]->gencount > topcarn)
+    if (world->agents.agents[i]->herbivore < 0.5f && world->agents.agents[i]->gencount > topcarn)
       topcarn = world->agents.agents[i]->gencount;
 
     // Average Age:
@@ -569,14 +555,12 @@ void world_writeReport(struct World *world) {
   double total_std_dev = 0;
   double total_mean_std_dev;
 
-  total_mean_std_dev =
-      total_std_dev - 200.0f; // reduce by 200 for graph readability
+  total_mean_std_dev = total_std_dev - 200.0f; // reduce by 200 for graph readability
 
   FILE *fp = fopen("report.csv", "a");
 
-  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn,
-          topherb, topcarn, (int32_t)total_mean_std_dev, avg_age,
-          world->numAgentsAdded);
+  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn, topherb, topcarn,
+          (int32_t)total_mean_std_dev, avg_age, world->numAgentsAdded);
 
   fclose(fp);
 
@@ -593,16 +577,14 @@ void world_reset(struct World *world) {
   world_flush_staging(world);
 }
 
-void world_processMouse(struct World *world, int32_t button, int32_t state,
-                        int32_t x, int32_t y) {
+void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {
   if (state == 0) {
     float mind = 1e10;
     size_t mini = -1;
     float d;
 
     for (size_t i = 0; i < world->agents.size; i++) {
-      d = powf((float)x - world->agents.agents[i]->pos.x, 2.0f) +
-          powf((float)y - world->agents.agents[i]->pos.y, 2.0f);
+      d = powf((float)x - world->agents.agents[i]->pos.x, 2.0f) + powf((float)y - world->agents.agents[i]->pos.y, 2.0f);
       if (d < mind) {
         mind = d;
         mini = i;
@@ -613,8 +595,7 @@ void world_processMouse(struct World *world, int32_t button, int32_t state,
       if (i != mini) {
         world->agents.agents[i]->selectflag = 0;
       } else {
-        world->agents.agents[i]->selectflag =
-            world->agents.agents[mini]->selectflag ? 0 : 1;
+        world->agents.agents[i]->selectflag = world->agents.agents[mini]->selectflag ? 0 : 1;
       }
     }
 
@@ -695,8 +676,7 @@ void world_sortGrid(struct World *world) {
   }
 
   while (current_grid_index < AGENT_BUCKETS) {
-    world->agent_grid[current_grid_index] =
-        world->agent_grid[current_grid_index - 1];
+    world->agent_grid[current_grid_index] = world->agent_grid[current_grid_index - 1];
     current_grid_index++;
     // printf("%li: %li\n", current_grid_index, i);
   }
@@ -789,9 +769,7 @@ void agent_output_processor(void *arg) {
     if (f > 0 && a->health < 2 && a->herbivore > 0.1f) {
       // agent eats the food
       float itk = fminf(f, FOODINTAKE);
-      float speedmul =
-          (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * 0.5f +
-          0.5f;
+      float speedmul = (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * 0.5f + 0.5f;
       itk = itk * speedmul * a->herbivore * a->herbivore;
       a->health += itk;
       a->repcounter -= 3 * itk;
@@ -801,8 +779,7 @@ void agent_output_processor(void *arg) {
     a->rep = 0;
 
     // Handle reproduction
-    if (world->modcounter % 15 == 0 && a->repcounter < 0 &&
-        a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
+    if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
       // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
       // Also inject a bit non-determinism
 
@@ -811,17 +788,15 @@ void agent_output_processor(void *arg) {
 
       a->rep = 1;
 
-      a->repcounter =
-          a->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
-          (1.0f - a->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
+      a->repcounter = a->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
+                      (1.0f - a->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
     }
 
     agent_process_health(a);
   }
 }
 
-void agent_set_inputs(struct World *world, struct Agent *a,
-                      struct BucketList buckets_to_check) {
+void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList buckets_to_check) {
   // General settings
   // says that agent was not hit this turn
   a->spiked = 0;
@@ -867,8 +842,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
     struct AgentRange agent_range = get_agent_range(world, bucket);
 
     // For each agent
-    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end;
-         agent_idx++) {
+    for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
       struct Agent *a2 = world->agents.agents[agent_idx];
 
       // Ignore ourselves
@@ -901,8 +875,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
         agent_initevent(a, 5.0f * ratio, 0.5f, 0.5f, 0.5f); // visualize it
 
         // sound (number of agents nearby)
-        soaccum +=
-            0.4f * ((DIST - d) / DIST) * (fmaxf(fabsf(a2->w1), fabsf(a2->w2)));
+        soaccum += 0.4f * ((DIST - d) / DIST) * (fmaxf(fabsf(a2->w1), fabsf(a2->w2)));
       }
 
       // current angle between bots
@@ -931,8 +904,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
 
       if (diff1 < PI38) {
         // we see this agent with left eye. Accumulate info
-        float mul1 =
-            EYE_SENSITIVITY * ((PI38 - diff1) / PI38) * ((DIST - d) / DIST);
+        float mul1 = EYE_SENSITIVITY * ((PI38 - diff1) / PI38) * ((DIST - d) / DIST);
         // float mul1= 100*((DIST-d)/DIST);
         p1 += mul1 * (d / DIST);
         r1 += mul1 * a2->red;
@@ -942,8 +914,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
 
       if (diff2 < PI38) {
         // we see this agent with left eye. Accumulate info
-        float mul2 =
-            EYE_SENSITIVITY * ((PI38 - diff2) / PI38) * ((DIST - d) / DIST);
+        float mul2 = EYE_SENSITIVITY * ((PI38 - diff2) / PI38) * ((DIST - d) / DIST);
         // float mul2= 100*((DIST-d)/DIST);
         p2 += mul2 * (d / DIST);
         r2 += mul2 * a2->red;
@@ -952,11 +923,9 @@ void agent_set_inputs(struct World *world, struct Agent *a,
       }
 
       if (diff4 < PI38) {
-        float mul4 =
-            BLOOD_SENSITIVITY * ((PI38 - diff4) / PI38) * ((DIST - d) / DIST);
+        float mul4 = BLOOD_SENSITIVITY * ((PI38 - diff4) / PI38) * ((DIST - d) / DIST);
         // if we can see an agent close with both eyes in front of us
-        blood +=
-            mul4 * (1.0f - a2->health / 2.0f); // remember: health is in [0 2]
+        blood += mul4 * (1.0f - a2->health / 2.0f); // remember: health is in [0 2]
         // agents with high life dont bleed. low life makes them bleed more
       }
 
@@ -1001,18 +970,16 @@ void agent_set_inputs(struct World *world, struct Agent *a,
             printf("  Distance to a2:\t%f\n", d);
           }
           //  bot i is also properly aligned!!! that's a hit
-          float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) *
-                      fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
+          float DMG =
+              SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) * fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
 
           // You have to hit hard for it to count
           if (DMG > 1.25f) {
             a2->health -= DMG;
-            a->spikeLength =
-                fmaxf(a->spikeLength - DMG, 0.0f); // retract spike back down
+            a->spikeLength = fmaxf(a->spikeLength - DMG, 0.0f); // retract spike back down
 
-            agent_initevent(
-                a, 10.0f * DMG, 1.0f, 1.0f,
-                0.0f); // yellow event means bot has spiked other bot. nice!
+            agent_initevent(a, 10.0f * DMG, 1.0f, 1.0f,
+                            0.0f); // yellow event means bot has spiked other bot. nice!
 
             // set a flag saying that this agent was hit this turn
             a2->spiked = 1;
@@ -1051,7 +1018,7 @@ void agent_set_inputs(struct World *world, struct Agent *a,
     a->in[17] = randf(0, 1); // random input for bot
   }
 
-  for (int i = 18; i < BRAIN_INPUT_SIZE && i <BRAIN_OUTPUT_SIZE; i++) {
+  for (int i = 18; i < BRAIN_INPUT_SIZE && i < BRAIN_OUTPUT_SIZE; i++) {
     a->in[i] = a->out[i];
   }
 }
@@ -1062,8 +1029,7 @@ void agent_input_processor(void *arg) {
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
     struct Agent *a = world->agents.agents[i];
-    struct BucketList buckets_to_check =
-        get_buckets_from_pos(a->pos.x, a->pos.y);
+    struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
 
     // printf("&world->agents.size: %zu\n", world->agents.size);
     // for (size_t j = 0; j < world->agents.size; j++) {

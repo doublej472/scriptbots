@@ -48,7 +48,6 @@ void lock_condition_wait(struct Lock *l, struct LockCondition *lc);
 
 // Wait on a condition with timeout, WILL aquire lock, but will need to manually
 // check if condition is satisfied
-void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
-                              int64_t milliseconds);
+void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc, int64_t milliseconds);
 
 #endif

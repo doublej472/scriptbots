@@ -34,9 +34,8 @@ void agent_init(struct Agent *agent) {
   agent->hybrid = 0;
   agent->herbivore = randf(0, 1);
   agent->rep = 0;
-  agent->repcounter =
-      agent->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
-      (1.0f - agent->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
+  agent->repcounter = agent->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
+                      (1.0f - agent->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
   agent->numchildren = 0;
 
   agent->MUTRATE1 = METAMUTRATE1;
@@ -56,12 +55,9 @@ void agent_init(struct Agent *agent) {
   avxbrain_init_random(agent->brain);
 }
 
-void agent_print(struct Agent *agent) {
-  printf("Agent age=%i\n", agent->age);
-}
+void agent_print(struct Agent *agent) { printf("Agent age=%i\n", agent->age); }
 
-void agent_initevent(struct Agent *agent, float size, float r, float g,
-                     float b) {
+void agent_initevent(struct Agent *agent, float size, float r, float g, float b) {
   // Don't overwrite more important events
   if (size > agent->indicator) {
     agent->indicator = size;
@@ -71,9 +67,7 @@ void agent_initevent(struct Agent *agent, float size, float r, float g,
   }
 }
 
-void agent_tick(struct Agent *agent) {
-  avxbrain_tick(agent->brain, &agent->in, &agent->out);
-}
+void agent_tick(struct Agent *agent) { avxbrain_tick(agent->brain, &agent->in, &agent->out); }
 
 void agent_reproduce(struct Agent *child, struct Agent *parent) {
 
@@ -98,9 +92,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
   //   child->pos.y = child->pos.y - HEIGHT;
 
   child->gencount = parent->gencount + 1;
-  child->repcounter =
-      child->herbivore * randf(REPRATEH - 0.2f, REPRATEH + 0.2f) +
-      (1.0f - child->herbivore) * randf(REPRATEC - 0.2f, REPRATEC + 0.2f);
+  child->repcounter = child->herbivore * randf(REPRATEH - 0.2f, REPRATEH + 0.2f) +
+                      (1.0f - child->herbivore) * randf(REPRATEC - 0.2f, REPRATEC + 0.2f);
 
   // noisy attribute passing
   child->MUTRATE1 = parent->MUTRATE1;
@@ -140,8 +133,7 @@ void agent_process_health(struct Agent *agent) {
 
   // remove health based on wheel speed
   if (agent->boost) { // is using boost
-    healthloss += (float)LOSS_SPEED * (float)BOTSPEED *
-                      ((fabsf(agent->w1) + fabsf(agent->w2)) / 2.0f) +
+    healthloss += (float)LOSS_SPEED * (float)BOTSPEED * ((fabsf(agent->w1) + fabsf(agent->w2)) / 2.0f) +
                   (float)LOSS_BOOST * agent->boost;
   } else { // no boost
     healthloss += LOSS_SPEED * BOTSPEED * (fabsf(agent->w1) + fabsf(agent->w2));

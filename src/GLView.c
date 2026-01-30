@@ -7,8 +7,7 @@
 #include "GLView.h"
 #include "World.h"
 
-void renderString(float x, float y, void *font, const char *string, float r,
-                  float g, float b) {
+void renderString(float x, float y, void *font, const char *string, float r, float g, float b) {
   if (!GLVIEW.draw_text) {
     return;
   }
@@ -82,10 +81,8 @@ void gl_processMouse(int32_t button, int32_t state, int32_t x, int32_t y) {
 
   // have world deal with it. First translate to world coordinates though
   if (button == 0) {
-    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2.0f) / GLVIEW.scalemult) -
-                 GLVIEW.xtranslate;
-    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2.0f) / GLVIEW.scalemult) -
-                 GLVIEW.ytranslate;
+    int32_t wx = (int32_t)((x - GLVIEW.wwidth / 2.0f) / GLVIEW.scalemult) - GLVIEW.xtranslate;
+    int32_t wy = (int32_t)((y - GLVIEW.wheight / 2.0f) / GLVIEW.scalemult) - GLVIEW.ytranslate;
     world_processMouse(GLVIEW.base->world, button, state, wx, wy);
   }
 
@@ -239,10 +236,8 @@ void gl_handleIdle() {
   if ((currentTime - GLVIEW.lastUpdate) >= MILLS_PER_UPDATE) {
     int32_t num_herbs = world_numHerbivores(GLVIEW.base->world);
     int32_t num_carns = world_numCarnivores(GLVIEW.base->world);
-    sprintf(GLVIEW.buf,
-            "FPS: %.2f NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
-            GLVIEW.frames * (1000.0f / MILLS_PER_UPDATE),
-            world_numAgents(GLVIEW.base->world), num_carns, num_herbs,
+    sprintf(GLVIEW.buf, "FPS: %.2f NumAgents: %d Carnivores: %d Herbivores: %d Epoch: %d",
+            GLVIEW.frames * (1000.0f / MILLS_PER_UPDATE), world_numAgents(GLVIEW.base->world), num_carns, num_herbs,
             GLVIEW.base->world->current_epoch);
     glutSetWindowTitle(GLVIEW.buf);
     GLVIEW.frames = 0;
@@ -286,9 +281,8 @@ void drawAgent(const struct Agent *agent) {
   float asy = (agent->pos.y + GLVIEW.ytranslate) * (GLVIEW.scalemult);
 
   // Basic culling
-  if ((agent->selectflag == 0) &&
-      (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
-       asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
+  if ((agent->selectflag == 0) && (asx > GLVIEW.wwidth * 1.1f || asx < -GLVIEW.wwidth * 1.1f ||
+                                   asy > GLVIEW.wheight * 1.1f || asy < -GLVIEW.wheight * 1.1f)) {
     return;
   }
 
@@ -370,48 +364,37 @@ void drawAgent(const struct Agent *agent) {
     yy += (ss * (BRAIN_DEPTH + 1) + 14);
 
     sprintf(GLVIEW.buf2, "Health: %f", agent->health);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Pos: %f\t%f", agent->pos.x, agent->pos.y);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Angle: %f", agent->angle);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Children: %i", agent->numchildren);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Generation: %jd", agent->gencount);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Age: %i", agent->age);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Repcounter: %f", agent->repcounter);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Herbivore: %f", agent->herbivore);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Mutate Rate Chance: %f", agent->MUTRATE1);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Mutate Rate Magnitude: %f", agent->MUTRATE2);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     yy += 14;
     sprintf(GLVIEW.buf2, "Wheel speeds (L, R): %f %f", agent->w2, agent->w1);
-    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f,
-                 1.0f);
+    renderString(0, yy, GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
 
     glPopMatrix();
   }
@@ -420,8 +403,7 @@ void drawAgent(const struct Agent *agent) {
   if (agent->indicator > 0) {
     glBegin(GL_POLYGON);
     glColor3f(agent->ir, agent->ig, agent->ib);
-    drawCircle(agent->pos.x, agent->pos.y,
-               (float)BOTRADIUS + ((int32_t)agent->indicator));
+    drawCircle(agent->pos.x, agent->pos.y, (float)BOTRADIUS + ((int32_t)agent->indicator));
     glEnd();
   }
 
@@ -433,11 +415,8 @@ void drawAgent(const struct Agent *agent) {
     if (j == 0)
       continue;
     glVertex3f(agent->pos.x, agent->pos.y, 0);
-    glVertex3f(agent->pos.x + (BOTRADIUS * 4.0f) *
-                                  cosf(agent->angle + j * (float)M_PI / 8.0f),
-               agent->pos.y + (BOTRADIUS * 4.0f) *
-                                  sinf(agent->angle + j * (float)M_PI / 8.0f),
-               0);
+    glVertex3f(agent->pos.x + (BOTRADIUS * 4.0f) * cosf(agent->angle + j * (float)M_PI / 8.0f),
+               agent->pos.y + (BOTRADIUS * 4.0f) * sinf(agent->angle + j * (float)M_PI / 8.0f), 0);
   }
   glEnd();
 
@@ -462,9 +441,8 @@ void drawAgent(const struct Agent *agent) {
   // and spike
   glColor3f(0.5, 0, 0);
   glVertex3f(agent->pos.x, agent->pos.y, 0);
-  glVertex3f(
-      agent->pos.x + (3.0f * r * agent->spikeLength) * cosf(agent->angle),
-      agent->pos.y + (3.0f * r * agent->spikeLength) * sinf(agent->angle), 0);
+  glVertex3f(agent->pos.x + (3.0f * r * agent->spikeLength) * cosf(agent->angle),
+             agent->pos.y + (3.0f * r * agent->spikeLength) * sinf(agent->angle), 0);
   glEnd();
 
   // and health
@@ -480,10 +458,8 @@ void drawAgent(const struct Agent *agent) {
 
   // health
   glColor3f(0, 0.8, 0);
-  glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 20 * (2 - agent->health),
-             0);
-  glVertex3f(agent->pos.x + xo + 5,
-             agent->pos.y + yo + 20 * (2 - agent->health), 0);
+  glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 20 * (2 - agent->health), 0);
+  glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 20 * (2 - agent->health), 0);
   glVertex3f(agent->pos.x + xo + 5, agent->pos.y + yo + 40, 0);
   glVertex3f(agent->pos.x + xo, agent->pos.y + yo + 40, 0);
 
@@ -506,26 +482,22 @@ void drawAgent(const struct Agent *agent) {
   if (GLVIEW.scalemult > 0.7f) {
     // generation count
     sprintf(GLVIEW.buf2, "%jd", agent->gencount);
-    renderString(agent->pos.x - BOTRADIUS * 2,
-                 agent->pos.y + 5.0f + BOTRADIUS * 2, GLUT_BITMAP_HELVETICA_12,
+    renderString(agent->pos.x - BOTRADIUS * 2, agent->pos.y + 5.0f + BOTRADIUS * 2, GLUT_BITMAP_HELVETICA_12,
                  GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
     // age
     sprintf(GLVIEW.buf2, "%i", agent->age);
-    renderString(agent->pos.x - BOTRADIUS * 2,
-                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 12,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2, agent->pos.y + 5.0f + BOTRADIUS * 2 + 12, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
 
     // health
     sprintf(GLVIEW.buf2, "%.2f", agent->health);
-    renderString(agent->pos.x - BOTRADIUS * 2,
-                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 24,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2, agent->pos.y + 5.0f + BOTRADIUS * 2 + 24, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
 
     // repcounter
     sprintf(GLVIEW.buf2, "%.2f", agent->repcounter);
-    renderString(agent->pos.x - BOTRADIUS * 2,
-                 agent->pos.y + 5.0f + BOTRADIUS * 2 + 36,
-                 GLUT_BITMAP_HELVETICA_12, GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
+    renderString(agent->pos.x - BOTRADIUS * 2, agent->pos.y + 5.0f + BOTRADIUS * 2 + 36, GLUT_BITMAP_HELVETICA_12,
+                 GLVIEW.buf2, 1.0f, 1.0f, 1.0f);
   }
 }
 
@@ -563,9 +535,7 @@ void glview_draw(struct World *world, int32_t drawfood) {
         float asy = ((j * CZ) + GLVIEW.ytranslate) * (GLVIEW.scalemult);
 
         // Basic culling
-        if (asx > GLVIEW.wwidth + CZ * 2.0f ||
-            asx < -(GLVIEW.wwidth + CZ * 2.0f) ||
-            asy > GLVIEW.wheight + CZ * 2.0f ||
+        if (asx > GLVIEW.wwidth + CZ * 2.0f || asx < -(GLVIEW.wwidth + CZ * 2.0f) || asy > GLVIEW.wheight + CZ * 2.0f ||
             asy < -(GLVIEW.wheight + CZ * 2.0f)) {
           continue;
         }

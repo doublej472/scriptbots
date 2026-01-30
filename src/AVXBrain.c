@@ -50,15 +50,13 @@ void avxbrain_init_random(struct AVXBrain *b) {
     for (size_t j = 0; j < BRAIN_WIDTH; j++) {
       // Set biases
       for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
-        b->layers[i].biases[j][k] =
-            (randf(0.0f, 1.0f) - 0.5f) * BRAIN_BIAS_RANGE * 2;
+        b->layers[i].biases[j][k] = (randf(0.0f, 1.0f) - 0.5f) * BRAIN_BIAS_RANGE * 2;
       }
     }
 
     for (size_t j = 0; j < BRAIN_WEIGHTS; j++) {
       for (size_t k = 0; k < BRAIN_ELEMENTS_PER_VECTOR; k++) {
-        b->layers[i].weights[j][k] =
-            (randf(0.0f, 1.0f) - 0.5f) * BRAIN_WEIGHT_RANGE * 2;
+        b->layers[i].weights[j][k] = (randf(0.0f, 1.0f) - 0.5f) * BRAIN_WEIGHT_RANGE * 2;
       }
     }
   }
@@ -68,9 +66,7 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[BRAIN_INPUT_SIZE],
                    float (*brain_outputs)[BRAIN_OUTPUT_SIZE]) {
   // Set the inputs for the first layer
   for (int i = 0; i < BRAIN_INPUT_SIZE; i++) {
-    b->layers[0]
-        .inputs[i / BRAIN_ELEMENTS_PER_VECTOR][i % BRAIN_ELEMENTS_PER_VECTOR] =
-        (*brain_inputs)[i];
+    b->layers[0].inputs[i / BRAIN_ELEMENTS_PER_VECTOR][i % BRAIN_ELEMENTS_PER_VECTOR] = (*brain_inputs)[i];
   }
 
   // Tick the brain
@@ -85,14 +81,11 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[BRAIN_INPUT_SIZE],
     for (size_t j = 0; j < BRAIN_WIDTH_ELEMENTS; j++) {
       // The current input value we are working with
       simde__m512 input =
-          simde_mm512_set1_ps(layer->inputs[j / BRAIN_ELEMENTS_PER_VECTOR]
-                                           [j % BRAIN_ELEMENTS_PER_VECTOR]);
+          simde_mm512_set1_ps(layer->inputs[j / BRAIN_ELEMENTS_PER_VECTOR][j % BRAIN_ELEMENTS_PER_VECTOR]);
 
       // For each group of weights
       for (size_t k = 0; k < BRAIN_WIDTH; k++) {
-        sum[k] = simde_mm512_add_ps(
-            simde_mm512_mul_ps(input, layer->weights[(j * BRAIN_WIDTH) + k]),
-            sum[k]);
+        sum[k] = simde_mm512_add_ps(simde_mm512_mul_ps(input, layer->weights[(j * BRAIN_WIDTH) + k]), sum[k]);
       }
     }
     for (size_t k = 0; k < BRAIN_WIDTH; k++) {
@@ -107,8 +100,7 @@ void avxbrain_tick(struct AVXBrain *b, float (*brain_inputs)[BRAIN_INPUT_SIZE],
     // input of the next layer
     if (i == BRAIN_DEPTH - 1) {
       for (size_t j = 0; j < BRAIN_OUTPUT_SIZE; j++) {
-        (*brain_outputs)[j] =
-            sum[j / BRAIN_ELEMENTS_PER_VECTOR][j % BRAIN_ELEMENTS_PER_VECTOR];
+        (*brain_outputs)[j] = sum[j / BRAIN_ELEMENTS_PER_VECTOR][j % BRAIN_ELEMENTS_PER_VECTOR];
       }
     } else {
       for (size_t j = 0; j < BRAIN_WIDTH; j++) {

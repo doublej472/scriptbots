@@ -32,8 +32,8 @@ struct Agent {
   int64_t gencount; // generation counter
   int32_t numchildren;
   float clockf1, clockf2; // the frequencies of the two clocks of this bot
-  float soundmul; // sound multiplier of this bot. It can scream, or be very
-                  // sneaky. This is actually always set to output 8
+  float soundmul;         // sound multiplier of this bot. It can scream, or be very
+                          // sneaky. This is actually always set to output 8
 
   // variables for drawing purposes
   float indicator;
@@ -60,8 +60,7 @@ struct Agent_d {
 
 void agent_init(struct Agent *agent);
 void agent_print(struct Agent *agent);
-void agent_initevent(struct Agent *agent, float size, float r, float g,
-                     float b);
+void agent_initevent(struct Agent *agent, float size, float r, float g, float b);
 void agent_tick(struct Agent *agent);
 void agent_reproduce(struct Agent *child, struct Agent *parent);
 // void agent_crossover(struct Agent *target, const struct Agent *agent1,

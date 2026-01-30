@@ -35,9 +35,8 @@ struct World {
 
   int32_t touch;
 
-  struct timespec startTime; // used for tracking fps
-  struct timespec
-      totalStartTime; // used for deciding when to quit the simulation
+  struct timespec startTime;      // used for tracking fps
+  struct timespec totalStartTime; // used for deciding when to quit the simulation
 
   struct Queue *queue;
 
@@ -63,8 +62,7 @@ void world_addCarnivore(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a);
 void world_writeReport(struct World *world);
 void world_reset(struct World *world);
-void world_processMouse(struct World *world, int32_t button, int32_t state,
-                        int32_t x, int32_t y);
+void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y);
 void world_sortGrid(struct World *world);
 int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);

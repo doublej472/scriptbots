@@ -13,8 +13,7 @@
  * \param a[in] base operand as timespec
  * \param b[in] operand in nanoseconds
  */
-static inline void timespec_add_nsec(struct timespec *r,
-                                     const struct timespec *a, int64_t b) {
+static inline void timespec_add_nsec(struct timespec *r, const struct timespec *a, int64_t b) {
   r->tv_sec = a->tv_sec + (b / NSEC_PER_SEC);
   r->tv_nsec = a->tv_nsec + (b % NSEC_PER_SEC);
 
@@ -33,8 +32,7 @@ static inline void timespec_add_nsec(struct timespec *r,
  * \param a[in] base operand as timespec
  * \param b[in] operand in milliseconds
  */
-static inline void timespec_add_msec(struct timespec *r,
-                                     const struct timespec *a, int64_t b) {
+static inline void timespec_add_msec(struct timespec *r, const struct timespec *a, int64_t b) {
   timespec_add_nsec(r, a, b * 1000000);
 }
 
@@ -112,11 +110,9 @@ inline void lock_condition_broadcast(struct LockCondition *lc) {
 #endif
 }
 
-inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
-                                     int64_t milliseconds) {
+inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc, int64_t milliseconds) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD)milliseconds,
-                            0);
+  SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, (DWORD)milliseconds, 0);
 #elif __linux__ || __APPLE__
   struct timespec ts, tsfuture;
   clock_gettime(CLOCK_REALTIME, &ts);
@@ -125,6 +121,4 @@ inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc,
 #endif
 }
 
-inline void lock_condition_wait(struct Lock *l, struct LockCondition *lc) {
-  lock_condition_timedwait(l, lc, 3000);
-}
+inline void lock_condition_wait(struct Lock *l, struct LockCondition *lc) { lock_condition_timedwait(l, lc, 3000); }

@@ -31,9 +31,7 @@ struct SIMDE_AVX512_ALIGN AVXBrain {
 
 void avxbrain_init_zero(struct AVXBrain *brain);
 void avxbrain_init_random(struct AVXBrain *brain);
-void avxbrain_tick(struct AVXBrain *brain, float (*inputs)[BRAIN_INPUT_SIZE],
-                   float (*outputs)[BRAIN_OUTPUT_SIZE]);
-void avxbrain_mutate(struct AVXBrain *brain, float mutaterate,
-                     float mutaterate2);
+void avxbrain_tick(struct AVXBrain *brain, float (*inputs)[BRAIN_INPUT_SIZE], float (*outputs)[BRAIN_OUTPUT_SIZE]);
+void avxbrain_mutate(struct AVXBrain *brain, float mutaterate, float mutaterate2);
 
 #endif
