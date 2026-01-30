@@ -27,42 +27,46 @@ static void foodGrid_place(struct FoodGrid *foodGrid, int32_t x, int32_t y) {
   struct FoodGridItem *item = &foodGrid->food[x][y];
 
   // If food is alive ensure it's before the pivot, otherwise after
-  if (item->amt > 0.0001f) {
+  if (item->amt >= 0.0001f) {
     if (foodGrid->food_pivot < TOTAL_FOOD_SQUARES - 1 && item->food_sorted_index >= foodGrid->food_pivot) {
-      // Move to alive section
-      uint32_t target_sorted_index = foodGrid->food_pivot;
-      uint32_t target_food_idx = foodGrid->food_sorted[target_sorted_index];
+      // Lookup old food item we are replacing
+      uint32_t new_food_sorted_idx = foodGrid->food_pivot;
+      uint32_t old_food_idx = foodGrid->food_sorted[new_food_sorted_idx];
+      uint32_t tx = old_food_idx % FOOD_SQUARES_WIDTH;
+      uint32_t ty = old_food_idx / FOOD_SQUARES_WIDTH;
+      struct FoodGridItem *old_item = &foodGrid->food[tx][ty];
 
-      // Swap
-      uint32_t tmp = foodGrid->food_sorted[target_sorted_index];
-      foodGrid->food_sorted[target_sorted_index] = foodGrid->food_sorted[item->food_sorted_index];
+      // Swap food_sorted members
+      uint32_t tmp = foodGrid->food_sorted[new_food_sorted_idx];
+      foodGrid->food_sorted[new_food_sorted_idx] = foodGrid->food_sorted[item->food_sorted_index];
       foodGrid->food_sorted[item->food_sorted_index] = tmp;
 
-      // Update indices
-      foodGrid->food[x][y].food_sorted_index = target_sorted_index;
-      uint32_t tx = target_food_idx % FOOD_SQUARES_WIDTH;
-      uint32_t ty = target_food_idx / FOOD_SQUARES_WIDTH;
-      foodGrid->food[tx][ty].food_sorted_index = item->food_sorted_index;
+      // Swap food item reverse index
+      old_item->food_sorted_index = item->food_sorted_index;
+      item->food_sorted_index = new_food_sorted_idx;
 
+      // Update the pivot point
       foodGrid->food_pivot++;
     }
   } else {
     if (foodGrid->food_pivot > 0 && item->food_sorted_index < foodGrid->food_pivot) {
-      // Move to dead section
-      uint32_t target_sorted_index = foodGrid->food_pivot - 1;
-      uint32_t target_food_idx = foodGrid->food_sorted[target_sorted_index];
+      // Lookup old food item we are replacing
+      uint32_t new_food_sorted_idx = foodGrid->food_pivot - 1;
+      uint32_t old_food_idx = foodGrid->food_sorted[new_food_sorted_idx];
+      uint32_t tx = old_food_idx % FOOD_SQUARES_WIDTH;
+      uint32_t ty = old_food_idx / FOOD_SQUARES_WIDTH;
+      struct FoodGridItem *old_item = &foodGrid->food[tx][ty];
 
-      // Swap
-      uint32_t tmp = foodGrid->food_sorted[target_sorted_index];
-      foodGrid->food_sorted[target_sorted_index] = foodGrid->food_sorted[item->food_sorted_index];
+      // Swap food_sorted members
+      uint32_t tmp = foodGrid->food_sorted[new_food_sorted_idx];
+      foodGrid->food_sorted[new_food_sorted_idx] = foodGrid->food_sorted[item->food_sorted_index];
       foodGrid->food_sorted[item->food_sorted_index] = tmp;
 
-      // Update indices
-      foodGrid->food[x][y].food_sorted_index = target_sorted_index;
-      uint32_t tx = target_food_idx % FOOD_SQUARES_WIDTH;
-      uint32_t ty = target_food_idx / FOOD_SQUARES_WIDTH;
-      foodGrid->food[tx][ty].food_sorted_index = item->food_sorted_index;
+      // Swap food item reverse index
+      old_item->food_sorted_index = item->food_sorted_index;
+      item->food_sorted_index = new_food_sorted_idx;
 
+      // Update the pivot point
       foodGrid->food_pivot--;
     }
   }
