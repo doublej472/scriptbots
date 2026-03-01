@@ -7,7 +7,7 @@ project(scriptbots)
 option(USE_OPENGL "Compile with OpenGL" YES)
 option(BUILD_TESTS "Compile tests" NO)
 option(USE_LTO "Compile with LTO optimizations" YES)
-option(MARCH_NATIVE "Compile with -march=native" NO)
+option(MARCH_NATIVE "Compile with -march=native" YES)
 option(ASAN "Compile with address sanitation enabled" NO)
 option(TRAP_NAN "Make program exit on math errors" NO)
 
