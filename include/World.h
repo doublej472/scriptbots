@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#define AGENT_BUCKETS (1024 * 2)
+#define AGENT_BUCKETS (1024 * 64)  // 65536 — must exceed total occupied grid cells (~16K) to minimize hash collisions
 
 struct AgentQueueItem {
   struct World *world;

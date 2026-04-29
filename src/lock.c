@@ -121,4 +121,10 @@ inline void lock_condition_timedwait(struct Lock *l, struct LockCondition *lc, i
 #endif
 }
 
-inline void lock_condition_wait(struct Lock *l, struct LockCondition *lc) { lock_condition_timedwait(l, lc, 3000); }
+inline void lock_condition_wait(struct Lock *l, struct LockCondition *lc) {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+  SleepConditionVariableSRW(&lc->win_cond, &l->win_lock, INFINITE, 0);
+#elif __linux__ || __APPLE__
+  pthread_cond_wait(&lc->lin_cond, &l->lin_lock);
+#endif
+}

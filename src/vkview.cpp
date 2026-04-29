@@ -20,11 +20,23 @@
 #include <stdio.h>
 
 // Forward: draw function from vkdraw.c (C linkage)
-extern "C" void vkdraw_frame(struct VKState *vk, vkdraw_imgui_cb imgui_cb, void *imgui_user);
+extern "C" void vkdraw_frame(struct VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb, void *imgui_user);
 
 static void render_imgui_to_cmd(VkCommandBuffer cmd, void *user_data) {
     (void)user_data;
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+}
+
+static VKViewState build_view_state(void) {
+    return (VKViewState){
+        .wwidth     = VKVIEW.wwidth,
+        .wheight    = VKVIEW.wheight,
+        .scalemult  = VKVIEW.scalemult,
+        .xtranslate = VKVIEW.xtranslate,
+        .ytranslate = VKVIEW.ytranslate,
+        .drawfood   = VKVIEW.drawfood,
+        .base       = VKVIEW.base,
+    };
 }
 
 // GLFW error callback for diagnostics
@@ -487,12 +499,16 @@ static void draw_imgui_diagnostics(void) {
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
                  ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
 
-    ImGui::Text("FPS: %.1f", VKVIEW.frames * (1000.0f / 250.0f));
-    ImGui::Text("Agents: %zu", w->agents.size);
-    ImGui::Text("Herbivores: %d", world_numHerbivores(w));
-    ImGui::Text("Carnivores: %d", world_numCarnivores(w));
-    ImGui::Text("Epoch: %d", w->current_epoch);
-    ImGui::Text("Zoom: %.2f", VKVIEW.scalemult);
+    ImGui::Text("FPS:    %6.1f  (%.1f ms)", VKVIEW.smoothFPS, VKVIEW.smoothFrameMs);
+    if (VKVIEW.minFrameMs > 0.0f && VKVIEW.maxFrameMs > 0.0f)
+        ImGui::Text("Frame:  %5.1f - %.1f ms", VKVIEW.minFrameMs, VKVIEW.maxFrameMs);
+    ImGui::Separator();
+    ImGui::Text("Agents:     %5zu", w->agents.size);
+    ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
+    ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
+    ImGui::Text("Epoch:      %5d", w->current_epoch);
+    ImGui::Text("Zoom:       %5.2fx", VKVIEW.scalemult);
+    ImGui::Text("Frames:     %5d", VKVIEW.totalFrames);
 
     ImGui::End();
 }
@@ -510,21 +526,43 @@ void vkview_main_loop(void) {
             world_update(VKVIEW.base->world);
         }
 
-        // FPS tracking
+        // FPS tracking with exponential moving average
         double currentTime = glfwGetTime() * 1000.0;
+        double elapsed = currentTime - VKVIEW.lastUpdate;
         VKVIEW.frames++;
-        if ((currentTime - VKVIEW.lastUpdate) >= MILLS_PER_UPDATE) {
-            int num_herbs = world_numHerbivores(VKVIEW.base->world);
-            int num_carns = world_numCarnivores(VKVIEW.base->world);
+
+        if (elapsed >= MILLS_PER_UPDATE) {
+            float instantFPS = VKVIEW.frames * (1000.0f / (float)elapsed);
+            float instantMs  = (float)elapsed / VKVIEW.frames;
+
+            // Exponential moving average (α = 0.2)
+            if (VKVIEW.smoothFPS < 0.1f) {
+                VKVIEW.smoothFPS     = instantFPS;
+                VKVIEW.smoothFrameMs = instantMs;
+            } else {
+                VKVIEW.smoothFPS     = VKVIEW.smoothFPS * 0.8f     + instantFPS * 0.2f;
+                VKVIEW.smoothFrameMs = VKVIEW.smoothFrameMs * 0.8f + instantMs * 0.2f;
+            }
+
+            // Min/max tracking
+            if (instantMs < VKVIEW.minFrameMs || VKVIEW.minFrameMs == 0.0f)
+                VKVIEW.minFrameMs = instantMs;
+            if (instantMs > VKVIEW.maxFrameMs)
+                VKVIEW.maxFrameMs = instantMs;
+
+            VKVIEW.totalFrames += VKVIEW.frames;
+
             snprintf(VKVIEW.buf, sizeof(VKVIEW.buf),
-                     "FPS: %.2f Agents: %zu Herb: %d Carn: %d Epoch: %d",
-                     VKVIEW.frames * (1000.0f / MILLS_PER_UPDATE),
+                     "ScriptBots | %.0f FPS (%.1f ms) | Agents: %zu | Epoch: %d",
+                     VKVIEW.smoothFPS, VKVIEW.smoothFrameMs,
                      VKVIEW.base->world->agents.size,
-                     num_herbs, num_carns,
                      VKVIEW.base->world->current_epoch);
             glfwSetWindowTitle(VKVIEW.window, VKVIEW.buf);
+
             VKVIEW.frames = 0;
             VKVIEW.lastUpdate = (int)currentTime;
+            VKVIEW.minFrameMs = 0.0f;
+            VKVIEW.maxFrameMs = 0.0f;
         }
 
         // Frame skip logic
@@ -563,7 +601,8 @@ void vkview_main_loop(void) {
             ImGui::Render();
 
             // Draw world via Vulkan (+ ImGui rendered inside same pass)
-            vkdraw_frame(VKVIEW.vkstate, render_imgui_to_cmd, NULL);
+            VKViewState vs = build_view_state();
+            vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
         } else {
             // Even when not drawing, we need to pump events
             // A small sleep prevents busy-waiting

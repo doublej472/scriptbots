@@ -36,17 +36,17 @@ typedef struct VKView {
     int  modcounter;
     int  lastUpdate;
     int  frames;
+    int  totalFrames;       // total rendered frames
+    float smoothFPS;        // exponential moving average FPS
+    float smoothFrameMs;    // exponential moving average frame time (ms)
+    float minFrameMs;       // minimum frame time this period
+    float maxFrameMs;       // maximum frame time this period
 
     float scalemult;
     float xtranslate, ytranslate;
     int  downb[3];
     int  mousex, mousey;
     int  draw_text;
-
-    // Current agent count (tracked for buffer sizing)
-    int  agent_count;
-    int  food_vert_count;
-    int  food_vert_capacity;
 } VKView;
 
 extern VKView VKVIEW;

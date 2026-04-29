@@ -32,36 +32,36 @@ void queue_destroy(struct Queue *queue) {
 void queue_enqueue(struct Queue *queue, struct QueueItem value) {
   lock_lock(&queue->lock);
   while (queue->size == QUEUE_BUFFER_SIZE) {
-    lock_condition_timedwait(&queue->lock, &queue->cond_item_removed, 200);
     if (queue->closed != 0) {
       lock_unlock(&queue->lock);
       pthread_exit(0);
     }
+    lock_condition_wait(&queue->lock, &queue->cond_item_removed);
   }
   queue->buffer[queue->in] = value;
   ++queue->size;
   ++queue->in;
   queue->in %= QUEUE_BUFFER_SIZE;
   ++queue->num_work_items;
-  lock_unlock(&queue->lock);
   lock_condition_signal(&queue->cond_item_added);
+  lock_unlock(&queue->lock);
 }
 
 struct QueueItem queue_dequeue(struct Queue *queue) {
   lock_lock(&queue->lock);
   while (queue->size == 0) {
-    lock_condition_timedwait(&queue->lock, &queue->cond_item_added, 3000);
     if (queue->closed != 0) {
       lock_unlock(&queue->lock);
       pthread_exit(0);
     }
+    lock_condition_wait(&queue->lock, &queue->cond_item_added);
   }
   struct QueueItem value = queue->buffer[queue->out];
   --queue->size;
   ++queue->out;
   queue->out %= QUEUE_BUFFER_SIZE;
-  lock_unlock(&queue->lock);
   lock_condition_signal(&queue->cond_item_removed);
+  lock_unlock(&queue->lock);
   return value;
 }
 

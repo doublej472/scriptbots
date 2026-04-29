@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
   HEADLESS = 1;
 #endif
   NUM_THREADS = get_nprocs();
+  if (NUM_THREADS > 1) NUM_THREADS--;  // leave one core for main thread
 
   int32_t loadWorldFromFile = 0;
 

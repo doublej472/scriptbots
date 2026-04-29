@@ -17,7 +17,11 @@ int32_t randi(int32_t a, int32_t b);
 float randn(float mu, float sigma);
 
 // cap value between 0 and 1
-float cap(float a);
+static inline float cap(float a) {
+  if (a < 0) return 0;
+  if (a > 1) return 1;
+  return a;
+}
 
 // Get number of processors in the system
 long get_nprocs();

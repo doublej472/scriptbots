@@ -17,70 +17,6 @@ static int ext_available(const VkExtensionProperties *props, uint32_t count, con
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-// ---- Internal state struct ----
-typedef struct VKState {
-    VkInstance               instance;
-    VkDebugUtilsMessengerEXT debug_messenger;
-    VkPhysicalDevice         phys_device;
-    VkDevice                 device;
-    VkQueue                  queue;
-    uint32_t                 queue_family;
-    VkSurfaceKHR             surface;
-
-    VkSwapchainKHR    swapchain;
-    VkImage           *sc_images;
-    VkImageView       *sc_views;
-    VkFramebuffer     *sc_framebufs;
-    uint32_t           sc_count;
-    VkFormat           sc_format;
-    VkExtent2D         sc_extent;
-
-    VkRenderPass  render_pass;
-
-    GLFWwindow    *window;
-    int            needs_recreation;
-
-    VkCommandPool   cmd_pool;
-    VkCommandBuffer cmd_buf[2];  // one per frame-in-flight
-
-    #define MAX_FRAMES_IN_FLIGHT 2
-    uint32_t       current_frame;
-    VkSemaphore    image_avail[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore   *render_done;  // one per swapchain image (dynamically allocated)
-    VkFence        in_flight[MAX_FRAMES_IN_FLIGHT];
-
-    VkDescriptorSetLayout desc_layout;
-    VkDescriptorPool      desc_pool;
-    VkDescriptorSet       desc_set;
-    VkPipelineLayout      pipeline_layout;
-
-    VkPipeline pipe_circle;
-    VkPipeline pipe_lines;
-    VkPipeline pipe_hud;
-    VkPipeline pipe_food;
-
-    // Buffers
-    VkBuffer       cam_ubo_buf;
-    VkDeviceMemory cam_ubo_mem;
-    VkBuffer       agent_buf;
-    VkDeviceMemory agent_mem;
-    VkBuffer       food_vbuf;
-    VkDeviceMemory food_vmem;
-
-    // Static meshes
-    VkBuffer       mesh_circle_vb;
-    VkDeviceMemory mesh_circle_mem;
-    uint32_t        mesh_circle_verts;
-
-    VkBuffer       mesh_lines_vb;
-    VkDeviceMemory mesh_lines_mem;
-    uint32_t        mesh_lines_verts;
-
-    VkBuffer       mesh_hud_vb;
-    VkDeviceMemory mesh_hud_mem;
-    uint32_t        mesh_hud_type_vb_off;  // offset to type=VK_WHOLE_SIZE sentinel
-} VKState;
-
 // ---- Forward decls ----
 static uint32_t find_memory_type(VKState *vk, uint32_t typeFilter, VkMemoryPropertyFlags props);
 static void     create_buffer(VKState *vk, VkDeviceSize size, VkBufferUsageFlags usage,
@@ -917,7 +853,7 @@ VKState *vkinit_create(GLFWwindow *window) {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
         };
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (int i = 0; i < VK_MAX_FRAMES_IN_FLIGHT; i++) {
             vkCreateSemaphore(vk->device, &sci, NULL, &vk->image_avail[i]);
             vkCreateFence(vk->device, &fci, NULL, &vk->in_flight[i]);
         }
@@ -935,7 +871,7 @@ VKState *vkinit_create(GLFWwindow *window) {
 
 void vkinit_destroy(VKState *vk) {
     vkDeviceWaitIdle(vk->device);
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < VK_MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(vk->device, vk->image_avail[i], NULL);
         vkDestroyFence(vk->device, vk->in_flight[i], NULL);
     }

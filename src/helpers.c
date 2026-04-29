@@ -78,15 +78,6 @@ float randn(float mu, float sigma) {
   }
 }
 
-// cap value between 0 and 1
-inline float cap(float a) {
-  if (a < 0)
-    return 0;
-  if (a > 1)
-    return 1;
-  return a;
-}
-
 // Get number of processors in the system
 inline long get_nprocs() {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)

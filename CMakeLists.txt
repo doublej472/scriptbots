@@ -208,4 +208,5 @@ target_include_directories(scriptbots PRIVATE ${SIMDE_INCLUDE_DIRS})
 # ---- Compile flags ----
 target_compile_options(scriptbots PRIVATE -Wall)
 target_link_options(scriptbots PRIVATE -pthread)
+target_link_libraries(scriptbots PRIVATE m)
 target_include_directories(scriptbots PUBLIC ./include)
