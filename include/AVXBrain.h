@@ -26,7 +26,11 @@ struct SIMDE_AVX512_ALIGN AVXBrainLayer {
 };
 
 struct SIMDE_AVX512_ALIGN AVXBrain {
+#ifdef __cplusplus
+  AVXBrainLayer SIMDE_AVX512_ALIGN layers[BRAIN_DEPTH];
+#else
   struct SIMDE_AVX512_ALIGN AVXBrainLayer layers[BRAIN_DEPTH];
+#endif
 };
 
 void avxbrain_init_zero(struct AVXBrain *brain);

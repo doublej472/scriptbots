@@ -3,8 +3,7 @@
 *.kdev4
 Debug/
 Release/
-build/
-build-clang/
+build*/
 *.csv
 *.dat
 .cache/

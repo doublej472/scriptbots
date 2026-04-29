@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.c
 
 project(scriptbots)
 
-option(USE_OPENGL "Compile with OpenGL" YES)
+option(USE_OPENGL "Compile with Vulkan+GLFW" YES)
 option(BUILD_TESTS "Compile tests" NO)
 option(USE_LTO "Compile with LTO optimizations" YES)
 option(MARCH_NATIVE "Compile with -march=native" YES)
@@ -22,6 +22,31 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)
 endif()
 
+# ---- Shader compilation (build time) ----
+set(SHADER_DIR "${CMAKE_SOURCE_DIR}/shaders")
+set(SHADER_OUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+file(MAKE_DIRECTORY "${SHADER_OUT_DIR}")
+
+set(SHADER_SOURCES
+    agent_circle.vert agent_circle.frag
+    agent_lines.vert  agent_lines.frag
+    agent_hud.vert    agent_hud.frag
+    food.vert         food.frag
+)
+
+foreach(SHADER ${SHADER_SOURCES})
+    add_custom_command(
+        OUTPUT "${SHADER_OUT_DIR}/${SHADER}.spv"
+        COMMAND glslc -O "${SHADER_DIR}/${SHADER}" -o "${SHADER_OUT_DIR}/${SHADER}.spv"
+        DEPENDS "${SHADER_DIR}/${SHADER}"
+        COMMENT "Compiling shader: ${SHADER}"
+    )
+    list(APPEND SPV_FILES "${SHADER_OUT_DIR}/${SHADER}.spv")
+endforeach()
+
+add_custom_target(shaders ALL DEPENDS ${SPV_FILES})
+
+# ---- Core executable ----
 add_executable(scriptbots
 	src/vec2f.c
 	src/queue.c
@@ -45,11 +70,11 @@ add_executable(scriptbots
 	include/helpers.h
 	include/AVXBrain.h
 	include/queue.h
-	include/GLView.h
 	include/Base.h
 	include/Food.h
 )
 
+# ---- Compile options ----
 if (TRAP_NAN)
 	add_compile_definitions(TRAP_NAN)
 endif()
@@ -92,6 +117,7 @@ else()
 	endif()
 endif()
 
+# ---- Tests ----
 if (BUILD_TESTS)
 	add_executable(test_vec2f
 		src/vec2f.c
@@ -108,32 +134,78 @@ if (BUILD_TESTS)
 		include/helpers.h
 		include/AVXBrain.h
 		include/queue.h
-		include/GLView.h
 		include/Base.h
 	)
 	target_link_libraries(test_vec2f PRIVATE m)
 	target_include_directories(test_vec2f PUBLIC ./include)
 endif()
 
+# ---- LTO ----
 if (USE_LTO)
 	set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+# ---- Vulkan / GLFW / ImGui ----
 if (USE_OPENGL)
-	find_package(GLUT REQUIRED)
-	find_package(OpenGL REQUIRED)
+	find_package(glfw3 CONFIG REQUIRED)
+	find_package(imgui CONFIG REQUIRED)
 
-	add_subdirectory(vendor/glad/)
-	#add_dependencies(scriptbots glad OpenGL::GL GLUT::GLUT)
+	# Use system Vulkan, not vcpkg's
+	find_package(Vulkan REQUIRED)
+
+	# glm from system (or vcpkg if not found)
+	find_package(glm QUIET)
+	if(NOT glm_FOUND)
+		find_path(GLM_INCLUDE_DIR "glm/glm.hpp" REQUIRED)
+	endif()
 
 	add_compile_definitions(OPENGL)
-	target_link_libraries(scriptbots PRIVATE glad OpenGL::GL GLUT::GLUT m)
-	target_sources(scriptbots PRIVATE src/GLView.c)
+
+	# New Vulkan sources
+	target_sources(scriptbots PRIVATE
+		src/vkinit.c
+		src/vkdraw.c
+		src/vkview.cpp
+		src/imgui_impl_glfw.cpp
+		src/imgui_impl_vulkan.cpp
+		include/vkhelpers.h
+		include/vkview.h
+	)
+
+	# ImGui: link vcpkg's imgui target (provides include path for imgui.h)
+	target_link_libraries(scriptbots PRIVATE
+		glfw
+		Vulkan::Vulkan
+		imgui::imgui
+		m
+		wayland-client
+		wayland-cursor
+		wayland-egl
+		xkbcommon
+		decor-0
+	)
+
+	if(glm_FOUND)
+		target_link_libraries(scriptbots PRIVATE glm::glm)
+	else()
+		target_include_directories(scriptbots PRIVATE ${GLM_INCLUDE_DIR})
+	endif()
+
+	# Ensure shaders are built before the executable
+	add_dependencies(scriptbots shaders)
+
+	# Copy SPV files next to binary for runtime loading
+	add_custom_command(TARGET scriptbots POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+		"${SHADER_OUT_DIR}" "$<TARGET_FILE_DIR:scriptbots>/shaders"
+	)
 endif()
 
+# ---- SIMD ----
 find_path(SIMDE_INCLUDE_DIRS "simde/x86/avx512.h")
 target_include_directories(scriptbots PRIVATE ${SIMDE_INCLUDE_DIRS})
 
+# ---- Compile flags ----
 target_compile_options(scriptbots PRIVATE -Wall)
 target_link_options(scriptbots PRIVATE -pthread)
 target_include_directories(scriptbots PUBLIC ./include)

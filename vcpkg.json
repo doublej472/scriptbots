@@ -1,6 +1,10 @@
 {
   "dependencies": [
     "simde",
-    "freeglut"
+    {
+      "name": "glfw3",
+      "features": ["wayland"]
+    },
+    "imgui"
   ]
 }

@@ -9,6 +9,10 @@
 #include "vec.h"
 #include "Food.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define AGENT_BUCKETS (1024 * 2)
 
 struct AgentQueueItem {
@@ -68,5 +72,9 @@ int32_t world_numAgents(struct World *world);
 
 void agent_input_processor(void *arg);
 void agent_output_processor(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WORLD_H

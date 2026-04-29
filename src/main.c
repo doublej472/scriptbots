@@ -16,8 +16,7 @@
 
 // Determine if and what kind of graphics to use:
 #ifdef OPENGL
-#include "GLView.h"
-#include <GL/freeglut.h>
+#include "vkview.h"
 #endif
 
 #include "Base.h"
@@ -28,10 +27,6 @@
 
 // ---------------------------------------------------------------------------
 // Global Vars:
-
-#ifdef OPENGL
-struct GLView GLVIEW; // only use when graphic support is enabled
-#endif
 
 int32_t MAX_EPOCHS = INT_MAX; // inifinity
 int32_t MAX_SECONDS = INT_MAX;
@@ -124,9 +119,9 @@ int main(int argc, char **argv) {
          "Jonathan Frederick\n\n");
   printf("Environment:\n");
 #ifdef OPENGL
-  printf("   OpenGL and GLUT supported!\n");
+  printf("   Vulkan and GLFW supported!\n");
 #else
-  printf("   OpenGL and GLUT NOT supported!\n");
+  printf("   Vulkan and GLFW NOT supported!\n");
 #endif
 
   printf("   Threading details:\n");
@@ -219,9 +214,10 @@ int main(int argc, char **argv) {
 // ---------------------------------------------------------------------------
 void runWithGraphics(int32_t argc, char **argv, struct Base *base) {
 #ifdef OPENGL
-  init_glview(argc, argv);
-  GLVIEW.base = base;
-  glutMainLoop(); // spin
+  vkview_init(argc, argv);
+  VKVIEW.base = base;
+  vkview_main_loop();
+  vkview_cleanup();
 #endif
 }
 
