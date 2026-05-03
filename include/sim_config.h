@@ -8,8 +8,8 @@
 #define CZ 64
 // cell size in pixels, for food squares. Should divide well into Width Height
 
-#define WIDTH (CZ * 700)
-#define HEIGHT (CZ * 700)
+#define WIDTH (CZ * 2000)
+#define HEIGHT (CZ * 800)
 
 // computer window width and height
 #define WWIDTH 1280
@@ -24,7 +24,7 @@
 #define reportInterval (10000.0f / REPORTS_PER_EPOCH)
 
 // ---- BOT PROPERTIES ----
-#define NUMBOTS 20000       // initially
+#define NUMBOTS 30000       // initially
 #define NUMBOTS_MIN 20       // for open world, the threshold to start adding bots
 #define NUMBOTS_CLOSE 256    // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10.0f     // for drawing
@@ -41,9 +41,9 @@
 #define OLD_AGE_THRESHOLD 50000 // at what age do they start losing health for being old?
 
 // ---- REPRODUCTION ----
-#define BABIES 3             // number of babies per agent when they reproduce
-#define REPRATEH 7           // reproduction rate for herbivores
-#define REPRATEC 6           // reproduction rate for carnivores
+#define BABIES 4             // number of babies per agent when they reproduce
+#define REPRATEH 6           // reproduction rate for herbivores
+#define REPRATEC 5           // reproduction rate for carnivores
 #define REP_MIN_HEALTH 0.75f // health level required of agent before it can reproduce
 
 // ---- HEALTH DEDUCTIONS ----
@@ -55,8 +55,8 @@
 #define GAIN_GROUPING 0.00003f  // addition of health for each bot near it (thermal sharing)
 
 // ---- FOOD ----
-#define FOODSQUARES 120        // how many food squares to check every FOODADDFREQ?
-#define FOODGROWTH 0.10f       // how quickly does food grow on a square
+#define FOODSQUARES 1450        // how many food squares to check every FOODADDFREQ?
+#define FOODGROWTH 0.25f       // how quickly does food grow on a square
 #define FOODINTAKE 0.00225f    // how much does every agent consume?
 #define FOODWASTE 0.001f       // how much food disappears if agent eats?
 #define FOODMAX 0.6f           // how much food per cell can there be at max?
@@ -65,6 +65,7 @@
 #define FOOD_MEAT_VALUE 0.80f  // percentage that health is transferred when eaten
 #define FOODTRANSFER 0.001f    // how much is transferred between two agents trading food?
 #define FOOD_SHARING_DISTANCE 40.0f  // how far away is food shared between bots?
+#define FOOD_INIT_ITER 50000   // Number of initial food iterations
 #define FOOD_DISTRIBUTION_RADIUS DIST  // when bot is killed, how far is its body distributed?
 #define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE
 

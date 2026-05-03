@@ -44,7 +44,7 @@ typedef struct VKView {
 
     float scalemult;
     float xtranslate, ytranslate;
-    int  downb[3];
+    int  downb[2];
     int  mousex, mousey;
     int  draw_text;
 } VKView;

@@ -84,12 +84,7 @@ static void world_update_gui(struct World *world) {
 
   int32_t carnivores = world_numCarnivores(world);
   int32_t herbivores = world_numHerbivores(world);
-  float total_food = 0.0f;
-  for (size_t i = 0; i < world->foodGrid.food_pivot; i++) {
-    uint32_t x = world->foodGrid.food_sorted[i] % FOOD_SQUARES_WIDTH;
-    uint32_t y = world->foodGrid.food_sorted[i] / FOOD_SQUARES_WIDTH;
-    total_food += world->foodGrid.food[x][y].amt;
-  }
+  float total_food = foodGrid_getTotalFood(&world->foodGrid);
 
   printf("\rEpoch: %d | Next: %d%% | Agents: %i (C: %i H: %i) | Food: %.2f | FPS: %.1f | Time: %.2f sec       ",
          world->current_epoch, world->modcounter / 100, (int32_t)world->agents.size, carnivores, herbivores,
@@ -237,11 +232,7 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   if (initFood) {
     printf("Initializing food..");
     fflush(stdout);
-    for (int i = 0; i < 1000; i++) {
-      if (i % 100 == 0) {
-        printf(".");
-        fflush(stdout);
-      }
+    for (int i = 0; i < FOOD_INIT_ITER; i++) {
       world_update_food(world);
     }
     printf("\n");
@@ -700,6 +691,10 @@ int32_t world_numAgents(struct World *world) {
     exit(1);
   }
   return world->agents.size;
+}
+
+float world_getTotalFood(struct World *world) {
+  return foodGrid_getTotalFood(&world->foodGrid);
 }
 
 // ============================================================================

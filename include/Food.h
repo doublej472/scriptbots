@@ -23,6 +23,6 @@ void foodGrid_init(struct FoodGrid *foodGrid);
 float foodGrid_getFoodAmount(struct FoodGrid *foodGrid, int32_t x, int32_t y);
 float foodGrid_growFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float amt);
 float foodGrid_takeFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float amt);
-
+float foodGrid_getTotalFood(struct FoodGrid *foodGrid);
 
 #endif

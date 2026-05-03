@@ -83,9 +83,9 @@ void vkview_init(int argc, char **argv) {
     VKVIEW.xtranslate = -(WIDTH / 2.0f);
     VKVIEW.ytranslate = -(HEIGHT / 2.0f);
     VKVIEW.scalemult  = 0.4f;
-    VKVIEW.downb[0] = VKVIEW.downb[1] = VKVIEW.downb[2] = 0;
+    VKVIEW.downb[0] = VKVIEW.downb[1] = 0;
     VKVIEW.mousex = VKVIEW.mousey = 0;
-    VKVIEW.wwidth  = WWIDTH;
+    VKVIEW.wwidth  = WWIDTH;   // placeholder; overwritten below with actual window size
     VKVIEW.wheight = WHEIGHT;
 
     // Init GLFW
@@ -121,6 +121,21 @@ void vkview_init(int argc, char **argv) {
         fprintf(stderr, "FATAL: Vulkan init failed\n");
         exit(1);
     }
+
+    // Seed VKVIEW dimensions from the window content area (logical
+    // screen coordinates).  glfwGetCursorPos returns coords in this
+    // same space, so mouse→world transforms need the window size, not
+    // the (potentially HiDPI-scaled) framebuffer size.
+    // Rendering dimensions come separately from swapchain extent.
+    glfwGetWindowSize(VKVIEW.window, &VKVIEW.wwidth, &VKVIEW.wheight);
+
+    // Framebuffer resize callback — needed because OUT_OF_DATE is not
+    // guaranteed by all drivers/platforms after a window resize.
+    glfwSetWindowUserPointer(VKVIEW.window, VKVIEW.vkstate);
+    glfwSetFramebufferSizeCallback(VKVIEW.window, [](GLFWwindow *w, int, int) {
+        auto *vk = static_cast<VKState *>(glfwGetWindowUserPointer(w));
+        if (vk) vk->framebuffer_resized = 1;
+    });
 
     // Init ImGui
     IMGUI_CHECKVERSION();
@@ -319,8 +334,8 @@ static void mouse_button_callback(GLFWwindow *w, int button, int action, int mod
         world_processMouse(VKVIEW.base->world, 0, 0, wx, wy);
     }
 
-    if (button >= 0 && button <= 2) {
-        VKVIEW.downb[button] = (action == GLFW_PRESS) ? 1 : 0;
+    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        VKVIEW.downb[1] = (action == GLFW_PRESS) ? 1 : 0;
     }
 }
 
@@ -340,9 +355,9 @@ static void cursor_pos_callback(GLFWwindow *w, double x, double y) {
     int dx = (int)x - VKVIEW.mousex;
     int dy = (int)y - VKVIEW.mousey;
 
-    if (VKVIEW.downb[2]) {  // right button = pan
+    if (VKVIEW.downb[1]) {  // right button = pan
         VKVIEW.xtranslate += dx / VKVIEW.scalemult;
-        VKVIEW.ytranslate += dy / VKVIEW.scalemult;
+        VKVIEW.ytranslate -= dy / VKVIEW.scalemult;
     }
     VKVIEW.mousex = (int)x;
     VKVIEW.mousey = (int)y;
@@ -368,6 +383,32 @@ void vkview_toggle_fullscreen(void) {
     VKVIEW.is_fullscreen = !VKVIEW.is_fullscreen;
 }
 
+// ---- Swapchain recreation helper ----
+// Called before world_update each frame. Recreates the swapchain when
+// OUT_OF_DATE or SUBOPTIMAL is signalled by acquire/present.
+// Returns true if a recreation actually happened.
+static bool vkview_recreate_swapchain_if_needed(VKView *view) {
+    VKState *vk = view->vkstate;
+    if (!vkinit_needs_recreation(vk) && !vk->framebuffer_resized)
+        return false;
+
+    // Clear the resize flag before recreation so we don't loop if
+    // create_swapchain bails (minimized).  The callback will re-set it.
+    vk->framebuffer_resized = 0;
+
+    if (!vkinit_recreate_swapchain(vk))
+        return false;  // minimized window — try again next frame
+
+    // Update VKVIEW dimensions from the window content area (screen
+    // coordinates).  glfwGetCursorPos and ImGui use this space.
+    // Rendering uses swapchain extent (framebuffer pixels) separately.
+    // SetMinImageCount tells ImGui to rebuild its internal per-image
+    // render buffers to match the new swapchain image count.
+    glfwGetWindowSize(view->window, &view->wwidth, &view->wheight);
+    ImGui_ImplVulkan_SetMinImageCount(vk->sc_count);
+    return true;
+}
+
 // ---- Main loop ----
 static const int MILLS_PER_UPDATE = 250;
 
@@ -375,18 +416,7 @@ void vkview_main_loop(void) {
     while (!glfwWindowShouldClose(VKVIEW.window)) {
         glfwPollEvents();
 
-        // Handle resize immediately — before world_update submits GPU work
-        if (vkinit_needs_recreation(VKVIEW.vkstate)) {
-            vkinit_recreate_swapchain(VKVIEW.vkstate);
-            if (vkinit_needs_recreation(VKVIEW.vkstate))
-                continue;
-            // Sync VKVIEW dimensions with new swapchain extent
-            uint32_t w, h;
-            vkinit_get_extent(VKVIEW.vkstate, &w, &h);
-            VKVIEW.wwidth = (int)w; VKVIEW.wheight = (int)h;
-            ImGui_ImplVulkan_CreateFontsTexture();
-            ImGui::GetIO().DisplaySize = ImVec2((float)w, (float)h);
-        }
+        vkview_recreate_swapchain_if_needed(&VKVIEW);
 
         // World simulation (same logic as old glutIdleFunc)
         VKVIEW.modcounter++;

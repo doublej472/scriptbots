@@ -108,6 +108,7 @@ typedef struct VKState {
     VkFormat          sc_format;
     VkExtent2D        sc_extent;
     int               needs_recreation;
+    int               framebuffer_resized;   // set by GLFW framebuffer size callback
 
     // === Graphics pipeline (vkdraw.c) ===
     VkCommandPool   cmd_pool;

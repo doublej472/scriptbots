@@ -152,6 +152,13 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
 
     VkDeviceSize vbOff = 0;
 
+    // Food grid
+    if (foodVertCount > 0) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vk->food_vbuf, &vbOff);
+        vkCmdDraw(cmd, foodVertCount, 1, 0, 0);
+    }
+
     // Agent bodies
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle);
     vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_circle_vb, &vbOff);
@@ -186,13 +193,6 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
     vkCmdDraw(cmd, 4, agentCount, 8, 0);
     vkCmdDraw(cmd, 4, agentCount, 12, 0);
 
-    // Food grid
-    if (foodVertCount > 0) {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
-        vkCmdBindVertexBuffers(cmd, 0, 1, &vk->food_vbuf, &vbOff);
-        vkCmdDraw(cmd, foodVertCount, 1, 0, 0);
-    }
-
     if (imgui_cb) imgui_cb(cmd, imgui_user);
     vkCmdEndRenderPass(cmd);
 }
@@ -208,8 +208,10 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
     uint32_t imgIdx;
     VkResult res = vkAcquireNextImageKHR(vk->device, vk->swapchain, UINT64_MAX,
                                          vk->image_avail[cf], VK_NULL_HANDLE, &imgIdx);
-    if (res == VK_ERROR_OUT_OF_DATE_KHR) { vk->needs_recreation = 1; return; }
-    if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return;
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+        vk->needs_recreation = 1; return;
+    }
+    if (res != VK_SUCCESS) return;
     vkResetFences(vk->device, 1, &vk->in_flight[cf]);
     vkResetCommandBuffer(vk->cmd_buf[cf], 0);
 
@@ -243,6 +245,7 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
         .swapchainCount = 1, .pSwapchains = &vk->swapchain, .pImageIndices = &imgIdx,
     };
     VkResult presentRes = vkQueuePresentKHR(vk->queue, &pi);
-    if (presentRes == VK_ERROR_OUT_OF_DATE_KHR) vk->needs_recreation = 1;
+    if (presentRes == VK_ERROR_OUT_OF_DATE_KHR || presentRes == VK_SUBOPTIMAL_KHR)
+        vk->needs_recreation = 1;
     vk->current_frame = (cf + 1) % VK_MAX_FRAMES_IN_FLIGHT;
 }

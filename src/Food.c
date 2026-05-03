@@ -109,3 +109,13 @@ float foodGrid_takeFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float a
   }
   return 0.0f;
 }
+
+float foodGrid_getTotalFood(struct FoodGrid *foodGrid) {
+  float total_food = 0.0f;
+  for (size_t i = 0; i < foodGrid->food_pivot; i++) {
+    uint32_t x = foodGrid->food_sorted[i] % FOOD_SQUARES_WIDTH;
+    uint32_t y = foodGrid->food_sorted[i] / FOOD_SQUARES_WIDTH;
+    total_food += foodGrid->food[x][y].amt;
+  }
+  return total_food;
+}

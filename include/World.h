@@ -86,6 +86,7 @@ void world_sortGrid(struct World *world);
 int32_t world_numCarnivores(struct World *world);
 int32_t world_numHerbivores(struct World *world);
 int32_t world_numAgents(struct World *world);
+float world_getTotalFood(struct World *world);
 
 void agent_input_processor(void *arg);
 void agent_output_processor(void *arg);

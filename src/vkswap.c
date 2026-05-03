@@ -127,20 +127,30 @@ static void destroy_swapchain_resources(VKState *vk) {
 
 // ---- Public: full swapchain recreation (resize, out-of-date) ----
 int vkswap_recreate(VKState *vk) {
-    // Wait for in-flight graphics to complete (don't use vkDeviceWaitIdle — it can hang
-    // on presents during resize on some compositors)
-    vkWaitForFences(vk->device, 1, &vk->in_flight[vk->current_frame], VK_TRUE, UINT64_MAX);
-    // Don't reset — leave signaled. vkdraw_frame will wait+reset+submit.
+    // Drain the entire GPU before touching swapchain resources.
+    // vkDeviceWaitIdle is safer than vkWaitForFences on a single fence
+    // because compute (vkbrain) may have work referencing old semaphores.
+    vkDeviceWaitIdle(vk->device);
+
+    // Handle minimized window: block until the framebuffer has a real size.
+    // Per the Vulkan Tutorial, this avoids busy-looping each frame.
+    {
+        int fbw = 0, fbh = 0;
+        glfwGetFramebufferSize(vk->window, &fbw, &fbh);
+        while (fbw == 0 || fbh == 0) {
+            glfwWaitEvents();
+            glfwGetFramebufferSize(vk->window, &fbw, &fbh);
+        }
+    }
 
     // Destroy old framebuffers and image views (swapchain destroyed in create_swapchain)
     destroy_swapchain_resources(vk);
-
     create_swapchain(vk);
 
-    if (vk->needs_recreation) return 0;
-
-    // Render pass is NOT recreated — format doesn't change on resize,
-    // and recreating would invalidate ImGui's stored render pass reference.
+    // create_swapchain may still bail if the surface reports zero extent
+    // (defensive check — shouldn't happen after the wait loop above)
+    if (vk->needs_recreation)
+        return 0;
 
     // Recreate swapchain resources (framebuffers with new extent)
     vkswap_build_resources(vk);
@@ -159,6 +169,7 @@ int vkswap_recreate(VKState *vk) {
         free(old);
     }
 
+    vk->needs_recreation = 0;
     return 1;
 }
 
