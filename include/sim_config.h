@@ -8,8 +8,8 @@
 #define CZ 64
 // cell size in pixels, for food squares. Should divide well into Width Height
 
-#define WIDTH (CZ * 2000)
-#define HEIGHT (CZ * 800)
+#define WIDTH (CZ * 1000)
+#define HEIGHT (CZ * 1000)
 
 // computer window width and height
 #define WWIDTH 1280
@@ -41,10 +41,10 @@
 #define OLD_AGE_THRESHOLD 50000 // at what age do they start losing health for being old?
 
 // ---- REPRODUCTION ----
-#define BABIES 4             // number of babies per agent when they reproduce
+#define BABIES 3             // number of babies per agent when they reproduce
 #define REPRATEH 6           // reproduction rate for herbivores
-#define REPRATEC 5           // reproduction rate for carnivores
-#define REP_MIN_HEALTH 0.75f // health level required of agent before it can reproduce
+#define REPRATEC 6           // reproduction rate for carnivores
+#define REP_MIN_HEALTH 0.80f // health level required of agent before it can reproduce
 
 // ---- HEALTH DEDUCTIONS ----
 #define LOSS_BASE     0.00010f  // loss of health for simply being alive
@@ -52,10 +52,12 @@
 #define LOSS_SPEED    0.00005f  // loss of health for movement speed
 #define LOSS_BOOST    0.00030f  // loss of health for boosting
 #define LOSS_AGE      0.00015f  // loss of health from old age
-#define GAIN_GROUPING 0.00003f  // addition of health for each bot near it (thermal sharing)
+#define GAIN_GROUPING   0.000025f  // health per nearby-agent · ratio-unit (offset by crowding)
+#define CROWDING_LIMIT  8         // agents beyond this trigger quadratic crowding penalty
+#define CROWDING_PENALTY 0.00004f  // quadratic penalty per extra agent (× excess²)
 
 // ---- FOOD ----
-#define FOODSQUARES 1450        // how many food squares to check every FOODADDFREQ?
+#define FOODSQUARES 4000        // how many food squares to check every FOODADDFREQ?
 #define FOODGROWTH 0.25f       // how quickly does food grow on a square
 #define FOODINTAKE 0.00225f    // how much does every agent consume?
 #define FOODWASTE 0.001f       // how much food disappears if agent eats?

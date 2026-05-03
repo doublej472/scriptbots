@@ -51,6 +51,7 @@ typedef struct FoodVertex {
 typedef struct PushConstCircle {
     float    botRadius;
     uint32_t agentOffset;
+    uint32_t type;       // 0 = body, 1 = selection, 2 = indicator event
 } PushConstCircle;
 
 typedef struct PushConstLines {

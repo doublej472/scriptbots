@@ -1,7 +1,9 @@
 #version 450
-layout(local_size_x = 48) in;
+#include "brain_config.h"
 
-shared float val[48];
+layout(local_size_x = NEURONS_PER_LAYER) in;
+
+shared float val[NEURONS_PER_LAYER];
 
 layout(set = 0, binding = 0, std430) readonly buffer BufW { float w[]; };
 layout(set = 0, binding = 1, std430) readonly buffer BufI { float inp[]; };
@@ -17,19 +19,19 @@ void main() {
     if (agent >= pc.agent_count) return;
     uint lane  = gl_LocalInvocationID.x;
 
-    uint in_off = agent * 48;
+    uint in_off = agent * NEURONS_PER_LAYER;
     val[lane] = inp[in_off + lane];
     barrier();
 
-    uint base = agent * 7056;
-    for (uint l = 0; l < 3; l++) {
-        uint loff = base + l * 2352;
+    uint base = agent * BRAIN_WEIGHT_FLOATS;
+    for (uint l = 0; l < BRAIN_LAYERS; l++) {
+        uint loff = base + l * FLOATS_PER_LAYER;
 
         float sum = 0.0;
-        for (uint j = 0; j < 48; j++)
-            sum += val[j] * w[loff + j * 48 + lane];
+        for (uint j = 0; j < NEURONS_PER_LAYER; j++)
+            sum += val[j] * w[loff + j * NEURONS_PER_LAYER + lane];
 
-        sum += w[loff + 2304 + lane];
+        sum += w[loff + WEIGHTS_PER_LAYER + lane];
         val[lane] = clamp(sum, 0.0, 1.0);
         barrier();
     }

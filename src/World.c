@@ -302,31 +302,32 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     }
   }
 
+  // Agents give 1.0f health base
+  float base_health_add = 1.0f;
+
+  // bonus for hunting in groups
+  base_health_add += fminf(0.4f * (num_to_dist_body / 8.0f), 0.4f);
+
+  // young killed agents should give very little resources
+  // at age 10, they mature and give full. This can also help prevent
+  // agents eating their young right away
+  if (a->age < 10) {
+    base_health_add *= 0.1f;
+  }
+
+  // Divide for each agent
+  base_health_add /= (float)num_to_dist_body;
+
   for (size_t j = 0; j < num_to_dist_body; j++) {
     struct Agent *a2 = dist_agents[j];
-    // young killed agents should give very little resources
-    // at age 10, they mature and give full. This can also help prevent
-    // agents eating their young right away
-    float agemult = 1.0f;
-    if (a->age < 10) {
-      agemult = ((float)a->age + 0.5f) / 20.0f;
-    }
 
     // Base health add
-    float health_add = 1.0f;
-
-    // bonus for hunting in groups
-    health_add += fminf(0.5f * (num_to_dist_body / 8.0f), 0.5f);
-
-    // Factor in age muliplier
-    health_add *= agemult;
+    float health_add = base_health_add;
 
     // Factor in herbivore percentage
     health_add *= (1.0f - a2->herbivore);
 
-    // Divide for each agent
-    health_add /= (float)num_to_dist_body;
-
+    // Also reduce repcounter
     float rep_sub = 4.0f * health_add;
 
     // printf("n: %d, carn: %f, h+: %f, r-: %f\n", num_to_dist_body, 1.0f -
@@ -777,8 +778,8 @@ void agent_output_processor(void *arg) {
 
     // Read GPU outputs + recurrence (memcpy is SIMD-optimized, faster than scalar loop)
     if (vk) {
-      memcpy(a->out, vk->mapped_outputs[read_slot] + i * 48, 48 * sizeof(float));
-      memcpy(a->in + 18, a->out + 18, 30 * sizeof(float));
+      memcpy(a->out, vk->mapped_outputs[read_slot] + i * BRAIN_OUTPUT_SIZE, BRAIN_OUTPUT_SIZE * sizeof(float));
+      memcpy(a->in + 18, a->out + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
     }
 
     a->w1 = a->out[0];
@@ -903,8 +904,9 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   // BLOOD ESTIMATOR
   float blood = 0;
 
-  // AMOUNT OF HEALTH GAINED FROM BEING IN GROUP
-  float health_gain = 0;
+  // GROUPING: warmth from proximity + crowding penalty beyond limit
+  int   nearby_count = 0;
+  float ratio_sum = 0;
 
   // SMELL SOUND EYES
   // For each bucket
@@ -942,7 +944,8 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
         // health gain is most when two bots are just at threshold, is less
         // when they are ontop each other
         float ratio = (1.0f - (DIST_GROUPING - d) / DIST_GROUPING);
-        health_gain += GAIN_GROUPING * ratio;
+        nearby_count++;
+        ratio_sum += ratio;
         agent_initevent(a, 5.0f * ratio, 0.5f, 0.5f, 0.5f); // visualize it
 
         // sound (number of agents nearby)
@@ -1060,11 +1063,14 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
     }
   }
 
-  // APPLY HEALTH GAIN
-  if (health_gain > GAIN_GROUPING) // cap at conf value
-    a->health += GAIN_GROUPING;
-  else
-    a->health += health_gain;
+  // APPLY HEALTH GAIN — warmth from grouping offset by crowding penalty
+  {
+    float effective_ratio = fminf(ratio_sum, CROWDING_LIMIT * 0.6f);
+    float gain    = GAIN_GROUPING * effective_ratio;
+    int   excess  = nearby_count - CROWDING_LIMIT;
+    float penalty = (excess > 0) ? CROWDING_PENALTY * (float)(excess * excess) : 0.0f;
+    a->health += gain - penalty;
+  }
 
   if (a->health > 2) // limit the amount of health
     a->health = 2;
@@ -1088,7 +1094,7 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   if (randf(0, 1) > 0.95f) {
     a->in[17] = randf(0, 1); // random input for bot
   }
-  // Recurrence (in[18..47] ← out[18..47]) is handled in agent_output_processor.
+  // Recurrence (in[18..BRAIN_INPUT_SIZE-1] ← out[18..BRAIN_INPUT_SIZE-1]) handled in agent_output_processor.
 }
 
 void agent_input_processor(void *arg) {
@@ -1104,7 +1110,7 @@ void agent_input_processor(void *arg) {
     agent_set_inputs(world, a, buckets_to_check);
 
     if (vk) {
-      memcpy(vk->mapped_inputs[write_slot] + i * 48, a->in, 48 * sizeof(float));
+      memcpy(vk->mapped_inputs[write_slot] + i * BRAIN_INPUT_SIZE, a->in, BRAIN_INPUT_SIZE * sizeof(float));
     }
   }
 }

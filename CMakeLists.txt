@@ -34,11 +34,12 @@ set(SHADER_SOURCES
     brain.comp
 )
 
+set(SHADER_DEPS "${CMAKE_SOURCE_DIR}/include/brain_config.h")
 foreach(SHADER ${SHADER_SOURCES})
     add_custom_command(
         OUTPUT "${SHADER_OUT_DIR}/${SHADER}.spv"
-        COMMAND glslc -O "${SHADER_DIR}/${SHADER}" -o "${SHADER_OUT_DIR}/${SHADER}.spv"
-        DEPENDS "${SHADER_DIR}/${SHADER}"
+        COMMAND glslc -O -I"${CMAKE_SOURCE_DIR}/include" "${SHADER_DIR}/${SHADER}" -o "${SHADER_OUT_DIR}/${SHADER}.spv"
+        DEPENDS "${SHADER_DIR}/${SHADER}" ${SHADER_DEPS}
         COMMENT "Compiling shader: ${SHADER}"
     )
     list(APPEND SPV_FILES "${SHADER_OUT_DIR}/${SHADER}.spv")
@@ -151,11 +152,7 @@ find_package(imgui CONFIG REQUIRED)
 # Use system Vulkan, not vcpkg's
 find_package(Vulkan REQUIRED)
 
-# glm from system (or vcpkg if not found)
-find_package(glm QUIET)
-if(NOT glm_FOUND)
-	find_path(GLM_INCLUDE_DIR "glm/glm.hpp" REQUIRED)
-endif()
+find_package(glm CONFIG REQUIRED)
 
 # ---- New Vulkan sources ----
 target_sources(scriptbots PRIVATE
@@ -178,19 +175,9 @@ target_link_libraries(scriptbots PRIVATE
 	glfw
 	Vulkan::Vulkan
 	imgui::imgui
+	glm::glm
 	m
-	wayland-client
-	wayland-cursor
-	wayland-egl
-	xkbcommon
-	decor-0
 )
-
-if(glm_FOUND)
-	target_link_libraries(scriptbots PRIVATE glm::glm)
-else()
-	target_include_directories(scriptbots PRIVATE ${GLM_INCLUDE_DIR})
-endif()
 
 # Ensure shaders are built before the executable
 add_dependencies(scriptbots shaders)
@@ -204,5 +191,4 @@ add_custom_command(TARGET scriptbots POST_BUILD
 # ---- Compile flags ----
 target_compile_options(scriptbots PRIVATE -Wall)
 target_link_options(scriptbots PRIVATE -pthread)
-target_link_libraries(scriptbots PRIVATE m)
 target_include_directories(scriptbots PUBLIC ./include)

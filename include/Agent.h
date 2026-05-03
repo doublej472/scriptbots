@@ -46,8 +46,8 @@ struct Agent {
   int32_t hybrid;        // result of crossover?
 
   // --- Brain ---
-  float in[BRAIN_INPUT_SIZE];    // sensory inputs (padded to 48)
-  float out[BRAIN_OUTPUT_SIZE];  // motor outputs (padded to 48)
+  float in[BRAIN_INPUT_SIZE];    // sensory inputs (padded to workgroup size)
+  float out[BRAIN_OUTPUT_SIZE];  // motor outputs (padded to workgroup size)
   float *brain;                  // malloc'd float array, BRAIN_WEIGHT_FLOATS elements
 
   // --- Internal ---

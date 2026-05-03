@@ -162,17 +162,17 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
     // Agent bodies
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle);
     vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_circle_vb, &vbOff);
-    PushConstCircle pcBody = { .botRadius = BOTRADIUS, .agentOffset = 0 };
+    PushConstCircle pcBody = { .botRadius = BOTRADIUS, .agentOffset = 0, .type = 0 };
     vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcBody), &pcBody);
     vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
     // Selection rings
-    PushConstCircle pcSel = { .botRadius = BOTRADIUS + 5.0f };
+    PushConstCircle pcSel = { .botRadius = BOTRADIUS + 5.0f, .type = 1 };
     vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcSel), &pcSel);
     vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
-    // Indicator rings
-    PushConstCircle pcInd = { .botRadius = BOTRADIUS + 2.0f };
+    // Indicator / event rings
+    PushConstCircle pcInd = { .botRadius = BOTRADIUS, .type = 2 };
     vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcInd), &pcInd);
     vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 

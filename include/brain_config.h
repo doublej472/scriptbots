@@ -1,20 +1,21 @@
 // brain_config.h — neural network topology and GPU-compatible layout constants
+// Included by both C runtime and GLSL shaders (via glslc -I).
 #ifndef BRAIN_CONFIG_H
 #define BRAIN_CONFIG_H
 
-// How many hidden layers this brain has
-#define BRAIN_LAYERS 3
+// How many weight-matrix transitions (hidden layers + output layer)
+#define BRAIN_LAYERS 4
 
-// How many neurons per layer (padded to GPU workgroup size)
-#define NEURONS_PER_LAYER 48
+// How many neurons per layer (also GPU workgroup size, must be ≤ maxComputeWorkGroupInvocations)
+#define NEURONS_PER_LAYER 64
 
-// How many floats per layer in GPU layout: weights[48×48] + biases[48]
+// How many floats per layer in GPU layout: weights[N×N] + biases[N]
 #define WEIGHTS_PER_LAYER  (NEURONS_PER_LAYER * NEURONS_PER_LAYER)
 #define BIASES_PER_LAYER    NEURONS_PER_LAYER
-#define FLOATS_PER_LAYER    (WEIGHTS_PER_LAYER + BIASES_PER_LAYER)  // 2352
+#define FLOATS_PER_LAYER    (WEIGHTS_PER_LAYER + BIASES_PER_LAYER)
 
 // Total floats per brain in GPU-layout flat array
-#define BRAIN_WEIGHT_FLOATS (BRAIN_LAYERS * FLOATS_PER_LAYER)       // 7056
+#define BRAIN_WEIGHT_FLOATS (BRAIN_LAYERS * FLOATS_PER_LAYER)
 
 // Brain I/O sizes (padded to workgroup size)
 #define BRAIN_INPUT_SIZE  NEURONS_PER_LAYER
