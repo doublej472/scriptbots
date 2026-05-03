@@ -63,6 +63,10 @@ void vkview_process_mouse_click(int button, int action, double x, double y);
 // Toggle fullscreen
 void vkview_toggle_fullscreen(void);
 
+// ImGui overlays (implemented in imgui_hud.cpp)
+void imgui_draw_agent_hud(struct VKView *view);
+void imgui_draw_diagnostics(struct VKView *view);
+
 #ifdef __cplusplus
 }
 #endif

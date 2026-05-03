@@ -1,9 +1,7 @@
-#include "mtwister.h"
+#include "helpers.h"
 #include <math.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
-#include <assert.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <sysinfoapi.h>
@@ -11,56 +9,17 @@
 #include <unistd.h>
 #endif
 
-#include "helpers.h"
-
 void init_thread_random() {
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-
   long seed = ts.tv_nsec;
   seed ^= ts.tv_sec;
-
   seedRand(seed);
 }
 
-inline float approx_atan2(float y, float x) {
-  // http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
-  // https://gist.github.com/volkansalma/2972237
-  // Volkan SALMA
-
-  const float ONEQTR_PI = (float)M_PI / 4.0f;
-  const float THRQTR_PI = 3.0f * (float)M_PI / 4.0f;
-  float r, angle;
-  float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
-  if (x < 0.0f) {
-    r = (x + abs_y) / (abs_y - x);
-    angle = THRQTR_PI;
-  } else {
-    r = (x - abs_y) / (x + abs_y);
-    angle = ONEQTR_PI;
-  }
-  angle += (0.1963f * r * r - 0.9817f) * r;
-  if (y < 0.0f)
-    return (-angle); // negate if in quad III or IV
-  else
-    return (angle);
-}
-
-// uniform random in [a,b)
-inline float randf(float a, float b) { return (b - a) * genRand() + a; }
-
-// uniform random int32_t in [a,b)
-inline int32_t randi(int32_t a, int32_t b) {
-  assert(b >= a);
-  if (b <= a) {
-    return a;
-  }
-  return (genRandLong() % (b - a)) + a; }
-
-// normalvariate random N(mu, sigma)
 float randn(float mu, float sigma) {
-  static int32_t deviateAvailable = 0; //	flag
-  static float storedDeviate;          //	deviate from previous calculation
+  static int32_t deviateAvailable = 0;
+  static float storedDeviate;
   float polar, rsquared, var1, var2;
   if (!deviateAvailable) {
     do {
@@ -78,33 +37,12 @@ float randn(float mu, float sigma) {
   }
 }
 
-// Get number of processors in the system
-inline long get_nprocs() {
+long get_nprocs() {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   SYSTEM_INFO sysinfo;
   GetSystemInfo(&sysinfo);
   return sysinfo.dwNumberOfProcessors;
 #elif __linux__ || __APPLE__
   return sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-}
-
-void *alloc_aligned(size_t alignment, size_t size) {
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  return _aligned_malloc(size, alignment);
-#elif __linux__ || __APPLE__
-  return aligned_alloc(alignment, size);
-#else
-#error "No aligned alloc available!!!"
-#endif
-}
-
-void free_brain(void *f) {
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  _aligned_free(f);
-#elif __linux__ || __APPLE__
-  free(f);
-#else
-#error "No aligned free available!!!"
 #endif
 }

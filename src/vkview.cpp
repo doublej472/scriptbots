@@ -3,7 +3,7 @@
 #include "settings.h"
 #include "World.h"
 #include "Agent.h"
-#include "AVXBrain.h"
+#include "vkhelpers.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,10 +27,12 @@ static void render_imgui_to_cmd(VkCommandBuffer cmd, void *user_data) {
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 }
 
-static VKViewState build_view_state(void) {
+static VKViewState build_view_state(struct VKState *vk) {
+    uint32_t w, h;
+    vkinit_get_extent(vk, &w, &h);
     return (VKViewState){
-        .wwidth     = VKVIEW.wwidth,
-        .wheight    = VKVIEW.wheight,
+        .wwidth     = (int)w,
+        .wheight    = (int)h,
         .scalemult  = VKVIEW.scalemult,
         .xtranslate = VKVIEW.xtranslate,
         .ytranslate = VKVIEW.ytranslate,
@@ -61,11 +63,7 @@ static void key_callback(GLFWwindow *w, int key, int scancode, int action, int m
 static void mouse_button_callback(GLFWwindow *w, int button, int action, int mods);
 static void scroll_callback(GLFWwindow *w, double xoff, double yoff);
 static void cursor_pos_callback(GLFWwindow *w, double x, double y);
-static void framebuffer_size_callback(GLFWwindow *w, int width, int height);
 
-// ---- ImGui HUD ----
-static void draw_imgui_hud(void);
-static void draw_imgui_diagnostics(void);
 
 // ---- Init ----
 void vkview_init(int argc, char **argv) {
@@ -117,8 +115,6 @@ void vkview_init(int argc, char **argv) {
     glfwSetMouseButtonCallback(VKVIEW.window, mouse_button_callback);
     glfwSetScrollCallback(VKVIEW.window, scroll_callback);
     glfwSetCursorPosCallback(VKVIEW.window, cursor_pos_callback);
-    glfwSetFramebufferSizeCallback(VKVIEW.window, framebuffer_size_callback);
-
     // Init Vulkan
     VKVIEW.vkstate = vkinit_create(VKVIEW.window);
     if (!VKVIEW.vkstate) {
@@ -143,12 +139,12 @@ void vkview_init(int argc, char **argv) {
 
     // ImGui descriptor pool
     VkDescriptorPoolSize pool_sizes[] = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
     };
     VkDescriptorPoolCreateInfo dpci = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets = 1,
+        .maxSets = 4,
         .poolSizeCount = 1,
         .pPoolSizes = pool_sizes,
     };
@@ -181,6 +177,7 @@ void vkview_init(int argc, char **argv) {
 
     ImGui_ImplVulkan_Init(&vkInfo);
     ImGui_ImplVulkan_CreateFontsTexture();
+    ImGui::GetIO().DisplaySize = ImVec2((float)VKVIEW.wwidth, (float)VKVIEW.wheight);
 
     printf("[VKView] Initialized GLFW+Vulkan+ImGui.\n");
 }
@@ -261,7 +258,22 @@ void vkview_process_normal_key(int key, int mods) {
         VKVIEW.base->world->movieMode = !VKVIEW.base->world->movieMode;
         break;
     case GLFW_KEY_L:
-        if (mods & GLFW_MOD_CONTROL) base_loadworld(VKVIEW.base);
+        if (mods & GLFW_MOD_CONTROL) {
+            base_loadworld(VKVIEW.base);
+            // Restore GPU brain state and re-upload to GPU
+            if (VKVIEW.base->world->brain_gpu == NULL && VKVIEW.vkstate) {
+                VKVIEW.base->world->brain_gpu = VKVIEW.vkstate;
+                VKVIEW.base->world->brain_slot = 0;
+                // Ensure GPU is idle before touching compute resources
+                VKState *vk = VKVIEW.vkstate;
+                vkDeviceWaitIdle(vk->device);
+                vkResetFences(vk->device, 1, &vk->compute_fence);
+                vkbrain_upload_all(VKVIEW.vkstate, VKVIEW.base->world);
+                vkbrain_record_dispatch(VKVIEW.vkstate,
+                    (int)VKVIEW.base->world->agents.size, 0);
+                printf("Re-uploaded brains to GPU after load.\n");
+            }
+        }
         break;
     case GLFW_KEY_S:
         if (mods & GLFW_MOD_CONTROL) base_saveworld(VKVIEW.base);
@@ -336,14 +348,6 @@ static void cursor_pos_callback(GLFWwindow *w, double x, double y) {
     VKVIEW.mousey = (int)y;
 }
 
-static void framebuffer_size_callback(GLFWwindow *w, int width, int height) {
-    (void)w;
-    if (width == 0 || height == 0) return;
-    VKVIEW.wwidth = width;
-    VKVIEW.wheight = height;
-    if (VKVIEW.vkstate) vkinit_set_needs_recreation(VKVIEW.vkstate);
-}
-
 // ---- Fullscreen toggle ----
 void vkview_toggle_fullscreen(void) {
     if (VKVIEW.is_fullscreen) {
@@ -364,161 +368,25 @@ void vkview_toggle_fullscreen(void) {
     VKVIEW.is_fullscreen = !VKVIEW.is_fullscreen;
 }
 
-// ---- ImGui HUD for selected agent ----
-static void draw_imgui_hud(void) {
-    struct World *w = VKVIEW.base->world;
-    if (!w) return;
-
-    // Find selected agent
-    struct Agent *sel = NULL;
-    for (size_t i = 0; i < w->agents.size; i++) {
-        if (w->agents.agents[i]->selectflag) { sel = w->agents.agents[i]; break; }
-    }
-    if (!sel) return;
-
-    // Smooth camera lerp toward selected agent
-    VKVIEW.xtranslate += (-sel->pos.x - VKVIEW.xtranslate) * 0.05f;
-    VKVIEW.ytranslate += (-sel->pos.y - VKVIEW.ytranslate) * 0.05f;
-
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(420, 650), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Agent Inspector", NULL,
-                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-
-    ImDrawList *dl = ImGui::GetWindowDrawList();
-
-    // --- Input neurons ---
-    ImGui::Text("Inputs");
-    ImVec2 cursor = ImGui::GetCursorScreenPos();
-    float ss = 14.0f;
-    for (size_t j = 0; j < BRAIN_INPUT_SIZE; j++) {
-        float col = sel->in[j];
-        ImU32 c;
-        if (j < 18)
-            c = IM_COL32((int)(col*255), (int)(col*255), (int)(col*255), 255);
-        else if (j < 19)
-            c = IM_COL32(0, (int)(col*255), (int)(col*255), 255);
-        else
-            c = IM_COL32(0, (int)(col*255), 0, 255);
-        dl->AddRectFilled(
-            ImVec2(cursor.x + ss * j, cursor.y),
-            ImVec2(cursor.x + ss * j + ss - 1, cursor.y + 13), c);
-    }
-    ImGui::Dummy(ImVec2(ss * BRAIN_INPUT_SIZE, 14));
-
-    // --- Output neurons ---
-    ImGui::Text("Outputs");
-    cursor = ImGui::GetCursorScreenPos();
-    for (size_t j = 0; j < BRAIN_OUTPUT_SIZE; j++) {
-        float col = sel->out[j];
-        ImU32 c = IM_COL32((int)(col*255), (int)(col*255), (int)(col*255), 255);
-        dl->AddRectFilled(
-            ImVec2(cursor.x + ss * j, cursor.y),
-            ImVec2(cursor.x + ss * j + ss - 1, cursor.y + 13), c);
-    }
-    ImGui::Dummy(ImVec2(ss * BRAIN_OUTPUT_SIZE, 14));
-
-    // --- Brain layers ---
-    ImGui::Text("Brain Weights");
-    for (int layer = 0; layer < BRAIN_DEPTH; layer++) {
-        ImGui::Text("  Layer %d", layer);
-        cursor = ImGui::GetCursorScreenPos();
-        ss = 8.0f;
-        for (int k = 0; k < BRAIN_WIDTH; k++) {
-            for (size_t l = 0; l < BRAIN_ELEMENTS_PER_VECTOR; l++) {
-                int offx = k * (BRAIN_ELEMENTS_PER_VECTOR + 1) + l;
-                float col = sel->brain->layers[layer].inputs[k][l];
-                ImU32 c = IM_COL32((int)(col*255), (int)(col*255), (int)(col*255), 255);
-                dl->AddRectFilled(
-                    ImVec2(cursor.x + ss * offx, cursor.y),
-                    ImVec2(cursor.x + ss * offx + ss - 1, cursor.y + ss - 1), c);
-            }
-        }
-        ImGui::Dummy(ImVec2(
-            ss * (BRAIN_WIDTH * (BRAIN_ELEMENTS_PER_VECTOR + 1)), ss));
-    }
-
-    ImGui::Separator();
-    ImGui::Text("Health:       %.3f", sel->health);
-    ImGui::Text("Position:     %.1f, %.1f", sel->pos.x, sel->pos.y);
-    ImGui::Text("Angle:        %.3f", sel->angle);
-    ImGui::Text("Children:     %d", sel->numchildren);
-    ImGui::Text("Generation:   %jd", (intmax_t)sel->gencount);
-    ImGui::Text("Age:          %d", sel->age);
-    ImGui::Text("Rep counter:  %.3f", sel->repcounter);
-    ImGui::Text("Herbivore:    %.3f", sel->herbivore);
-    ImGui::Text("Mutate rate:  %.4f", sel->MUTRATE1);
-    ImGui::Text("Mutate mag:   %.4f", sel->MUTRATE2);
-    ImGui::Text("Wheel L/R:    %.4f, %.4f", sel->w2, sel->w1);
-
-    ImGui::End();
-
-    // World-space text labels for nearby agents when zoomed in
-    if (VKVIEW.draw_text && VKVIEW.scalemult > 0.7f) {
-        ImDrawList *fg = ImGui::GetForegroundDrawList();
-        for (size_t i = 0; i < w->agents.size; i++) {
-            struct Agent *a = w->agents.agents[i];
-            // Project world → screen (Y flipped for Vulkan viewport: Y=0 is top)
-            float sx = (a->pos.x + VKVIEW.xtranslate) * VKVIEW.scalemult + VKVIEW.wwidth / 2.0f;
-            float sy = VKVIEW.wheight / 2.0f - (a->pos.y + VKVIEW.ytranslate) * VKVIEW.scalemult;
-            if (sx < -50 || sx > VKVIEW.wwidth + 50 || sy < -50 || sy > VKVIEW.wheight + 50) continue;
-
-            char tmp[64];
-            int yoff = 0;
-            snprintf(tmp, sizeof(tmp), "%jd", (intmax_t)a->gencount);
-            fg->AddText(ImVec2(sx - BOTRADIUS * 2 * VKVIEW.scalemult,
-                               sy + 5 + BOTRADIUS * 2 * VKVIEW.scalemult + yoff),
-                        IM_COL32_WHITE, tmp);
-            yoff += 12;
-            snprintf(tmp, sizeof(tmp), "%d", a->age);
-            fg->AddText(ImVec2(sx - BOTRADIUS * 2 * VKVIEW.scalemult,
-                               sy + 5 + BOTRADIUS * 2 * VKVIEW.scalemult + yoff),
-                        IM_COL32_WHITE, tmp);
-            yoff += 12;
-            snprintf(tmp, sizeof(tmp), "%.2f", a->health);
-            fg->AddText(ImVec2(sx - BOTRADIUS * 2 * VKVIEW.scalemult,
-                               sy + 5 + BOTRADIUS * 2 * VKVIEW.scalemult + yoff),
-                        IM_COL32_WHITE, tmp);
-            yoff += 12;
-            snprintf(tmp, sizeof(tmp), "%.2f", a->repcounter);
-            fg->AddText(ImVec2(sx - BOTRADIUS * 2 * VKVIEW.scalemult,
-                               sy + 5 + BOTRADIUS * 2 * VKVIEW.scalemult + yoff),
-                        IM_COL32_WHITE, tmp);
-        }
-    }
-}
-
-// ---- Diagnostics overlay ----
-static void draw_imgui_diagnostics(void) {
-    struct World *w = VKVIEW.base->world;
-    if (!w) return;
-
-    ImGui::SetNextWindowPos(ImVec2((float)VKVIEW.wwidth - 260, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.5f);
-    ImGui::Begin("##diag", NULL,
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-                 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-
-    ImGui::Text("FPS:    %6.1f  (%.1f ms)", VKVIEW.smoothFPS, VKVIEW.smoothFrameMs);
-    if (VKVIEW.minFrameMs > 0.0f && VKVIEW.maxFrameMs > 0.0f)
-        ImGui::Text("Frame:  %5.1f - %.1f ms", VKVIEW.minFrameMs, VKVIEW.maxFrameMs);
-    ImGui::Separator();
-    ImGui::Text("Agents:     %5zu", w->agents.size);
-    ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
-    ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
-    ImGui::Text("Epoch:      %5d", w->current_epoch);
-    ImGui::Text("Zoom:       %5.2fx", VKVIEW.scalemult);
-    ImGui::Text("Frames:     %5d", VKVIEW.totalFrames);
-
-    ImGui::End();
-}
-
 // ---- Main loop ----
 static const int MILLS_PER_UPDATE = 250;
 
 void vkview_main_loop(void) {
     while (!glfwWindowShouldClose(VKVIEW.window)) {
         glfwPollEvents();
+
+        // Handle resize immediately — before world_update submits GPU work
+        if (vkinit_needs_recreation(VKVIEW.vkstate)) {
+            vkinit_recreate_swapchain(VKVIEW.vkstate);
+            if (vkinit_needs_recreation(VKVIEW.vkstate))
+                continue;
+            // Sync VKVIEW dimensions with new swapchain extent
+            uint32_t w, h;
+            vkinit_get_extent(VKVIEW.vkstate, &w, &h);
+            VKVIEW.wwidth = (int)w; VKVIEW.wheight = (int)h;
+            ImGui_ImplVulkan_CreateFontsTexture();
+            ImGui::GetIO().DisplaySize = ImVec2((float)w, (float)h);
+        }
 
         // World simulation (same logic as old glutIdleFunc)
         VKVIEW.modcounter++;
@@ -581,27 +449,18 @@ void vkview_main_loop(void) {
         }
 
         if (shouldDraw) {
-            // Check if swapchain needs recreation (resize, out-of-date)
-            if (vkinit_needs_recreation(VKVIEW.vkstate)) {
-                vkinit_recreate_swapchain(VKVIEW.vkstate);
-                // If still needs recreation (minimized), skip this frame
-                if (vkinit_needs_recreation(VKVIEW.vkstate)) continue;
-                // Re-create ImGui font texture for new render pass
-                ImGui_ImplVulkan_CreateFontsTexture();
-            }
-
             // Start ImGui frame
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            draw_imgui_hud();
-            draw_imgui_diagnostics();
+            imgui_draw_agent_hud(&VKVIEW);
+            imgui_draw_diagnostics(&VKVIEW);
 
             ImGui::Render();
 
             // Draw world via Vulkan (+ ImGui rendered inside same pass)
-            VKViewState vs = build_view_state();
+            VKViewState vs = build_view_state(VKVIEW.vkstate);
             vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
         } else {
             // Even when not drawing, we need to pump events

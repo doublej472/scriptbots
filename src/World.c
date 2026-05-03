@@ -1,5 +1,6 @@
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,12 +9,17 @@
 #include "World.h"
 #include "helpers.h"
 #include "queue.h"
+#include "vkhelpers.h"
 #include "settings.h"
 #include "vec.h"
 #include "vec2f.h"
 #include "Food.h"
 
 #define BATCH_SIZE 64
+
+// ============================================================================
+// Food & GUI
+// ============================================================================
 
 static void timespec_diff(struct timespec *result, struct timespec *start, struct timespec *stop) {
   if ((stop->tv_nsec - start->tv_nsec) < 0) {
@@ -92,13 +98,11 @@ static void world_update_gui(struct World *world) {
   fflush(stdout);
 
   world->startTime = endTime;
-
-  // Check if simulation needs to end
-
-  if (world->current_epoch >= MAX_EPOCHS || (endTime.tv_sec - world->totalStartTime.tv_sec) >= MAX_SECONDS) {
-    world->stopSim = 1;
-  }
 }
+
+// ============================================================================
+// Spatial Grid & Agent Lifecycle
+// ============================================================================
 
 struct BucketList {
   size_t buckets[9];
@@ -157,26 +161,39 @@ static struct AgentRange get_agent_range(struct World *world, size_t bucket_idx)
 }
 
 void world_flush_staging(struct World *world) {
-  // Check for and delete dead agents
+  VKState *vk_st = world->brain_gpu;
+
+  // Delete dead agents by swap-with-last (O(1) per death).
+  // Only the swapped-in agent changes GPU index — one brain restage per death.
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
-
-    // Cull any dead agents
     if (a->health <= 0) {
-      // The i-- is very important here, since we need to retry the current
-      // iteration because it was replaced with a different agent
-      free_brain(a->brain);
+      free(a->brain);
       free(a);
-      avec_delete(&world->agents, i--);
-      continue;
+      avec_delete(&world->agents, i);
+      // avec_delete swapped the last element into position i; restage it
+      if (vk_st && i < world->agents.size)
+        vkbrain_stage_brain(vk_st, (uint32_t)i, world->agents.agents[i]->brain);
+      i--;  // re-check the swapped-in agent
     }
   }
 
   // Add agents from staging vector
+  size_t old_size = world->agents.size;
   for (size_t i = 0; i < world->agents_staging.size; i++) {
     avec_push_back(&world->agents, world->agents_staging.agents[i]);
+    if (vk_st)
+      vkbrain_stage_brain(vk_st, (uint32_t)(old_size + i),
+                          world->agents_staging.agents[i]->brain);
   }
   world->agents_staging.size = 0;
+
+  // Trigger GPU buffer growth if agent count approaches capacity
+  if (vk_st && world->agents.size > vkbrain_capacity(vk_st) * 3 / 4)
+    vkbrain_ensure_capacity(vk_st, world->agents.size * 2);
+
+  // Submit staging copies now (separate from compute dispatch)
+  if (vk_st) vkbrain_flush_staging(vk_st);
 }
 
 void world_init(struct World *world, int initFood, size_t numbots) {
@@ -192,6 +209,8 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   world->modcounter = 0;
   world->current_epoch = 0;
   world->numAgentsAdded = 0;
+  world->brain_slot = 0;
+  world->brain_gpu = NULL;
 
   clock_gettime(CLOCK_MONOTONIC, &world->startTime);
   // Track total running time:
@@ -199,6 +218,10 @@ void world_init(struct World *world, int initFood, size_t numbots) {
 
   avec_init(&world->agents, numbots);
   avec_init(&world->agents_staging, numbots);
+
+  world->sorted_agents = NULL;
+  world->sorted_capacity = 0;
+  world->sorted_size = 0;
 
   // create the bots but with 20% more carnivores, to give them head start
   if (numbots > 100) {
@@ -261,7 +284,7 @@ void world_dist_dead_agent(struct World *world, size_t i) {
 
     // For each agent
     for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
-      struct Agent *a2 = world->agents.agents[agent_idx];
+      struct Agent *a2 = world->sorted_agents[agent_idx];
 
       // Ignore ourselves
       if (a == a2) {
@@ -329,8 +352,21 @@ void world_dist_dead_agent(struct World *world, size_t i) {
   }
 }
 
+// ============================================================================
+// Main Simulation Step
+// ============================================================================
+
+static void world_wait_compute(struct World *world) {
+  VKState *vk = world->brain_gpu;
+  if (!vk) return;
+  vkWaitForFences(vk->device, 1, &vk->compute_fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(vk->device, 1, &vk->compute_fence);
+}
+
 void world_update(struct World *world) {
-  // Increment Tick
+  struct timespec t;
+  timer_reset(&t);
+
   world->modcounter++;
 
   // Increment Epoch
@@ -346,14 +382,33 @@ void world_update(struct World *world) {
 
   world_update_food(world);
 
-  // sort agents into grid
+  // Sort sorted_agents[] pointers (stable — agents[] never reordered, GPU brain safe)
   world_sortGrid(world);
+  world->time_sort = timer_elapsed_ms(&t);
 
-  // give input to every agent. Sets in[] array. Runs brain
+  world_submit_compute(world);
+
+  // Gather inputs for NEXT frame (overlaps with GPU compute)
   world_setInputsRunBrain(world);
+  world->time_inputs = timer_elapsed_ms(&t);
+
+  world_wait_compute(world);
+  world->time_compute = timer_elapsed_ms(&t);
 
   // read output and process consequences of bots on environment. requires out[]
   world_processOutputs(world);
+  world->time_outputs = timer_elapsed_ms(&t);
+
+  // Phase 2: Apply accumulated cross-agent interactions (single-threaded, no races)
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = world->agents.agents[i];
+    a->health += a->pending_damage;
+    if (a->pending_spiked) a->spiked = 1;
+    a->pending_damage = 0.0f;
+    a->pending_spiked = 0;
+    if (a->health > 2.0f) a->health = 2.0f;
+    if (a->health < 0.0f) a->health = 0.0f;
+  }
 
   struct Agent *newMovieAgent = NULL;
   struct Agent *prevMovieAgent = NULL;
@@ -412,10 +467,20 @@ void world_update(struct World *world) {
       }
     }
   }
+  world->time_flush = timer_elapsed_ms(&t);
 
-  // Flush any agents in the staging array, and clean up dead bots
+  // Flush staging: delete dead + stage new brains + submit GPU copy
   world_flush_staging(world);
+  world->time_staging = timer_elapsed_ms(&t);
+
+  world_record_compute(world);
+  world->time_record = timer_elapsed_ms(&t);
+  world->time_total_frame = timer_elapsed_ms(&t);
 }
+
+// ============================================================================
+// GPU Brain Phases
+// ============================================================================
 
 void world_setInputsRunBrain(struct World *world) {
   struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
@@ -435,8 +500,26 @@ void world_setInputsRunBrain(struct World *world) {
   }
 
   queue_wait_until_done(world->queue);
-  // printf("input done, %zu size, %zu work items\n", world->queue->size,
-  // world->queue->num_work_items);
+  // Note: GPU dispatch is submitted separately (world_submit_compute)
+}
+
+void world_submit_compute(struct World *world) {
+  VKState *vk = world->brain_gpu;
+  if (!vk) return;
+  uint32_t read_slot = (uint32_t)world->brain_slot;
+  VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                      .commandBufferCount = 1,
+                      .pCommandBuffers = &vk->cmd_compute[read_slot] };
+  vkQueueSubmit(vk->queue, 1, &si, vk->compute_fence);
+}
+
+void world_record_compute(struct World *world) {
+  VKState *vk = world->brain_gpu;
+  if (!vk) return;
+  // Record for NEXT frame's read slot (the slot we just wrote inputs to)
+  uint32_t next_slot = 1u - (uint32_t)world->brain_slot;
+  vkbrain_record_dispatch(vk, (int)world->agents.size, next_slot);
+  world->brain_slot = (int32_t)next_slot;
 }
 
 void world_processOutputs(struct World *world) {
@@ -462,6 +545,10 @@ void world_processOutputs(struct World *world) {
   // printf("nagets: %zu\n", world->agents.size);
 }
 
+// ============================================================================
+// Agent Creation, Reproduction, & Reporting
+// ============================================================================
+
 void world_addRandomBots(struct World *world, int32_t num) {
   world->numAgentsAdded += num; // record in report
 
@@ -485,44 +572,16 @@ void world_addCarnivore(struct World *world) {
   world->numAgentsAdded++;
 }
 
-// void world_addNewByCrossover(struct World *world) {
-//   // find two success cases
-//   size_t i1 = randi(0, world->agents.size);
-//   size_t i2 = randi(0, world->agents.size);
-//   for (size_t i = 0; i < world->agents.size; i++) {
-//     if (world->agents.agents[i].age > world->agents.agents[i1].age &&
-//         randf(0, 1) < 0.1f) {
-//       i1 = i;
-//     }
-//     if (world->agents.agents[i].age > world->agents.agents[i2].age &&
-//         randf(0, 1) < 0.1f && i != i1) {
-//       i2 = i;
-//     }
-//   }
-//
-//   struct Agent *a1 = &world->agents.agents[i1];
-//   struct Agent *a2 = &world->agents.agents[i2];
-//
-//   // cross brains
-//   struct Agent anew;
-//   agent_init(&anew);
-//   agent_crossover(&anew, a1, a2);
-//
-//   // maybe do mutation here? I dont know. So far its only crossover
-//   avec_push_back(&world->agents_staging, anew);
-//
-//   world->numAgentsAdded++; // record in report
-// }
-
 void world_reproduce(struct World *world, struct Agent *a) {
-  agent_initevent(a, 30, 0.0f, 0.8f,
-                  0.0f); // green event means agent reproduced.
+  agent_initevent(a, 30, 0.0f, 0.8f, 0.0f);
   for (int32_t i = 0; i < BABIES; i++) {
     struct Agent *a2 = malloc(sizeof(struct Agent));
     agent_init(a2);
     agent_reproduce(a2, a);
     avec_push_back(&world->agents_staging, a2);
   }
+  // Children's brains are staged in world_flush_staging when added to agents.
+  // Parent's brain is unchanged (only copied, not mutated).
 }
 
 void world_writeReport(struct World *world) {
@@ -556,16 +615,10 @@ void world_writeReport(struct World *world) {
     avg_age = 0;
   }
 
-  // Compute Standard Devitation of every weight in every agents brain
-  double total_std_dev = 0;
-  double total_mean_std_dev;
-
-  total_mean_std_dev = total_std_dev - 200.0f; // reduce by 200 for graph readability
-
   FILE *fp = fopen("report.csv", "a");
 
-  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn, topherb, topcarn,
-          (int32_t)total_mean_std_dev, avg_age, world->numAgentsAdded);
+  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn, topherb, topcarn,
+          avg_age, world->numAgentsAdded);
 
   fclose(fp);
 
@@ -582,29 +635,42 @@ void world_reset(struct World *world) {
   world_flush_staging(world);
 }
 
+void world_free_agents(struct World *world) {
+  for (size_t i = 0; i < world->agents.size; i++) {
+    free(world->agents.agents[i]->brain);
+    free(world->agents.agents[i]);
+  }
+  for (size_t i = 0; i < world->agents_staging.size; i++) {
+    free(world->agents_staging.agents[i]->brain);
+    free(world->agents_staging.agents[i]);
+  }
+  avec_free(&world->agents);
+  avec_free(&world->agents_staging);
+}
+
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {
   if (state == 0) {
     float mind = 1e10;
-    size_t mini = -1;
-    float d;
+    struct Agent *nearest = NULL;
 
-    for (size_t i = 0; i < world->agents.size; i++) {
-      d = powf((float)x - world->agents.agents[i]->pos.x, 2.0f) + powf((float)y - world->agents.agents[i]->pos.y, 2.0f);
-      if (d < mind) {
-        mind = d;
-        mini = i;
+    // Use spatial grid to only check agents in nearby buckets
+    struct BucketList buckets = get_buckets_from_pos((float)x, (float)y);
+    for (size_t b = 0; b < 9; b++) {
+      struct AgentRange range = get_agent_range(world, buckets.buckets[b]);
+      for (size_t i = range.start; i < range.end; i++) {
+        struct Agent *a = world->sorted_agents[i];
+        float dx = (float)x - a->pos.x, dy = (float)y - a->pos.y;
+        float d = dx * dx + dy * dy;
+        if (d < mind) { mind = d; nearest = a; }
       }
     }
-    // toggle selection of this agent
-    for (size_t i = 0; i < world->agents.size; i++) {
-      if (i != mini) {
-        world->agents.agents[i]->selectflag = 0;
-      } else {
-        world->agents.agents[i]->selectflag = world->agents.agents[mini]->selectflag ? 0 : 1;
+    // Toggle selection by pointer identity (avoids O(n) index lookup)
+    if (nearest) {
+      for (size_t i = 0; i < world->agents.size; i++) {
+        world->agents.agents[i]->selectflag =
+            (world->agents.agents[i] == nearest) ? !nearest->selectflag : 0;
       }
     }
-
-    // agents[mini].printSelf();
   }
 }
 
@@ -636,71 +702,92 @@ int32_t world_numAgents(struct World *world) {
   return world->agents.size;
 }
 
+// ============================================================================
+// Spatial Grid Sorting
+// ============================================================================
+
 void world_sortGrid(struct World *world) {
-  for (size_t i = 1; i < world->agents.size; i++) {
-    struct Agent *key_agent = world->agents.agents[i];
+  size_t n = world->agents.size;
+  if (n > world->sorted_capacity) {
+    world->sorted_capacity = n * 2;
+    world->sorted_agents = realloc(world->sorted_agents,
+                                    world->sorted_capacity * sizeof(struct Agent *));
+  }
 
-    // Integer truncation means this cuts off at the whole number boundary
-    int64_t this_grid_x = (int64_t)(key_agent->pos.x / DIST);
-    int64_t this_grid_y = (int64_t)(key_agent->pos.y / DIST);
-    size_t key_grid_index = get_bucket_from_pos(this_grid_x, this_grid_y);
+  // Mark all live agents with this frame's generation
+  static uint64_t gen = 0;
+  gen++;
+  // Prevent theoretical wrap (585M years at 1000 fps)
+  if (gen == 0) { gen = 1; for (size_t i = 0; i < n; i++) world->agents.agents[i]->sort_alive = 0; }
+  for (size_t i = 0; i < n; i++)
+    world->agents.agents[i]->sort_alive = gen;
 
-    long j = i - 1;
+  // Compact: copy old sorted_agents entries that are still alive (keep order),
+  // and clear their marker so new agents can be identified.
+  size_t out = 0, old_n = world->sorted_size;
+  for (size_t i = 0; i < old_n; i++) {
+    struct Agent *a = world->sorted_agents[i];
+    if (a->sort_alive == gen) {
+      a->sort_alive = 0;  // consumed — won't be appended as "new"
+      world->sorted_agents[out++] = a;
+    }
+  }
+  // Append new agents (in agents[] but not in old sorted_agents)
+  for (size_t i = 0; i < n; i++) {
+    struct Agent *a = world->agents.agents[i];
+    if (a->sort_alive == gen)  // marker still set = new agent
+      world->sorted_agents[out++] = a;
+  }
+
+  // Insertion sort — O(N) on mostly-sorted data (agents move slowly)
+  for (size_t i = 1; i < n; i++) {
+    struct Agent *key = world->sorted_agents[i];
+    size_t key_b = get_bucket_from_pos((int64_t)(key->pos.x / DIST),
+                                        (int64_t)(key->pos.y / DIST));
+    long j = (long)i - 1;
     while (j >= 0) {
-      struct Agent *a2 = world->agents.agents[j];
-
-      // Integer truncation means this cuts off at the whole number boundary
-      int64_t next_grid_x = (int64_t)(a2->pos.x / DIST);
-      int64_t next_grid_y = (int64_t)(a2->pos.y / DIST);
-      size_t next_grid_index = get_bucket_from_pos(next_grid_x, next_grid_y);
-
-      if (next_grid_index <= key_grid_index) {
-        break;
-      }
-
-      world->agents.agents[j + 1] = world->agents.agents[j];
+      struct Agent *a2 = world->sorted_agents[j];
+      size_t ab = get_bucket_from_pos((int64_t)(a2->pos.x / DIST),
+                                       (int64_t)(a2->pos.y / DIST));
+      if (ab <= key_b) break;
+      world->sorted_agents[j + 1] = world->sorted_agents[j];
       j--;
     }
-
-    world->agents.agents[j + 1] = key_agent;
+    world->sorted_agents[j + 1] = key;
   }
 
-  // Construct grid
-  size_t current_grid_index = 0;
-  for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = world->agents.agents[i];
-
-    // Integer truncation means this cuts off at the whole number boundary
-    int64_t grid_x = (int64_t)(a->pos.x / DIST);
-    int64_t grid_y = (int64_t)(a->pos.y / DIST);
-    size_t grid_index = get_bucket_from_pos(grid_x, grid_y);
-
-    while (grid_index > current_grid_index) {
-      world->agent_grid[current_grid_index++] = i;
-    }
+  // Populate agent_grid: end-index into sorted_agents per bucket
+  size_t cur = 0;
+  for (size_t i = 0; i < n; i++) {
+    size_t b = get_bucket_from_pos((int64_t)(world->sorted_agents[i]->pos.x / DIST),
+                                    (int64_t)(world->sorted_agents[i]->pos.y / DIST));
+    while (b > cur) world->agent_grid[cur++] = i;
   }
-
-  while (current_grid_index < AGENT_BUCKETS) {
-    world->agent_grid[current_grid_index] = world->agent_grid[current_grid_index - 1];
-    current_grid_index++;
-    // printf("%li: %li\n", current_grid_index, i);
-  }
+  while (cur < AGENT_BUCKETS) world->agent_grid[cur++] = n;
+  world->sorted_size = n;
 }
+
+// ============================================================================
+// Agent Processing (thread workers)
+// ============================================================================
 
 void agent_output_processor(void *arg) {
   struct AgentQueueItem *aqi = (struct AgentQueueItem *)arg;
-  assert(aqi != NULL);
   struct World *world = aqi->world;
-  assert(world != NULL);
+  VKState *vk = world->brain_gpu;
+  uint32_t read_slot = (uint32_t)world->brain_slot;
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
-    assert(aqi->start <= i);
-    assert(i < aqi->end);
     struct Agent *a = world->agents.agents[i];
-    assert(a != NULL);
 
-    a->w1 = a->out[0]; //-(2*a->out[0]-1);
-    a->w2 = a->out[1]; //-(2*a->out[1]-1);
+    // Read GPU outputs + recurrence (memcpy is SIMD-optimized, faster than scalar loop)
+    if (vk) {
+      memcpy(a->out, vk->mapped_outputs[read_slot] + i * 48, 48 * sizeof(float));
+      memcpy(a->in + 18, a->out + 18, 30 * sizeof(float));
+    }
+
+    a->w1 = a->out[0];
+    a->w2 = a->out[1];
     a->red = fmaxf(a->out[2], 0.15f);
     a->gre = fmaxf(a->out[3], 0.15f);
     a->blu = fmaxf(a->out[4], 0.15f);
@@ -710,91 +797,78 @@ void agent_output_processor(void *arg) {
 
     float greadj = fmaxf(0.0f, a->herbivore - 0.5f);
     float redadj = fmaxf(0.0f, 0.5f - a->herbivore);
-
     a->gre = fminf(a->gre + greadj, 1.0f);
     a->red = fminf(a->red + redadj, 1.0f);
 
-    // spike length should slowly tend towards out[5]
     float g = a->out[5];
     if (a->spikeLength < g)
       a->spikeLength += SPIKESPEED;
     else if (a->spikeLength > g)
-      a->spikeLength = g; // its easy to retract spike, just hard to put it up.
+      a->spikeLength = g;
 
-    // Move bots
+    // Wheel orientation: cos(a+π/2)=−sin(a), sin(a+π/2)=cos(a)
+    // Compiler fuses adjacent sinf/cosf on same arg into a single x86 sincos.
+    float halfR = BOTRADIUS * 0.5f;
+    float sina = cosf(a->angle), cosa = -sinf(a->angle);
+    float vx = halfR * cosa, vy = halfR * sina;
+    float w1px = a->pos.x + vx, w1py = a->pos.y + vy;
+    float w2px = a->pos.x - vx, w2py = a->pos.y - vy;
 
-    struct Vector2f v;
-    vector2f_init(&v, BOTRADIUS / 2, 0);
-    vector2f_rotate(&v, a->angle + (float)M_PI / 2.0f);
-
-    struct Vector2f w1p;
-    struct Vector2f w2p;
-    vector2f_add(&w1p, &a->pos, &v); // wheel positions
-    vector2f_sub(&w2p, &a->pos, &v); // wheel positions
-
-    float BW1 = BOTSPEED * a->w1; // bot speed * wheel speed
+    float BW1 = BOTSPEED * a->w1;
     float BW2 = BOTSPEED * a->w2;
+    if (a->boost) { BW1 *= BOOSTSIZEMULT; BW2 *= BOOSTSIZEMULT; }
 
-    if (a->boost) {
-      BW1 = BW1 * BOOSTSIZEMULT;
-      BW2 = BW2 * BOOSTSIZEMULT;
-    }
-
-    // move bots
-    struct Vector2f vv;
-    vector2f_sub(&vv, &w2p, &a->pos);
-    vector2f_rotate(&vv, -BW1);
-
-    vector2f_sub(&a->pos, &w2p, &vv);
+    // Rotate around w2p by -BW1 (small-angle: sin≈x, cos≈1-x²/2)
+    float vvx = w2px - a->pos.x, vvy = w2py - a->pos.y;
+    float bw1s = -BW1, bw1c = 1.0f - BW1*BW1*0.5f;  // sin≈-BW1, cos≈1-BW1²/2
+    float nvx = vvx * bw1c - vvy * bw1s, nvy = vvx * bw1s + vvy * bw1c;
+    a->pos.x = w2px - nvx;
+    a->pos.y = w2py - nvy;
     a->angle -= BW1;
-    if (a->angle < (float)-M_PI)
-      a->angle = (float)M_PI - ((float)-M_PI - a->angle);
-    vector2f_sub(&vv, &a->pos, &w1p);
-    vector2f_rotate(&vv, BW2);
-    vector2f_add(&a->pos, &w1p, &vv);
+    if (a->angle < (float)-M_PI) a->angle = (float)M_PI - ((float)-M_PI - a->angle);
+
+    // Rotate around w1p by +BW2 (small-angle approximation)
+    vvx = a->pos.x - w1px; vvy = a->pos.y - w1py;
+    float bw2s = BW2, bw2c = 1.0f - BW2*BW2*0.5f;  // sin≈BW2, cos≈1-BW2²/2
+    nvx = vvx * bw2c - vvy * bw2s; nvy = vvx * bw2s + vvy * bw2c;
+    a->pos.x = w1px + nvx;
+    a->pos.y = w1py + nvy;
     a->angle += BW2;
-    if (a->angle > (float)M_PI)
-      a->angle = (float)-M_PI + (a->angle - (float)M_PI);
+    if (a->angle > (float)M_PI) a->angle = (float)-M_PI + (a->angle - (float)M_PI);
 
-    // wrap around the map
-    /*if (a->pos.x<0) a->pos.x= WIDTH+a->pos.x;
-              if (a->pos.x>=WIDTH) a->pos.x= a->pos.x-WIDTH;
-              if (a->pos.y<0) a->pos.y= HEIGHT+a->pos.y;
-              if (a->pos.y>=HEIGHT) a->pos.y= a->pos.y-HEIGHT;*/
-
-    // process food intake
-
+    // Food intake (inlined bounds check)
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-
-
-    if (foodGrid_getFoodAmount(&world->foodGrid, cx, cy) > 0.0f && a->health < 2 && a->herbivore > 0.1f) {
-      // agent eats the food
+    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH &&
+        (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
+        world->foodGrid.food[cx][cy].amt > 0.0f &&
+        a->health < 2.0f && a->herbivore > 0.1f) {
       float to_take = FOODINTAKE;
-      float speedmul = (((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) / 2.0f) * 0.5f + 0.5f;
-      to_take = to_take * speedmul * a->herbivore * a->herbivore;
+      float speedmul = ((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) * 0.25f + 0.5f;
+      to_take *= speedmul * a->herbivore * a->herbivore;
       float itk = foodGrid_takeFood(&world->foodGrid, cx, cy, to_take);
       a->health += itk;
-      a->repcounter -= 3 * itk;
+      a->repcounter -= 3.0f * itk;
     }
 
     a->rep = 0;
 
-    // Handle reproduction
-    if (world->modcounter % 15 == 0 && a->repcounter < 0 && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
-      // agent is healthy (REP_MIN_HEALTH) and is ready to reproduce.
-      // Also inject a bit non-determinism
-
-      // the parent splits it health evenly with all of its babies
+    if (world->modcounter % 15 == 0 && a->repcounter < 0.0f && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
       a->health -= a->health / ((float)BABIES + 1.0f);
-
       a->rep = 1;
-
       a->repcounter = a->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
                       (1.0f - a->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
     }
 
-    agent_process_health(a);
+    // Inlined agent_process_health
+    float healthloss = LOSS_BASE;
+    if (a->age > 500.0f)
+      healthloss += LOSS_AGE * ((a->age - 500.0f) * 0.004f);  // /250 = *0.004
+    float wavg = (fabsf(a->w1) + fabsf(a->w2)) * BOTSPEED;
+    healthloss += LOSS_SPEED * (a->boost ? wavg * 0.5f : wavg);
+    if (a->boost) healthloss += LOSS_BOOST;
+    healthloss += LOSS_SHOUTING * a->soundmul;
+    a->health -= healthloss;
   }
 }
 
@@ -843,9 +917,9 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
     size_t bucket = buckets_to_check.buckets[j];
     struct AgentRange agent_range = get_agent_range(world, bucket);
 
-    // For each agent
+    // For each agent (sorted by spatial bucket)
     for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
-      struct Agent *a2 = world->agents.agents[agent_idx];
+      struct Agent *a2 = world->sorted_agents[agent_idx];
 
       // Ignore ourselves
       if (a == a2) {
@@ -977,14 +1051,14 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
 
           // You have to hit hard for it to count
           if (DMG > 1.25f) {
-            a2->health -= DMG;
+            a2->pending_damage -= DMG;  // accumulated, applied single-threaded in Phase 2
             a->spikeLength = fmaxf(a->spikeLength - DMG, 0.0f); // retract spike back down
 
             agent_initevent(a, 10.0f * DMG, 1.0f, 1.0f,
                             0.0f); // yellow event means bot has spiked other bot. nice!
 
             // set a flag saying that this agent was hit this turn
-            a2->spiked = 1;
+            a2->pending_spiked = 1;
           }
         }
       }
@@ -1019,35 +1093,23 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   if (randf(0, 1) > 0.95f) {
     a->in[17] = randf(0, 1); // random input for bot
   }
-
-  for (int i = 18; i < BRAIN_INPUT_SIZE && i < BRAIN_OUTPUT_SIZE; i++) {
-    a->in[i] = a->out[i];
-  }
+  // Recurrence (in[18..47] ← out[18..47]) is handled in agent_output_processor.
 }
 
 void agent_input_processor(void *arg) {
   struct AgentQueueItem *aqi = (struct AgentQueueItem *)arg;
   struct World *world = aqi->world;
+  VKState *vk = world->brain_gpu;
+  // P1 writes to the NEXT frame's slot (not current frame's read slot)
+  uint32_t write_slot = (vk ? 1u - (uint32_t)world->brain_slot : 0);
 
   for (size_t i = aqi->start; i < aqi->end; i++) {
     struct Agent *a = world->agents.agents[i];
     struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
-
-    // printf("&world->agents.size: %zu\n", world->agents.size);
-    // for (size_t j = 0; j < world->agents.size; j++) {
-    //   printf("agent %zu: %i\n", j, a->pos.x);
-    // }
-
-    // printf("thread: %zu\n", pthread_self());
-    // printf("world: %zu\n", world->agents.size);
-    // printf("index: %zu\n", i);
-    // printf("sizeof: %zu\n", sizeof(struct Agent));
-    // printf("pointer: %p\n", (void*) &world->agents.agents[i]);
     agent_set_inputs(world, a, buckets_to_check);
 
-    // printf("Got %d close agents\n", num_close_agents);
-
-    // Now process brain
-    agent_tick(a);
+    if (vk) {
+      memcpy(vk->mapped_inputs[write_slot] + i * 48, a->in, 48 * sizeof(float));
+    }
   }
 }

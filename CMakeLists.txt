@@ -4,7 +4,6 @@ set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.c
 
 project(scriptbots)
 
-option(USE_OPENGL "Compile with Vulkan+GLFW" YES)
 option(BUILD_TESTS "Compile tests" NO)
 option(USE_LTO "Compile with LTO optimizations" YES)
 option(MARCH_NATIVE "Compile with -march=native" YES)
@@ -32,6 +31,7 @@ set(SHADER_SOURCES
     agent_lines.vert  agent_lines.frag
     agent_hud.vert    agent_hud.frag
     food.vert         food.frag
+    brain.comp
 )
 
 foreach(SHADER ${SHADER_SOURCES})
@@ -54,13 +54,14 @@ add_executable(scriptbots
 	src/Base.c
 	src/Agent.c
 	src/main.c
-	src/AVXBrain.c
 	src/helpers.c
 	src/World.c
 	src/lock.c
 	src/mtwister.c
 	src/Food.c
 	include/settings.h
+	include/brain_config.h
+	include/sim_config.h
 	include/vec.h
 	include/mtwister.h
 	include/lock.h
@@ -68,7 +69,6 @@ add_executable(scriptbots
 	include/World.h
 	include/vec2f.h
 	include/helpers.h
-	include/AVXBrain.h
 	include/queue.h
 	include/Base.h
 	include/Food.h
@@ -132,7 +132,6 @@ if (BUILD_TESTS)
 		include/World.h
 		include/vec2f.h
 		include/helpers.h
-		include/AVXBrain.h
 		include/queue.h
 		include/Base.h
 	)
@@ -146,64 +145,61 @@ if (USE_LTO)
 endif()
 
 # ---- Vulkan / GLFW / ImGui ----
-if (USE_OPENGL)
-	find_package(glfw3 CONFIG REQUIRED)
-	find_package(imgui CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
-	# Use system Vulkan, not vcpkg's
-	find_package(Vulkan REQUIRED)
+# Use system Vulkan, not vcpkg's
+find_package(Vulkan REQUIRED)
 
-	# glm from system (or vcpkg if not found)
-	find_package(glm QUIET)
-	if(NOT glm_FOUND)
-		find_path(GLM_INCLUDE_DIR "glm/glm.hpp" REQUIRED)
-	endif()
-
-	add_compile_definitions(OPENGL)
-
-	# New Vulkan sources
-	target_sources(scriptbots PRIVATE
-		src/vkinit.c
-		src/vkdraw.c
-		src/vkview.cpp
-		src/imgui_impl_glfw.cpp
-		src/imgui_impl_vulkan.cpp
-		include/vkhelpers.h
-		include/vkview.h
-	)
-
-	# ImGui: link vcpkg's imgui target (provides include path for imgui.h)
-	target_link_libraries(scriptbots PRIVATE
-		glfw
-		Vulkan::Vulkan
-		imgui::imgui
-		m
-		wayland-client
-		wayland-cursor
-		wayland-egl
-		xkbcommon
-		decor-0
-	)
-
-	if(glm_FOUND)
-		target_link_libraries(scriptbots PRIVATE glm::glm)
-	else()
-		target_include_directories(scriptbots PRIVATE ${GLM_INCLUDE_DIR})
-	endif()
-
-	# Ensure shaders are built before the executable
-	add_dependencies(scriptbots shaders)
-
-	# Copy SPV files next to binary for runtime loading
-	add_custom_command(TARGET scriptbots POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_directory
-		"${SHADER_OUT_DIR}" "$<TARGET_FILE_DIR:scriptbots>/shaders"
-	)
+# glm from system (or vcpkg if not found)
+find_package(glm QUIET)
+if(NOT glm_FOUND)
+	find_path(GLM_INCLUDE_DIR "glm/glm.hpp" REQUIRED)
 endif()
 
-# ---- SIMD ----
-find_path(SIMDE_INCLUDE_DIRS "simde/x86/avx512.h")
-target_include_directories(scriptbots PRIVATE ${SIMDE_INCLUDE_DIRS})
+# ---- New Vulkan sources ----
+target_sources(scriptbots PRIVATE
+	src/vkinit.c
+	src/vkswap.c
+	src/vkdraw.c
+	src/vkbrain.c
+	src/vkview.cpp
+	src/imgui_hud.cpp
+	vendor/imgui/imgui_impl_glfw.cpp
+	vendor/imgui/imgui_impl_vulkan.cpp
+	include/vkhelpers.h
+	include/vkswap.h
+	include/vkview.h
+)
+
+# ImGui: link vcpkg's imgui target (provides include path for imgui.h)
+target_include_directories(scriptbots PRIVATE vendor/imgui)
+target_link_libraries(scriptbots PRIVATE
+	glfw
+	Vulkan::Vulkan
+	imgui::imgui
+	m
+	wayland-client
+	wayland-cursor
+	wayland-egl
+	xkbcommon
+	decor-0
+)
+
+if(glm_FOUND)
+	target_link_libraries(scriptbots PRIVATE glm::glm)
+else()
+	target_include_directories(scriptbots PRIVATE ${GLM_INCLUDE_DIR})
+endif()
+
+# Ensure shaders are built before the executable
+add_dependencies(scriptbots shaders)
+
+# Copy SPV files next to binary for runtime loading
+add_custom_command(TARGET scriptbots POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	"${SHADER_OUT_DIR}" "$<TARGET_FILE_DIR:scriptbots>/shaders"
+)
 
 # ---- Compile flags ----
 target_compile_options(scriptbots PRIVATE -Wall)

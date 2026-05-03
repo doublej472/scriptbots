@@ -9,6 +9,9 @@
 #include "vec.h"
 #include "Food.h"
 
+// Forward: VKState for GPU brain
+typedef struct VKState VKState;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,6 +39,9 @@ struct World {
   int32_t closed;
 
   int32_t touch;
+  int32_t brain_slot;  // 0 or 1 — which double-buffer slot current GPU compute reads/writes
+
+  VKState *brain_gpu;   // GPU brain state (null if no GPU)
 
   struct timespec startTime;      // used for tracking fps
   struct timespec totalStartTime; // used for deciding when to quit the simulation
@@ -43,13 +49,22 @@ struct World {
   struct Queue *queue;
 
   struct AVec agents;
-  // When agents get added to the world, they go the this AVec first, then
+  // When agents get added to the world, they go to this AVec first, then
   // they get pushed to the agents array
   struct AVec agents_staging;
 
-  // value represents one past the index of the last element in the bucket
-  // lookup
+  // Stable agent array: agents[] is NEVER reordered (GPU brain indexed by position).
+  // sorted_agents[i] = pointer to agent at sorted position i (for spatial iteration).
+  struct Agent **sorted_agents;
+  size_t sorted_capacity;
+  size_t sorted_size;
+
+  // End-index into sorted_agents per spatial bucket [0, bucket_size)
   size_t agent_grid[AGENT_BUCKETS];
+
+  // Per-frame timing (ms) — reset each frame
+  double time_sort, time_inputs, time_compute, time_outputs;
+  double time_staging, time_flush, time_record, time_total_frame;
 };
 
 void world_init(struct World *world, int initFood, size_t numbots);
@@ -57,12 +72,14 @@ void world_flush_staging(struct World *world);
 void world_printState(struct World *world);
 void world_update(struct World *world);
 void world_setInputsRunBrain(struct World *world);
+void world_submit_compute(struct World *world);
+void world_record_compute(struct World *world);
 void world_processOutputs(struct World *world);
 void world_addRandomBots(struct World *world, int32_t num);
 void world_addCarnivore(struct World *world);
-// void world_addNewByCrossover(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a);
 void world_writeReport(struct World *world);
+void world_free_agents(struct World *world);
 void world_reset(struct World *world);
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y);
 void world_sortGrid(struct World *world);

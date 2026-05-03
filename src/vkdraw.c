@@ -1,4 +1,19 @@
 // vkdraw.c — per-frame buffer updates, command recording, and present
+//
+// Graphics and compute share a single VkQueue (FIFO ordering).
+// No GPU buffers are shared between the two paths — all resources are private.
+// CPU-side, world_update (compute) runs before vkdraw_frame (graphics) on the
+// main thread, so there is no concurrent access to any VKState fields.
+//
+// Frame synchronisation:
+//   1. vkWaitForFences(in_flight)     — wait for previous frame's GPU work
+//   2. vkAcquireNextImageKHR          — wait for swapchain image (image_avail semaphore)
+//   3. CPU writes mapped UBO/SSBO/VBO (all host-coherent)
+//   4. vkCmdPipelineBarrier           — HOST_WRITE → VERTEX_SHADER|VERTEX_INPUT reads
+//   5. Draw calls + ImGui
+//   6. vkQueueSubmit(wait: image_avail, signal: render_done, fence: in_flight)
+//   7. vkQueuePresentKHR(wait: render_done)
+//
 #include "vkhelpers.h"
 #include "Base.h"
 #include "settings.h"
@@ -31,10 +46,7 @@ static void update_camera(VKState *vk, const VKViewState *view) {
     float T = B + view->wheight / view->scalemult;
     CameraUBO ubo;
     build_ortho(ubo.mvp, L, R, B, T, -1.0f, 1.0f);
-    void *mapped;
-    vkMapMemory(vk->device, vk->cam_ubo_mem, 0, sizeof(CameraUBO), 0, &mapped);
-    memcpy(mapped, &ubo, sizeof(CameraUBO));
-    vkUnmapMemory(vk->device, vk->cam_ubo_mem);
+    memcpy(vk->mapped_cam, &ubo, sizeof(CameraUBO));
 }
 
 // ---- Update agent SSBO ----
@@ -42,8 +54,7 @@ static int update_agents(VKState *vk, const VKViewState *view) {
     struct World *w = view->base->world;
     int count = (int)w->agents.size;
     if (count > VK_MAX_AGENTS) count = VK_MAX_AGENTS;
-    AgentInstance *dst;
-    vkMapMemory(vk->device, vk->agent_mem, 0, count * sizeof(AgentInstance), 0, (void**)&dst);
+    AgentInstance *dst = vk->mapped_agents;
     for (int i = 0; i < count; i++) {
         struct Agent *a = w->agents.agents[i];
         dst[i] = (AgentInstance){
@@ -60,7 +71,6 @@ static int update_agents(VKState *vk, const VKViewState *view) {
             .indicator_size = a->indicator,
         };
     }
-    vkUnmapMemory(vk->device, vk->agent_mem);
     return count;
 }
 
@@ -69,8 +79,7 @@ static int update_food(VKState *vk, const VKViewState *view) {
     struct World *w = view->base->world;
     int maxVerts = VK_MAX_FOOD_VERTS;
     if (maxVerts < 6) maxVerts = 6;
-    FoodVertex *dst;
-    vkMapMemory(vk->device, vk->food_vmem, 0, (VkDeviceSize)maxVerts * sizeof(FoodVertex), 0, (void**)&dst);
+    FoodVertex *dst = vk->mapped_food;
     int count = 0;
     if (view->drawfood) {
         float cellSize = CZ * view->scalemult;
@@ -96,37 +105,32 @@ static int update_food(VKState *vk, const VKViewState *view) {
             }
         }
     }
-    vkUnmapMemory(vk->device, vk->food_vmem);
     return count;
 }
 
-// ---- Main draw function called each frame ----
-void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb, void *imgui_user) {
-    if (!view->base || !view->base->world) return;
-    uint32_t cf = vk->current_frame;
-
-    vkWaitForFences(vk->device, 1, &vk->in_flight[cf], VK_TRUE, UINT64_MAX);
-    vkResetFences(vk->device, 1, &vk->in_flight[cf]);
-
-    uint32_t imgIdx;
-    VkResult res = vkAcquireNextImageKHR(vk->device, vk->swapchain, UINT64_MAX,
-                                         vk->image_avail[cf], VK_NULL_HANDLE, &imgIdx);
-    if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
-        if (res == VK_ERROR_OUT_OF_DATE_KHR) vk->needs_recreation = 1;
-        return;
-    }
-
-    vkResetCommandBuffer(vk->cmd_buf[cf], 0);
-
-    update_camera(vk, view);
-    int agentCount   = update_agents(vk, view);
-    int foodVertCount = update_food(vk, view);
-
-    VkCommandBufferBeginInfo cbbi = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+// ---- Draw command recording ----
+static void record_draws(VkCommandBuffer cmd, VKState *vk,
+                          int agentCount, int foodVertCount,
+                          vkdraw_imgui_cb imgui_cb, void *imgui_user,
+                          uint32_t imgIdx) {
+    // CPU writes → GPU reads: camera UBO (uniform), agent SSBO (storage), food VBO (vertex)
+    VkBufferMemoryBarrier bufBarriers[3] = {
+        { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+          .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+          .dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+          .buffer = vk->cam_ubo_buf, .offset = 0, .size = VK_WHOLE_SIZE },
+        { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+          .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+          .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+          .buffer = vk->agent_buf, .offset = 0, .size = VK_WHOLE_SIZE },
+        { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+          .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+          .dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+          .buffer = vk->food_vbuf, .offset = 0, .size = VK_WHOLE_SIZE },
     };
-    vkBeginCommandBuffer(vk->cmd_buf[cf], &cbbi);
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_HOST_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                         0, 0, NULL, 3, bufBarriers, 0, NULL);
 
     VkClearValue clear = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
     VkRenderPassBeginInfo rpbi = {
@@ -136,63 +140,91 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
         .renderArea = {{ 0, 0 }, vk->sc_extent },
         .clearValueCount = 1, .pClearValues = &clear,
     };
-    vkCmdBeginRenderPass(vk->cmd_buf[cf], &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
 
     VkViewport vp = { 0, 0, (float)vk->sc_extent.width, (float)vk->sc_extent.height, 0.0f, 1.0f };
-    vkCmdSetViewport(vk->cmd_buf[cf], 0, 1, &vp);
+    vkCmdSetViewport(cmd, 0, 1, &vp);
     VkRect2D scissor = {{ 0, 0 }, vk->sc_extent };
-    vkCmdSetScissor(vk->cmd_buf[cf], 0, 1, &scissor);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    vkCmdBindDescriptorSets(vk->cmd_buf[cf], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                             vk->pipeline_layout, 0, 1, &vk->desc_set, 0, NULL);
 
     VkDeviceSize vbOff = 0;
 
     // Agent bodies
-    vkCmdBindPipeline(vk->cmd_buf[cf], VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle);
-    vkCmdBindVertexBuffers(vk->cmd_buf[cf], 0, 1, &vk->mesh_circle_vb, &vbOff);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_circle_vb, &vbOff);
     PushConstCircle pcBody = { .botRadius = BOTRADIUS, .agentOffset = 0 };
-    vkCmdPushConstants(vk->cmd_buf[cf], vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcBody), &pcBody);
-    vkCmdDraw(vk->cmd_buf[cf], vk->mesh_circle_verts, agentCount, 0, 0);
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcBody), &pcBody);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
     // Selection rings
     PushConstCircle pcSel = { .botRadius = BOTRADIUS + 5.0f };
-    vkCmdPushConstants(vk->cmd_buf[cf], vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcSel), &pcSel);
-    vkCmdDraw(vk->cmd_buf[cf], vk->mesh_circle_verts, agentCount, 0, 0);
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcSel), &pcSel);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
     // Indicator rings
     PushConstCircle pcInd = { .botRadius = BOTRADIUS + 2.0f };
-    vkCmdPushConstants(vk->cmd_buf[cf], vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcInd), &pcInd);
-    vkCmdDraw(vk->cmd_buf[cf], vk->mesh_circle_verts, agentCount, 0, 0);
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcInd), &pcInd);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
     // View cone + spike lines
-    vkCmdBindPipeline(vk->cmd_buf[cf], VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_lines);
-    vkCmdBindVertexBuffers(vk->cmd_buf[cf], 0, 1, &vk->mesh_lines_vb, &vbOff);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_lines);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_lines_vb, &vbOff);
     PushConstLines pcLines = { .coneLength = BOTRADIUS * 4.0f, .spikeScale = BOTRADIUS * 3.0f };
-    vkCmdPushConstants(vk->cmd_buf[cf], vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcLines), &pcLines);
-    vkCmdDraw(vk->cmd_buf[cf], vk->mesh_lines_verts, agentCount, 0, 0);
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcLines), &pcLines);
+    vkCmdDraw(cmd, vk->mesh_lines_verts, agentCount, 0, 0);
 
-    // HUD elements (health bar, herbivore, sound)
-    vkCmdBindPipeline(vk->cmd_buf[cf], VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_hud);
-    vkCmdBindVertexBuffers(vk->cmd_buf[cf], 0, 1, &vk->mesh_hud_vb, &vbOff);
+    // HUD elements
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_hud);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_hud_vb, &vbOff);
     PushConstHud pcHud = { .agentOffset = 0 };
-    vkCmdPushConstants(vk->cmd_buf[cf], vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcHud), &pcHud);
-    vkCmdDraw(vk->cmd_buf[cf], 4, agentCount, 0, 0);   // type 0: health bg
-    vkCmdDraw(vk->cmd_buf[cf], 4, agentCount, 4, 0);   // type 1: health fg
-    vkCmdDraw(vk->cmd_buf[cf], 4, agentCount, 8, 0);   // type 2: herbivore
-    vkCmdDraw(vk->cmd_buf[cf], 4, agentCount, 12, 0);  // type 3: sound
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcHud), &pcHud);
+    vkCmdDraw(cmd, 4, agentCount, 0, 0);
+    vkCmdDraw(cmd, 4, agentCount, 4, 0);
+    vkCmdDraw(cmd, 4, agentCount, 8, 0);
+    vkCmdDraw(cmd, 4, agentCount, 12, 0);
 
     // Food grid
     if (foodVertCount > 0) {
-        vkCmdBindPipeline(vk->cmd_buf[cf], VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
-        vkCmdBindVertexBuffers(vk->cmd_buf[cf], 0, 1, &vk->food_vbuf, &vbOff);
-        vkCmdDraw(vk->cmd_buf[cf], foodVertCount, 1, 0, 0);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vk->food_vbuf, &vbOff);
+        vkCmdDraw(cmd, foodVertCount, 1, 0, 0);
     }
 
-    // ImGui (rendered on top)
-    if (imgui_cb) imgui_cb(vk->cmd_buf[cf], imgui_user);
+    if (imgui_cb) imgui_cb(cmd, imgui_user);
+    vkCmdEndRenderPass(cmd);
+}
 
-    vkCmdEndRenderPass(vk->cmd_buf[cf]);
+// ---- Main draw function ----
+void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb, void *imgui_user) {
+    if (!view->base || !view->base->world) return;
+    if (!vk->sc_framebufs) return;
+    uint32_t cf = vk->current_frame;
+
+    // Acquire swapchain image
+    vkWaitForFences(vk->device, 1, &vk->in_flight[cf], VK_TRUE, UINT64_MAX);
+    uint32_t imgIdx;
+    VkResult res = vkAcquireNextImageKHR(vk->device, vk->swapchain, UINT64_MAX,
+                                         vk->image_avail[cf], VK_NULL_HANDLE, &imgIdx);
+    if (res == VK_ERROR_OUT_OF_DATE_KHR) { vk->needs_recreation = 1; return; }
+    if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return;
+    vkResetFences(vk->device, 1, &vk->in_flight[cf]);
+    vkResetCommandBuffer(vk->cmd_buf[cf], 0);
+
+    // Update CPU-side per-frame data
+    update_camera(vk, view);
+    int agentCount   = update_agents(vk, view);
+    int foodVertCount = update_food(vk, view);
+
+    // Record commands + submit
+    VkCommandBufferBeginInfo cbbi = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+    vkBeginCommandBuffer(vk->cmd_buf[cf], &cbbi);
+    record_draws(vk->cmd_buf[cf], vk, agentCount, foodVertCount, imgui_cb, imgui_user, imgIdx);
     vkEndCommandBuffer(vk->cmd_buf[cf]);
 
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -208,12 +240,9 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
     VkPresentInfoKHR pi = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1, .pWaitSemaphores = &vk->render_done[imgIdx],
-        .swapchainCount = 1, .pSwapchains = &vk->swapchain,
-        .pImageIndices = &imgIdx,
+        .swapchainCount = 1, .pSwapchains = &vk->swapchain, .pImageIndices = &imgIdx,
     };
     VkResult presentRes = vkQueuePresentKHR(vk->queue, &pi);
     if (presentRes == VK_ERROR_OUT_OF_DATE_KHR) vk->needs_recreation = 1;
-    (void)presentRes;
-
     vk->current_frame = (cf + 1) % VK_MAX_FRAMES_IN_FLIGHT;
 }

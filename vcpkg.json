@@ -1,10 +1,1 @@
-{
-  "dependencies": [
-    "simde",
-    {
-      "name": "glfw3",
-      "features": ["wayland"]
-    },
-    "imgui"
-  ]
-}
+{"dependencies":[{"name":"glfw3","features":["wayland"]},"imgui"]}

@@ -1,56 +1,57 @@
 #ifndef AGENT_H
 #define AGENT_H
-#include <stdalign.h>
 #include <stdint.h>
 
-#include "AVXBrain.h"
+#include "brain_config.h"
+#include "sim_config.h"
 #include "vec2f.h"
 
 struct Agent {
-  int32_t touch; // is bot close to wall?
-  int32_t boost; // is this agent boosting
-  int32_t spiked;
-  int32_t hybrid; // is this agent result of crossover?
-
+  // --- Position & movement ---
   struct Vector2f pos;
+  float angle;           // facing direction (radians)
+  float w1, w2;          // wheel speeds [-1,1]
 
-  float health; // in [0,2]. I cant remember why.
-  float angle;  // of the bot
-
-  float red;
-  float gre;
-  float blu;
-
-  float w1; // wheel speeds
-  float w2;
-
-  float spikeLength;
+  // --- Vital signs ---
+  float health;          // [0, 2]
+  float pending_damage;  // accumulated cross-agent damage (Phase 1 threads write, Phase 2 single-threaded apply)
+  int   pending_spiked;  // OR of all spike hits this frame
+  int32_t spiked;        // was hit by a spike this turn
+  int32_t boost;         // is this agent boosting
   int32_t age;
 
-  float repcounter; // when repcounter gets to 0, this bot reproduces
-  int rep;          // If this agent will reproduce the next world update
-  int64_t gencount; // generation counter
+  // --- Combat ---
+  float spikeLength;
+  float soundmul;        // shouting volume; always set to output[7]
+
+  // --- Appearance (for rendering) ---
+  float red, gre, blu;
+  float indicator;       // event indicator size [0,∞), decays each frame
+  float ir, ig, ib;      // indicator colours
+  int32_t selectflag;    // is this agent selected?
+
+  // --- Reproduction & inheritance ---
+  float repcounter;      // when repcounter reaches 0, this bot reproduces
+  int   rep;             // if this agent will reproduce next world update
+  int64_t gencount;      // generation counter
   int32_t numchildren;
-  float clockf1, clockf2; // the frequencies of the two clocks of this bot
-  float soundmul;         // sound multiplier of this bot. It can scream, or be very
-                          // sneaky. This is actually always set to output 8
+  float herbivore;       // [0,1] — 0 = pure carnivore, 1 = pure herbivore
+  float MUTRATE1;        // how often do mutations occur?
+  float MUTRATE2;        // how significant are they?
+  float clockf1, clockf2;// frequencies of the two internal clocks
+  float give;            // is this agent attempting to give food?
 
-  // variables for drawing purposes
-  float indicator;
-  float ir, ig, ib;   // indicator colors
-  int32_t selectflag; // is this agent selected?
+  // --- Environment sensing ---
+  int32_t touch;         // is bot close to wall?
+  int32_t hybrid;        // result of crossover?
 
-  float give; // is this agent attempting to give food to other agent?
+  // --- Brain ---
+  float in[BRAIN_INPUT_SIZE];    // sensory inputs (padded to 48)
+  float out[BRAIN_OUTPUT_SIZE];  // motor outputs (padded to 48)
+  float *brain;                  // malloc'd float array, BRAIN_WEIGHT_FLOATS elements
 
-  // inhereted stuff
-  float herbivore; // is this agent a herbivore? between 0 and 1
-  float MUTRATE1;  // how often do mutations occur?
-  float MUTRATE2;  // how significant are they?
-
-  float in[BRAIN_INPUT_SIZE];   // input: 2 eyes, sensors for R,G,B,proximity
-                                // each, then Sound, Smell, Health
-  float out[BRAIN_OUTPUT_SIZE]; // output: Left, Right, R, G, B, SPIKE
-  struct AVXBrain *brain;
+  // --- Internal ---
+  uint64_t sort_alive;   // frame marker used by world_sortGrid for compaction
 };
 
 struct Agent_d {
@@ -63,8 +64,6 @@ void agent_print(struct Agent *agent);
 void agent_initevent(struct Agent *agent, float size, float r, float g, float b);
 void agent_tick(struct Agent *agent);
 void agent_reproduce(struct Agent *child, struct Agent *parent);
-// void agent_crossover(struct Agent *target, const struct Agent *agent1,
-//                      const struct Agent *agent2);
 void agent_process_health(struct Agent *agent);
 
 #endif // AGENT_H

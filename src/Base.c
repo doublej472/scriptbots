@@ -22,6 +22,8 @@ void base_saveworld(struct Base *base) {
   // Clean up pointers
   w->agents.agents = NULL;
   w->agents_staging.agents = NULL;
+  w->sorted_agents = NULL;
+  w->sorted_capacity = 0;
   fwrite(w, sizeof(struct World), 1, f);
 
   free(w);
@@ -33,8 +35,8 @@ void base_saveworld(struct Base *base) {
   }
 
   printf("Writing %zu brains...\n", base->world->agents.size);
-  for (int i = 0; i < base->world->agents.size; i++) {
-    fwrite(base->world->agents.agents[i]->brain, sizeof(struct AVXBrain), 1, f);
+  for (size_t i = 0; i < base->world->agents.size; i++) {
+    fwrite(base->world->agents.agents[i]->brain, BRAIN_WEIGHT_FLOATS * sizeof(float), 1, f);
   }
 
   fclose(f);
@@ -48,13 +50,7 @@ void base_loadworld(struct Base *base) {
   printf("Loading world from world.dat...\n");
   FILE *f = fopen("world.dat", "rb");
 
-  for (int i = 0; i < base->world->agents.size; i++) {
-    free_brain(base->world->agents.agents[i]->brain);
-    free(base->world->agents.agents[i]);
-  }
-
-  avec_free(&base->world->agents);
-  avec_free(&base->world->agents_staging);
+  world_free_agents(base->world);
 
   struct Queue *old_queue = base->world->queue;
 
@@ -76,9 +72,9 @@ void base_loadworld(struct Base *base) {
   }
 
   printf("Reading %ld brains...\n", size);
-  for (int i = 0; i < base->world->agents.size; i++) {
-    base->world->agents.agents[i]->brain = alloc_aligned(64, sizeof(struct AVXBrain));
-    fread(base->world->agents.agents[i]->brain, sizeof(struct AVXBrain), 1, f);
+  for (size_t i = 0; i < base->world->agents.size; i++) {
+    base->world->agents.agents[i]->brain = malloc(BRAIN_WEIGHT_FLOATS * sizeof(float));
+    fread(base->world->agents.agents[i]->brain, BRAIN_WEIGHT_FLOATS * sizeof(float), 1, f);
   }
 
   printf("Fixing world struct...\n");
@@ -86,6 +82,11 @@ void base_loadworld(struct Base *base) {
   clock_gettime(CLOCK_MONOTONIC, &base->world->totalStartTime);
 
   base->world->queue = old_queue;
+  base->world->brain_gpu = NULL;
+  base->world->brain_slot = 0;
+  base->world->sorted_agents = NULL;
+  base->world->sorted_capacity = 0;
+  base->world->sorted_size = 0;
 
   // Wait until we have no agents being worked on
   lock_lock(&base->world->queue->lock);
