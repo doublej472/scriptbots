@@ -24,7 +24,8 @@ void imgui_draw_agent_hud(struct VKView *view) {
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(420, 650), ImGuiCond_FirstUseEver);
     ImGui::Begin("Agent Inspector", NULL,
-                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize |
+                 ImGuiWindowFlags_NoFocusOnAppearing);
 
     ImDrawList *dl = ImGui::GetWindowDrawList();
 
@@ -119,36 +120,91 @@ void imgui_draw_agent_hud(struct VKView *view) {
 
 void imgui_draw_diagnostics(struct VKView *view) {
     struct World *w = view->base->world;
-    if (!w) return;
+    if (!w || !view->show_diag_window) return;
 
-    ImGui::SetNextWindowPos(ImVec2((float)view->wwidth - 260, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.5f);
-    ImGui::Begin("##diag", NULL,
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-                 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::SetNextWindowPos(ImVec2((float)view->wwidth - 290, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(280, 400), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Simulation", &view->show_diag_window);
 
-    ImGui::Text("FPS:    %6.1f  (%.1f ms)", view->smoothFPS, view->smoothFrameMs);
-    if (view->minFrameMs > 0.0f && view->maxFrameMs > 0.0f)
-        ImGui::Text("Frame:  %5.1f - %.1f ms", view->minFrameMs, view->maxFrameMs);
-    ImGui::Separator();
-    ImGui::Text("Agents:     %5zu", w->agents.size);
-    ImGui::Text("Food:       %5.2f", world_getTotalFood(w));
-    ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
-    ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
-    ImGui::Text("Epoch:      %5d", w->current_epoch);
-    ImGui::Text("Zoom:       %5.2fx", view->scalemult);
-    ImGui::Text("Frames:     %5d", view->totalFrames);
-    ImGui::Separator();
-    ImGui::Text("Frame timing:");
-    ImGui::Text("  Sort:     %6.1f ms", w->time_sort);
-    ImGui::Text("  Inputs:   %6.1f ms", w->time_inputs);
-    ImGui::Text("  GPU wait: %6.1f ms", w->time_compute);
-    ImGui::Text("  Outputs:  %6.1f ms", w->time_outputs);
-    ImGui::Text("  Flush:    %6.1f ms", w->time_flush);
-    ImGui::Text("  Stage:    %6.1f ms", w->time_staging);
-    ImGui::Text("  Record:   %6.1f ms", w->time_record);
-    ImGui::Text("  Total:    %6.1f ms", w->time_total_frame);
-    ImGui::Text("  Agent #:  %5zu", w->agents.size);
+    // ---- Performance ----
+    if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("FPS:    %6.1f  (%.1f ms)", view->smoothFPS, view->smoothFrameMs);
+        if (view->minFrameMs > 0.0f && view->maxFrameMs > 0.0f)
+            ImGui::Text("Range:  %5.1f - %.1f ms", view->minFrameMs, view->maxFrameMs);
+
+        bool limit = (view->max_fps > 0);
+        if (ImGui::Checkbox("Limit FPS", &limit))
+            view->max_fps = limit ? 60 : 0;
+        if (limit) {
+            ImGui::SameLine();
+            ImGui::PushItemWidth(50);
+            int fps = view->max_fps;
+            if (ImGui::InputInt("##maxfps", &fps, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                if (fps < 10) fps = 10;
+                view->max_fps = fps;
+            }
+            ImGui::PopItemWidth();
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Frame timing:");
+        ImGui::Text("  Sort:     %6.1f ms", w->time_sort);
+        ImGui::Text("  Inputs:   %6.1f ms", w->time_inputs);
+        ImGui::Text("  GPU wait: %6.1f ms", w->time_compute);
+        ImGui::Text("  Outputs:  %6.1f ms", w->time_outputs);
+        ImGui::Text("  Flush:    %6.1f ms", w->time_flush);
+        ImGui::Text("  Stage:    %6.1f ms", w->time_staging);
+        ImGui::Text("  Record:   %6.1f ms", w->time_record);
+        ImGui::Text("  Total:    %6.1f ms", w->time_total_frame);
+    }
+
+    // ---- Simulation State ----
+    if (ImGui::CollapsingHeader("Simulation")) {
+        ImGui::Text("Agents:     %5zu", w->agents.size);
+        ImGui::Text("Food:       %5.2f", world_getTotalFood(w));
+        ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
+        ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
+        ImGui::Text("Epoch:      %5d", w->current_epoch);
+        ImGui::Text("Zoom:       %5.2fx", view->scalemult);
+        ImGui::Text("Frames:     %5d", view->totalFrames);
+    }
+
+    // ---- Controls ----
+    if (ImGui::CollapsingHeader("Controls")) {
+        bool paused = view->paused;
+        if (ImGui::Checkbox("Pause", &paused))  view->paused = paused ? 1 : 0;
+
+        bool df = view->drawfood;
+        if (ImGui::Checkbox("Draw food", &df))   view->drawfood = df ? 1 : 0;
+        ImGui::SameLine();
+        bool dt = view->draw_text;
+        if (ImGui::Checkbox("Draw text", &dt))   view->draw_text = dt ? 1 : 0;
+
+        bool cl = w->closed;
+        if (ImGui::Checkbox("Closed env", &cl))  w->closed = cl ? 1 : 0;
+        ImGui::SameLine();
+        bool mm = w->movieMode;
+        if (ImGui::Checkbox("Movie mode", &mm))  w->movieMode = mm ? 1 : 0;
+
+        ImGui::SeparatorText("Spawn");
+        ImGui::PushItemWidth(60);
+        static int spawn_count = 100;
+        if (spawn_count < 1) spawn_count = 1;
+        ImGui::InputInt("Count", &spawn_count, 0, 0);
+        ImGui::PopItemWidth();
+
+        if (ImGui::Button("Herbivores"))
+            world_addRandomBots(w, spawn_count);
+        ImGui::SameLine();
+        if (ImGui::Button("Carnivores")) {
+            for (int i = 0; i < spawn_count; i++)
+                world_addCarnivore(w);
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Reset world"))
+            world_reset(w);
+    }
 
     ImGui::End();
 }

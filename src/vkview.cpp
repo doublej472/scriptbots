@@ -22,6 +22,8 @@
 // Forward: draw function from vkdraw.c (C linkage)
 extern "C" void vkdraw_frame(struct VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb, void *imgui_user);
 
+static void char_callback(GLFWwindow *w, unsigned int codepoint);
+
 static void render_imgui_to_cmd(VkCommandBuffer cmd, void *user_data) {
     (void)user_data;
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
@@ -74,7 +76,6 @@ void vkview_init(int argc, char **argv) {
     // View state defaults (matches old GLVIEW init)
     VKVIEW.paused    = 0;
     VKVIEW.draw      = 1;
-    VKVIEW.skipdraw  = 1;
     VKVIEW.drawfood  = 1;
     VKVIEW.draw_text = 1;
     VKVIEW.modcounter = 0;
@@ -85,6 +86,9 @@ void vkview_init(int argc, char **argv) {
     VKVIEW.scalemult  = 0.4f;
     VKVIEW.downb[0] = VKVIEW.downb[1] = 0;
     VKVIEW.mousex = VKVIEW.mousey = 0;
+    VKVIEW.max_fps          = 0;
+    VKVIEW.show_diag_window = true;
+    VKVIEW.frame_start      = 0.0;
     VKVIEW.wwidth  = WWIDTH;   // placeholder; overwritten below with actual window size
     VKVIEW.wheight = WHEIGHT;
 
@@ -112,6 +116,7 @@ void vkview_init(int argc, char **argv) {
 
     // Set callbacks
     glfwSetKeyCallback(VKVIEW.window, key_callback);
+    glfwSetCharCallback(VKVIEW.window, char_callback);
     glfwSetMouseButtonCallback(VKVIEW.window, mouse_button_callback);
     glfwSetScrollCallback(VKVIEW.window, scroll_callback);
     glfwSetCursorPosCallback(VKVIEW.window, cursor_pos_callback);
@@ -212,6 +217,12 @@ void vkview_cleanup(void) {
     glfwTerminate();
 }
 
+// ---- Char callback (needed for ImGui text input) ----
+static void char_callback(GLFWwindow *w, unsigned int codepoint) {
+    (void)w;
+    ImGui_ImplGlfw_CharCallback(w, codepoint);
+}
+
 // ---- Key callback ----
 static void key_callback(GLFWwindow *w, int key, int scancode, int action, int mods) {
     (void)scancode;
@@ -237,12 +248,6 @@ void vkview_process_normal_key(int key, int mods) {
         break;
     case GLFW_KEY_D:
         VKVIEW.draw = !VKVIEW.draw;
-        break;
-    case GLFW_KEY_EQUAL:
-        VKVIEW.skipdraw++;
-        break;
-    case GLFW_KEY_MINUS:
-        VKVIEW.skipdraw--;
         break;
     case GLFW_KEY_F:
         if (mods & GLFW_MOD_CONTROL)
@@ -415,6 +420,7 @@ static const int MILLS_PER_UPDATE = 250;
 void vkview_main_loop(void) {
     while (!glfwWindowShouldClose(VKVIEW.window)) {
         glfwPollEvents();
+        VKVIEW.frame_start = glfwGetTime();
 
         vkview_recreate_swapchain_if_needed(&VKVIEW);
 
@@ -463,22 +469,7 @@ void vkview_main_loop(void) {
             VKVIEW.maxFrameMs = 0.0f;
         }
 
-        // Frame skip logic
-        bool shouldDraw = false;
-        if (VKVIEW.skipdraw <= 0 && VKVIEW.draw) {
-            clock_t endwait;
-            float mult = -0.005f * (VKVIEW.skipdraw - 1);
-            endwait = clock() + mult * CLOCKS_PER_SEC;
-            while (clock() < endwait) {}
-            shouldDraw = true;
-        } else if (VKVIEW.draw) {
-            if (VKVIEW.skipdraw > 0) {
-                if (VKVIEW.modcounter % VKVIEW.skipdraw == 0)
-                    shouldDraw = true;
-            }
-        }
-
-        if (shouldDraw) {
+        if (VKVIEW.draw) {
             // Start ImGui frame
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -496,6 +487,18 @@ void vkview_main_loop(void) {
             // Even when not drawing, we need to pump events
             // A small sleep prevents busy-waiting
             glfwWaitEventsTimeout(0.001);
+        }
+
+        // FPS limiter — sleep, re-check on wake, repeat until budget elapsed
+        if (VKVIEW.max_fps > 0) {
+            double target  = 1.0 / (double)VKVIEW.max_fps;
+            double elapsed;
+            do {
+                elapsed = glfwGetTime() - VKVIEW.frame_start;
+                double rem = target - elapsed;
+                if (rem > 0.0)
+                    glfwWaitEventsTimeout(rem);
+            } while (glfwGetTime() - VKVIEW.frame_start < target);
         }
     }
 }

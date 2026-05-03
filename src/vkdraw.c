@@ -85,24 +85,27 @@ static int update_food(VKState *vk, const VKViewState *view) {
         float cellSize = CZ * view->scalemult;
         float hw = view->wwidth / 2.0f;
         float hh = view->wheight / 2.0f;
-        for (int i = 0; i < FOOD_SQUARES_WIDTH && count + 6 <= maxVerts; i++) {
-            for (int j = 0; j < FOOD_SQUARES_HEIGHT && count + 6 <= maxVerts; j++) {
-                float f = w->foodGrid.food[i][j].amt / FOODMAX;
-                if (f < 0.0001f) continue;
-                float sx = (i * CZ + view->xtranslate) * view->scalemult + hw;
-                float sy = (j * CZ + view->ytranslate) * view->scalemult + hh;
-                if (sx + cellSize < 0.0f || sx > view->wwidth ||
-                    sy + cellSize < 0.0f || sy > view->wheight)
-                    continue;
-                float g = 0.02f + f * 0.8f;
-                float x0 = i * CZ, y0 = j * CZ;
-                dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
-                dst[count++] = (FoodVertex){ x0 + CZ, y0,      0.02f, g, 0.02f };
-                dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
-                dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
-                dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
-                dst[count++] = (FoodVertex){ x0,      y0 + CZ, 0.02f, g, 0.02f };
-            }
+        uint32_t limit = w->foodGrid.food_pivot;
+        for (uint32_t idx = 0; idx < limit && count + 6 <= maxVerts; idx++) {
+            uint32_t fi = w->foodGrid.food_sorted[idx];
+            int i = (int)(fi % FOOD_SQUARES_WIDTH);
+            int j = (int)(fi / FOOD_SQUARES_WIDTH);
+
+            float f = w->foodGrid.food[i][j].amt / FOODMAX;
+            float sx = (i * CZ + view->xtranslate) * view->scalemult + hw;
+            float sy = (j * CZ + view->ytranslate) * view->scalemult + hh;
+            if (sx + cellSize < 0.0f || sx > view->wwidth ||
+                sy + cellSize < 0.0f || sy > view->wheight)
+                continue;
+
+            float g = 0.02f + f * 0.8f;
+            float x0 = (float)(i * CZ), y0 = (float)(j * CZ);
+            dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
+            dst[count++] = (FoodVertex){ x0 + CZ, y0,      0.02f, g, 0.02f };
+            dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
+            dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
+            dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
+            dst[count++] = (FoodVertex){ x0,      y0 + CZ, 0.02f, g, 0.02f };
         }
     }
     return count;

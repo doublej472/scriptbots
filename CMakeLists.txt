@@ -140,9 +140,9 @@ if (BUILD_TESTS)
 	target_include_directories(test_vec2f PUBLIC ./include)
 endif()
 
-# ---- LTO ----
+# ---- LTO (Release only — destroys debug info) ----
 if (USE_LTO)
-	set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_property(TARGET scriptbots PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # ---- Vulkan / GLFW / ImGui ----

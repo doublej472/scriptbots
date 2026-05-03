@@ -173,9 +173,20 @@ void world_flush_staging(struct World *world) {
     }
   }
 
-  // Add agents from staging vector
+  // Add agents from staging vector (respect GPU capacity)
   size_t old_size = world->agents.size;
+  uint32_t max_agents = vk_st ? vkbrain_capacity(vk_st) : UINT32_MAX;
   for (size_t i = 0; i < world->agents_staging.size; i++) {
+    if (world->agents.size >= max_agents) {
+      // GPU at capacity — discard remaining staged agents
+      fprintf(stderr, "[World] GPU capacity (%u) reached, discarding %zu excess agents\n",
+              max_agents, world->agents_staging.size - i);
+      for (; i < world->agents_staging.size; i++) {
+        free(world->agents_staging.agents[i]->brain);
+        free(world->agents_staging.agents[i]);
+      }
+      break;
+    }
     avec_push_back(&world->agents, world->agents_staging.agents[i]);
     if (vk_st)
       vkbrain_stage_brain(vk_st, (uint32_t)(old_size + i),

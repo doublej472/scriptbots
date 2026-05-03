@@ -29,7 +29,6 @@ typedef struct VKView {
     struct Base *base;
     int  paused;
     int  draw;
-    int  skipdraw;
     int  drawfood;
     char buf[100];
     char buf2[256];
@@ -47,6 +46,13 @@ typedef struct VKView {
     int  downb[2];
     int  mousex, mousey;
     int  draw_text;
+
+    // --- FPS limiter ---
+    int    max_fps;           // 0 = unlimited, else clamped to ≥10
+    double frame_start;       // timestamp of start of current frame
+
+    // --- Diagnostics window ---
+    bool   show_diag_window;  // collapse state survives across frames
 } VKView;
 
 extern VKView VKVIEW;

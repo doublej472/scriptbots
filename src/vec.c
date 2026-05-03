@@ -21,7 +21,7 @@ void avec_push_back(struct AVec *vec, struct Agent *a) {
   if (vec->size >= vec->allocated) {
     vec->allocated *= 2;
     struct Agent **p = realloc(vec->agents, vec->allocated * sizeof(struct Agent *));
-    if (!p) { fprintf(stderr, "FATAL: out of memory\n"); exit(1); }
+    if (!p) { fprintf(stderr, "FATAL: out of memory\n"); return; }
     vec->agents = p;
   }
   vec->agents[vec->size++] = a;
