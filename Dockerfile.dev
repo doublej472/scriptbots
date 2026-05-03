@@ -2,7 +2,7 @@ FROM docker.io/library/archlinux:latest
 
 RUN pacman-key --init && pacman-key --populate archlinux 
 
-RUN pacman -Syyu --noconfirm --needed npm fd ripgrep base-devel cmake vcpkg
+RUN pacman -Syyu --noconfirm --needed npm fd ripgrep base-devel cmake vcpkg vulkan-devel vulkan-radeon vulkan-mesa-layers cmake ninja
 
 RUN npm install -g @mariozechner/pi-coding-agent
 

@@ -43,9 +43,6 @@ struct World {
 
   VKState *brain_gpu;   // GPU brain state (null if no GPU)
 
-  struct timespec startTime;      // used for tracking fps
-  struct timespec totalStartTime; // used for deciding when to quit the simulation
-
   struct Queue *queue;
 
   struct AVec agents;
@@ -69,7 +66,6 @@ struct World {
 
 void world_init(struct World *world, int initFood, size_t numbots);
 void world_flush_staging(struct World *world);
-void world_printState(struct World *world);
 void world_update(struct World *world);
 void world_setInputsRunBrain(struct World *world);
 void world_submit_compute(struct World *world);

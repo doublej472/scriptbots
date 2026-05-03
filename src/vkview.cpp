@@ -288,9 +288,14 @@ void vkview_process_normal_key(int key, int mods) {
                 VKState *vk = VKVIEW.vkstate;
                 vkDeviceWaitIdle(vk->device);
                 vkResetFences(vk->device, 1, &vk->compute_fence);
+                // Reassign GPU brain slots for all loaded agents
+                for (size_t i = 0; i < VKVIEW.base->world->agents.size; i++) {
+                    struct Agent *a = VKVIEW.base->world->agents.agents[i];
+                    a->brain_chunk = ~0u;
+                    vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index);
+                }
                 vkbrain_upload_all(VKVIEW.vkstate, VKVIEW.base->world);
-                vkbrain_record_dispatch(VKVIEW.vkstate,
-                    (int)VKVIEW.base->world->agents.size, 0);
+                vkbrain_record_dispatch(VKVIEW.vkstate, 0);
                 printf("Re-uploaded brains to GPU after load.\n");
             }
         }

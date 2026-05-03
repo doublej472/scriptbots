@@ -21,16 +21,6 @@
 // Food & GUI
 // ============================================================================
 
-static void timespec_diff(struct timespec *result, struct timespec *start, struct timespec *stop) {
-  if ((stop->tv_nsec - start->tv_nsec) < 0) {
-    result->tv_sec = stop->tv_sec - start->tv_sec - 1;
-    result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
-  } else {
-    result->tv_sec = stop->tv_sec - start->tv_sec;
-    result->tv_nsec = stop->tv_nsec - start->tv_nsec;
-  }
-}
-
 static void world_update_food(struct World *world) {
   // if (world->modcounter % 20 == 0) {
   //   printf("food_pivot: %d\n", world->foodGrid.food_pivot);
@@ -65,34 +55,6 @@ static void world_update_food(struct World *world) {
       food_to_add -= foodGrid_growFood(&world->foodGrid, fxx, fyy, fminf(FOODGROWTH,food_to_add));
     }
   }
-}
-
-static void world_update_gui(struct World *world) {
-  world_writeReport(world);
-
-  // Update GUI
-  struct timespec endTime;
-  clock_gettime(CLOCK_MONOTONIC, &endTime);
-  struct timespec ts_delta;
-  struct timespec ts_totaldelta;
-
-  timespec_diff(&ts_delta, &world->startTime, &endTime);
-  timespec_diff(&ts_totaldelta, &world->totalStartTime, &endTime);
-
-  float deltat = (float)ts_delta.tv_sec + ((float)ts_delta.tv_nsec / 1000000000.0f);
-  float totaldeltat = (float)ts_totaldelta.tv_sec + ((float)ts_totaldelta.tv_nsec / 1000000000.0f);
-
-  int32_t carnivores = world_numCarnivores(world);
-  int32_t herbivores = world_numHerbivores(world);
-  float total_food = foodGrid_getTotalFood(&world->foodGrid);
-
-  printf("\rEpoch: %d | Next: %d%% | Agents: %i (C: %i H: %i) | Food: %.2f | FPS: %.1f | Time: %.2f sec       ",
-         world->current_epoch, world->modcounter / 100, (int32_t)world->agents.size, carnivores, herbivores,
-          total_food,
-         (float)reportInterval / deltat, totaldeltat);
-  fflush(stdout);
-
-  world->startTime = endTime;
 }
 
 // ============================================================================
@@ -158,48 +120,69 @@ static struct AgentRange get_agent_range(struct World *world, size_t bucket_idx)
 void world_flush_staging(struct World *world) {
   VKState *vk_st = world->brain_gpu;
 
-  // Delete dead agents by swap-with-last (O(1) per death).
-  // Only the swapped-in agent changes GPU index — one brain restage per death.
+  // Delete dead agents with global brain-slot compaction.
+  // When a dead agent's brain slot is freed, the globally last alive
+  // agent's brain is moved into it so only the highest-index chunk
+  // may have unused slots.
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
     if (a->health <= 0) {
+      if (vk_st && a->brain_chunk != ~0u) {
+        // Find globally last alive agent
+        uint32_t last_c = vk_st->chunk_count;
+        while (last_c > 0) {
+          last_c--;
+          if (vk_st->chunks[last_c].alive_count > 0) break;
+        }
+        if (last_c < vk_st->chunk_count) {
+          uint32_t last_s = vk_st->chunks[last_c].alive_count - 1;
+          struct Agent *last_a = vk_st->chunks[last_c].slot_owner[last_s];
+          // Move last agent's brain into the freed slot (unless it IS the freed slot)
+          if (!(a->brain_chunk == last_c && a->brain_index == last_s)) {
+            vkbrain_move_slot(vk_st, last_c, last_s,
+                              a->brain_chunk, a->brain_index, last_a);
+            last_a->brain_chunk = a->brain_chunk;
+            last_a->brain_index = a->brain_index;
+            vk_st->chunks[a->brain_chunk].slot_owner[a->brain_index] = last_a;
+          }
+          vk_st->chunks[last_c].alive_count--;
+          vk_st->chunks[last_c].slot_owner[last_s] = NULL;
+        }
+      }
       free(a->brain);
       free(a);
       avec_delete(&world->agents, i);
-      // avec_delete swapped the last element into position i; restage it
-      if (vk_st && i < world->agents.size)
-        vkbrain_stage_brain(vk_st, (uint32_t)i, world->agents.agents[i]->brain);
       i--;  // re-check the swapped-in agent
     }
   }
 
-  // Add agents from staging vector (respect GPU capacity)
-  size_t old_size = world->agents.size;
-  uint32_t max_agents = vk_st ? vkbrain_capacity(vk_st) : UINT32_MAX;
+  // Add agents from staging vector — assign GPU chunk+slot on demand
   for (size_t i = 0; i < world->agents_staging.size; i++) {
-    if (world->agents.size >= max_agents) {
-      // GPU at capacity — discard remaining staged agents
-      fprintf(stderr, "[World] GPU capacity (%u) reached, discarding %zu excess agents\n",
-              max_agents, world->agents_staging.size - i);
+    struct Agent *a = world->agents_staging.agents[i];
+    uint32_t chunk, slot;
+    if (vk_st && !vkbrain_assign_slot(vk_st, a, &chunk, &slot)) {
+      fprintf(stderr, "[World] GPU memory exhausted, discarding %zu excess agents\n",
+              world->agents_staging.size - i);
       for (; i < world->agents_staging.size; i++) {
-        free(world->agents_staging.agents[i]->brain);
-        free(world->agents_staging.agents[i]);
+        struct Agent *xa = world->agents_staging.agents[i];
+        free(xa->brain); free(xa);
       }
       break;
     }
-    avec_push_back(&world->agents, world->agents_staging.agents[i]);
-    if (vk_st)
-      vkbrain_stage_brain(vk_st, (uint32_t)(old_size + i),
-                          world->agents_staging.agents[i]->brain);
+    if (vk_st) {
+      a->brain_chunk = chunk;
+      a->brain_index = slot;
+      vkbrain_stage_brain(vk_st, chunk, slot, a->brain);
+    }
+    avec_push_back(&world->agents, a);
   }
   world->agents_staging.size = 0;
 
-  // Trigger GPU buffer growth if agent count approaches capacity
-  if (vk_st && world->agents.size > vkbrain_capacity(vk_st) * 3 / 4)
-    vkbrain_ensure_capacity(vk_st, world->agents.size * 2);
-
   // Submit staging copies now (separate from compute dispatch)
   if (vk_st) vkbrain_flush_staging(vk_st);
+
+  // Reclaim empty chunks (with hysteresis)
+  if (vk_st) vkbrain_try_reclaim_last(vk_st);
 }
 
 void world_init(struct World *world, int initFood, size_t numbots) {
@@ -217,10 +200,6 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   world->numAgentsAdded = 0;
   world->brain_slot = 0;
   world->brain_gpu = NULL;
-
-  clock_gettime(CLOCK_MONOTONIC, &world->startTime);
-  // Track total running time:
-  clock_gettime(CLOCK_MONOTONIC, &world->totalStartTime);
 
   avec_init(&world->agents, numbots);
   avec_init(&world->agents_staging, numbots);
@@ -256,15 +235,6 @@ void world_init(struct World *world, int initFood, size_t numbots) {
   remove("report.csv");
   world_flush_staging(world);
   world_sortGrid(world);
-}
-
-void world_printState(struct World *world) {
-  printf("World State Info -----------\n");
-  printf("Epoch:\t\t%i\n", world->current_epoch);
-  printf("Tick:\t\t%i\n", world->modcounter);
-  printf("Num Agents:%zu\n", world->agents.size);
-  printf("Agents Added:%i\n", world->numAgentsAdded);
-  printf("----------------------------\n");
 }
 
 void world_dist_dead_agent(struct World *world, size_t i) {
@@ -378,9 +348,9 @@ void world_update(struct World *world) {
     world->current_epoch++;
   }
 
-  // Update GUI every REPORTS_PER_EPOCH amount:
+  // Write report every REPORTS_PER_EPOCH
   if (REPORTS_PER_EPOCH > 0 && (world->modcounter % (int32_t)reportInterval == 0)) {
-    world_update_gui(world);
+    world_writeReport(world);
   }
 
   world_update_food(world);
@@ -521,7 +491,7 @@ void world_record_compute(struct World *world) {
   if (!vk) return;
   // Record for NEXT frame's read slot (the slot we just wrote inputs to)
   uint32_t next_slot = 1u - (uint32_t)world->brain_slot;
-  vkbrain_record_dispatch(vk, (int)world->agents.size, next_slot);
+  vkbrain_record_dispatch(vk, next_slot);
   world->brain_slot = (int32_t)next_slot;
 }
 
@@ -788,8 +758,11 @@ void agent_output_processor(void *arg) {
     struct Agent *a = world->agents.agents[i];
 
     // Read GPU outputs + recurrence (memcpy is SIMD-optimized, faster than scalar loop)
-    if (vk) {
-      memcpy(a->out, vk->mapped_outputs[read_slot] + i * BRAIN_OUTPUT_SIZE, BRAIN_OUTPUT_SIZE * sizeof(float));
+    if (vk && a->brain_chunk != ~0u) {
+      BrainChunk *c = &vk->chunks[a->brain_chunk];
+      memcpy(a->out,
+             c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE,
+             BRAIN_OUTPUT_SIZE * sizeof(float));
       memcpy(a->in + 18, a->out + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
     }
 
@@ -1120,8 +1093,10 @@ void agent_input_processor(void *arg) {
     struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
     agent_set_inputs(world, a, buckets_to_check);
 
-    if (vk) {
-      memcpy(vk->mapped_inputs[write_slot] + i * BRAIN_INPUT_SIZE, a->in, BRAIN_INPUT_SIZE * sizeof(float));
+    if (vk && a->brain_chunk != ~0u) {
+      BrainChunk *c = &vk->chunks[a->brain_chunk];
+      memcpy(c->mapped_inputs[write_slot] + a->brain_index * BRAIN_INPUT_SIZE,
+             a->in, BRAIN_INPUT_SIZE * sizeof(float));
     }
   }
 }

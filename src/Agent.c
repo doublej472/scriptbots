@@ -61,6 +61,8 @@ void agent_init(struct Agent *agent) {
     agent->MUTRATE2 = METAMUTRATE2;
     agent->spiked = 0;
     agent->sort_alive = 0;
+    agent->brain_chunk = ~0u;
+    agent->brain_index = 0;
 
     for (int i = 0; i < BRAIN_INPUT_SIZE; i++)  agent->in[i] = 0.0f;
     for (int i = 0; i < BRAIN_OUTPUT_SIZE; i++) agent->out[i] = 0.0f;

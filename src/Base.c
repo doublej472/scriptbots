@@ -78,8 +78,6 @@ void base_loadworld(struct Base *base) {
   }
 
   printf("Fixing world struct...\n");
-  clock_gettime(CLOCK_MONOTONIC, &base->world->startTime);
-  clock_gettime(CLOCK_MONOTONIC, &base->world->totalStartTime);
 
   base->world->queue = old_queue;
   base->world->brain_gpu = NULL;

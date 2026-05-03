@@ -19,6 +19,7 @@ struct World;
 #define VK_MAX_AGENTS   200000
 #define VK_MAX_FOOD_VERTS (FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT * 6)
 #define VK_MAX_FRAMES_IN_FLIGHT 1  // single FIF: shared agent/food/camera buffers can't be double-buffered
+#define BRAIN_CHUNK_AGENTS 16128   // ~1 GB per chunk (BRAIN_WEIGHT_FLOATS × 4 bytes × agents)
 
 // ---- Per-agent instance data uploaded to GPU each frame (SSBO) ----
 // Layout must match the Agent struct in shaders byte-for-byte.
@@ -75,6 +76,23 @@ typedef struct VKViewState {
     int   drawfood;
     struct Base *base;
 } VKViewState;
+
+// ---- Brain chunk — one self-contained GPU buffer group (~1 GB) ----
+typedef struct BrainChunk {
+    VkBuffer         weights_buf;
+    VkDeviceMemory   weights_mem;
+    VkBuffer         inputs_buf[2];
+    VkDeviceMemory   inputs_mem[2];
+    VkBuffer         outputs_buf[2];
+    VkDeviceMemory   outputs_mem[2];
+    float           *mapped_inputs[2];
+    float           *mapped_outputs[2];
+    VkDescriptorPool desc_pool;
+    VkDescriptorSet  desc_set[2];   // double-buffered I/O slots
+    uint32_t         capacity;      // max agents this chunk can hold
+    uint32_t         alive_count;   // indices [0..alive_count-1] are live
+    struct Agent   **slot_owner;    // slot_owner[i] = agent at this slot (for move updates)
+} BrainChunk;
 
 // ---- VKState ----
 //
@@ -137,33 +155,27 @@ typedef struct VKState {
     VkBuffer       mesh_lines_vb;   VkDeviceMemory mesh_lines_mem;   uint32_t mesh_lines_verts;
     VkBuffer       mesh_hud_vb;     VkDeviceMemory mesh_hud_mem;
 
-    // === Brain compute pipeline (vkbrain.c) ===
+    // === Brain compute pipeline (vkbrain.c) — multi-chunk ===
     VkPipeline             brain_pipeline;
     VkPipelineLayout       brain_layout;
-    VkDescriptorSetLayout  brain_desc_layout;
-    VkDescriptorPool       brain_pool;
-    VkDescriptorSet        brain_set[2];   // double-buffered I/O slots
+    VkDescriptorSetLayout  brain_desc_layout;   // shared by all chunks
 
-    VkCommandBuffer staging_cmd;            // dedicated: staging→weights copies
-    VkCommandBuffer cmd_compute[2];         // dispatch recording, one per slot
-    VkFence         compute_fence;          // dispatch completion
-    VkFence         staging_fence;          // staging copy completion
-    uint32_t        brain_frame;
+    BrainChunk    *chunks;
+    uint32_t       chunk_count;
+    uint32_t       chunk_capacity;             // allocated array size
 
-    VkBuffer       brain_weights_buf;  VkDeviceMemory brain_weights_mem;
-    VkBuffer       brain_inputs_buf[2];   VkDeviceMemory brain_inputs_mem[2];
-    VkBuffer       brain_outputs_buf[2];  VkDeviceMemory brain_outputs_mem[2];
     VkBuffer       brain_staging_buf;     VkDeviceMemory brain_staging_mem;
+    float         *mapped_staging;
+    uint32_t      *staging_chunks;            // chunk index per staged brain
+    uint32_t      *staging_indices;           // slot index per staged brain
+    uint32_t       staging_count;
+    uint32_t       staging_capacity;
 
-    float *mapped_inputs[2];
-    float *mapped_outputs[2];
-    float *mapped_staging;
-
-    uint32_t brain_capacity;
-    uint32_t brain_max_capacity;
-    uint32_t staging_count;
-    uint32_t *staging_indices;
-    uint32_t staging_capacity;
+    VkCommandBuffer staging_cmd;               // dedicated: staging→weights copies
+    VkCommandBuffer cmd_compute[2];            // dispatch recording, one per slot
+    VkFence         compute_fence;             // dispatch completion
+    VkFence         staging_fence;             // staging copy completion
+    uint32_t        brain_frame;
 } VKState;
 
 // ---- VKState accessors ----
@@ -192,15 +204,18 @@ uint32_t       vk_find_memory_type(VkPhysicalDevice phys_device, uint32_t typeFi
 VkShaderModule vk_load_shader(VkDevice device, const char *path);
 
 // ---- GPU Brain API ----
-void vkbrain_init(VKState *vk, uint32_t initial_cap);
-void vkbrain_destroy(VKState *vk);
-void vkbrain_upload_all(VKState *vk, struct World *world);
-void vkbrain_stage_brain(VKState *vk, uint32_t agent_idx, const float *brain);
-void vkbrain_record_dispatch(VKState *vk, int agent_count, uint32_t read_slot);
-uint32_t vkbrain_capacity(VKState *vk);
-void vkbrain_flush_staging(VKState *vk);
-void vkbrain_drain_staging(VKState *vk);
-void vkbrain_ensure_capacity(VKState *vk, uint32_t needed);
+void      vkbrain_init(VKState *vk, uint32_t initial_cap);
+void      vkbrain_destroy(VKState *vk);
+void      vkbrain_upload_all(VKState *vk, struct World *world);
+bool      vkbrain_assign_slot(VKState *vk, struct Agent *a, uint32_t *out_chunk, uint32_t *out_slot);
+void      vkbrain_move_slot(VKState *vk, uint32_t from_c, uint32_t from_s,
+                            uint32_t to_c, uint32_t to_s, struct Agent *moved);
+void      vkbrain_stage_brain(VKState *vk, uint32_t chunk, uint32_t slot, const float *brain);
+void      vkbrain_record_dispatch(VKState *vk, uint32_t read_slot);
+void      vkbrain_flush_staging(VKState *vk);
+void      vkbrain_drain_staging(VKState *vk);
+uint32_t  vkbrain_total_capacity(VKState *vk);
+void      vkbrain_try_reclaim_last(VKState *vk);
 
 #ifdef __cplusplus
 }

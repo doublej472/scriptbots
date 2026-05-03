@@ -49,6 +49,8 @@ struct Agent {
   float in[BRAIN_INPUT_SIZE];    // sensory inputs (padded to workgroup size)
   float out[BRAIN_OUTPUT_SIZE];  // motor outputs (padded to workgroup size)
   float *brain;                  // malloc'd float array, BRAIN_WEIGHT_FLOATS elements
+  uint32_t brain_chunk;          // GPU chunk index (VKState.chunks[]), ~0u if not on GPU
+  uint32_t brain_index;          // slot index within that chunk
 
   // --- Internal ---
   uint64_t sort_alive;   // frame marker used by world_sortGrid for compaction

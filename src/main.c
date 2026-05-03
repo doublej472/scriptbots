@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   // Upload initial brains to GPU, then record first dispatch for slot 0
   if (VKVIEW.vkstate) {
     vkbrain_upload_all(VKVIEW.vkstate, base.world);
-    vkbrain_record_dispatch(VKVIEW.vkstate, (int)base.world->agents.size, 0);
+    vkbrain_record_dispatch(VKVIEW.vkstate, 0);
   }
 
   vkview_main_loop();
