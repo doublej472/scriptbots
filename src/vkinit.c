@@ -689,7 +689,10 @@ VKState *vkinit_create(GLFWwindow *window) {
                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                   &vk->cam_ubo_buf, &vk->cam_ubo_mem);
-    create_buffer(vk, VK_MAX_AGENTS * sizeof(AgentInstance),
+    // Agent SSBO — sized for initial population, resizeable on demand
+    vk->agent_capacity = (uint32_t)NUMBOTS;
+    if (vk->agent_capacity < 65536) vk->agent_capacity = 65536;  // floor 64K
+    create_buffer(vk, vk->agent_capacity * sizeof(AgentInstance),
                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                   &vk->agent_buf, &vk->agent_mem);
@@ -727,7 +730,7 @@ VKState *vkinit_create(GLFWwindow *window) {
             .buffer = vk->cam_ubo_buf, .offset = 0, .range = sizeof(CameraUBO),
         };
         VkDescriptorBufferInfo agentInfo = {
-            .buffer = vk->agent_buf, .offset = 0, .range = VK_MAX_AGENTS * sizeof(AgentInstance),
+            .buffer = vk->agent_buf, .offset = 0, .range = VK_WHOLE_SIZE,
         };
         VkWriteDescriptorSet w0[] = {
             { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -840,3 +843,33 @@ VkQueue       vkinit_get_gfx_queue(VKState *vk)   { return vk->gfx_queue; }
 VkCommandBuffer vkinit_get_command_buffer(VKState *vk) { return vk->cmd_buf[0]; }
 uint32_t      vkinit_get_command_buffer_count(VKState *vk) { return 2; }
 VkInstance    vkinit_get_instance(VKState *vk)       { return vk->instance; }
+
+// ---- Dynamic agent SSBO resize (called when population exceeds capacity) ----
+void vkdraw_resize_agents(VKState *vk, uint32_t new_capacity) {
+    if (new_capacity <= vk->agent_capacity) return;
+    vkDeviceWaitIdle(vk->device);
+    vkUnmapMemory(vk->device, vk->agent_mem);
+    vkDestroyBuffer(vk->device, vk->agent_buf, NULL);
+    vkFreeMemory(vk->device, vk->agent_mem, NULL);
+
+    vk->agent_capacity = new_capacity;
+    create_buffer(vk, new_capacity * sizeof(AgentInstance),
+                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  &vk->agent_buf, &vk->agent_mem);
+    vkMapMemory(vk->device, vk->agent_mem, 0, VK_WHOLE_SIZE, 0, (void**)&vk->mapped_agents);
+
+    // Rebind the new buffer into the existing descriptor set
+    VkDescriptorBufferInfo agentInfo = {
+        .buffer = vk->agent_buf, .offset = 0, .range = VK_WHOLE_SIZE,
+    };
+    VkWriteDescriptorSet w = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = vk->desc_set, .dstBinding = 1, .dstArrayElement = 0,
+        .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .pBufferInfo = &agentInfo,
+    };
+    vkUpdateDescriptorSets(vk->device, 1, &w, 0, NULL);
+    printf("[VKDraw] Resized agent SSBO to %u agents (%.1f MB)\n",
+           new_capacity, (double)(new_capacity * sizeof(AgentInstance)) / (1024*1024));
+}

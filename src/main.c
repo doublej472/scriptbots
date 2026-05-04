@@ -39,19 +39,38 @@ void *worker_thread(void *arg) {
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
-  (void)argc; (void)argv;
 #ifdef TRAP_NAN
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
   init_thread_random();
   VERBOSE = 0;
   NUM_THREADS = get_nprocs();
-  if (NUM_THREADS > 1) NUM_THREADS--;  // leave one core for main thread
+  if (NUM_THREADS > 1) NUM_THREADS--;
   if (NUM_THREADS < 1)  NUM_THREADS = 1;
 
+  int load_world = 0;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--world") == 0) {
+      load_world = 1;
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        strncpy(base.world_file, argv[++i], sizeof(base.world_file) - 1);
+      }
+    }
+  }
+
   struct World *world = malloc(sizeof(struct World));
-  world_init(world, /*initFood=*/1, NUMBOTS);
+  world_alloc(world);  // minimal setup: queue, zeroing
   base_init(&base, world);
+
+  if (load_world) {
+    if (!base_loadworld(&base)) {
+      fprintf(stderr, "Falling back to new world.\n");
+      world_populate(world, /*initFood=*/1, NUMBOTS);
+      load_world = 0;
+    }
+  } else {
+    world_populate(world, /*initFood=*/1, NUMBOTS);
+  }
 
   signal(SIGINT, signal_handler);
 
@@ -76,9 +95,22 @@ int main(int argc, char **argv) {
   VKVIEW.base = &base;
   base.world->brain_gpu = VKVIEW.vkstate;
 
-  // Upload initial brains to GPU, then record first dispatch for slot 0
+  // Assign GPU slots and upload brains.  After a load, brain_chunk still
+  // holds stale values from the saved file — reset so vkbrain_upload_all
+  // assigns fresh slots (it only assigns when brain_chunk == ~0u).
   if (VKVIEW.vkstate) {
+    if (load_world) {
+      for (size_t i = 0; i < base.world->agents.size; i++) {
+        struct Agent *a = base.world->agents.agents[i];
+        a->brain_chunk = ~0u;
+        if (!vkbrain_assign_slot(VKVIEW.vkstate, a, &a->brain_chunk, &a->brain_index)) {
+          fprintf(stderr, "GPU memory exhausted at agent %zu\n", i);
+          break;
+        }
+      }
+    }
     vkbrain_upload_all(VKVIEW.vkstate, base.world);
+    world_seed_inputs(base.world);
     vkbrain_record_dispatch(VKVIEW.vkstate, 0);
   }
 

@@ -279,29 +279,30 @@ void vkview_process_normal_key(int key, int mods) {
         break;
     case GLFW_KEY_L:
         if (mods & GLFW_MOD_CONTROL) {
-            base_loadworld(VKVIEW.base);
-            // Restore GPU brain state and re-upload to GPU
+            if (!base_loadworld(VKVIEW.base)) break;
             if (VKVIEW.base->world->brain_gpu == NULL && VKVIEW.vkstate) {
                 VKVIEW.base->world->brain_gpu = VKVIEW.vkstate;
                 VKVIEW.base->world->brain_slot = 0;
-                // Ensure GPU is idle before touching compute resources
                 VKState *vk = VKVIEW.vkstate;
                 vkDeviceWaitIdle(vk->device);
                 vkResetFences(vk->device, 1, &vk->compute_fence);
-                // Destroy old chunks and re-upload from scratch
-                // Reuse existing chunk buffers — zero slot counts instead of freeing
                 vkbrain_reset_counts(vk);
-                // Reassign GPU brain slots for all loaded agents
-                for (size_t i = 0; i < VKVIEW.base->world->agents.size; i++) {
+                // Reassign GPU brain slots for loaded agents
+                size_t total = VKVIEW.base->world->agents.size;
+                for (size_t i = 0; i < total; i++) {
                     struct Agent *a = VKVIEW.base->world->agents.agents[i];
                     a->brain_chunk = ~0u;
-                    vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index);
+                    if (!vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index)) {
+                        fprintf(stderr, "GPU memory exhausted loading agent %zu\n", i);
+                        break;
+                    }
                 }
-                vkbrain_upload_all(VKVIEW.vkstate, VKVIEW.base->world);
-                // Reclaim chunks left empty by smaller world (hysteresis still applies)
-                for (int ci = 0; ci < 3; ci++) vkbrain_try_reclaim_last(vk);
-                vkbrain_record_dispatch(VKVIEW.vkstate, 0);
-                printf("Re-uploaded brains to GPU after load.\n");
+                vkbrain_upload_all(vk, VKVIEW.base->world);
+                vkbrain_try_reclaim_last(vk);
+                // Seed both input buffer slots so first dispatch has valid data
+                world_seed_inputs(VKVIEW.base->world);
+                vkbrain_record_dispatch(vk, 0);
+                printf("Re-uploaded brains to GPU after load (%zu agents).\n", total);
             }
         }
         break;

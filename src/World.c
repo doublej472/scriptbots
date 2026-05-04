@@ -184,56 +184,41 @@ void world_flush_staging(struct World *world) {
   if (vk_st) vkbrain_try_reclaim_last(vk_st);
 }
 
-void world_init(struct World *world, int initFood, size_t numbots) {
-  for (size_t i = 0; i < AGENT_BUCKETS; i++) {
+void world_alloc(struct World *world) {
+  memset(world, 0, sizeof(struct World));
+  for (size_t i = 0; i < AGENT_BUCKETS; i++)
     world->agent_grid[i] = 0;
-  }
-
   world->queue = malloc(sizeof(struct Queue));
   queue_init(world->queue);
+  world->closed = CLOSED;
+}
 
-  world->stopSim = 0;
-  world->movieMode = 0;
-  world->modcounter = 0;
-  world->current_epoch = 0;
-  world->numAgentsAdded = 0;
-  world->brain_slot = 0;
-  world->brain_gpu = NULL;
-
+void world_populate(struct World *world, int initFood, size_t numbots) {
   avec_init(&world->agents, numbots);
   avec_init(&world->agents_staging, numbots);
 
-  world->sorted_agents = NULL;
-  world->sorted_capacity = 0;
-  world->sorted_size = 0;
-
-  // create the bots but with 20% more carnivores, to give them head start
-  if (numbots > 100) {
+  if (numbots > 100)
     printf("Adding bots, this may take a while...\n");
-  }
-
   world_addRandomBots(world, (int32_t)numbots * .8);
   for (int32_t i = 0; i < (int32_t)numbots * .2; ++i)
     world_addCarnivore(world);
 
   foodGrid_init(&world->foodGrid);
-
   if (initFood) {
-    printf("Initializing food..");
-    fflush(stdout);
-    for (int i = 0; i < FOOD_INIT_ITER; i++) {
+    printf("Initializing food.."); fflush(stdout);
+    for (int i = 0; i < FOOD_INIT_ITER; i++)
       world_update_food(world);
-    }
     printf("\n");
   }
 
-  // Decide if world if closed based on settings.h
-  world->closed = CLOSED;
-
-  // Delete the old report to start fresh
   remove("report.csv");
   world_flush_staging(world);
   world_sortGrid(world);
+}
+
+void world_init(struct World *world, int initFood, size_t numbots) {
+  world_alloc(world);
+  world_populate(world, initFood, numbots);
 }
 
 void world_dist_dead_agent(struct World *world, size_t i) {
@@ -353,12 +338,14 @@ void world_update(struct World *world) {
   }
 
   world_update_food(world);
+  world->time_food  = timer_elapsed_ms(&t);
 
   // Sort sorted_agents[] pointers (stable — agents[] never reordered, GPU brain safe)
   world_sortGrid(world);
-  world->time_sort = timer_elapsed_ms(&t);
+  world->time_sort  = timer_elapsed_ms(&t);
 
   world_submit_compute(world);
+  world->time_submit = timer_elapsed_ms(&t);
 
   // Gather inputs for NEXT frame (overlaps with GPU compute)
   world_setInputsRunBrain(world);
@@ -439,7 +426,7 @@ void world_update(struct World *world) {
       }
     }
   }
-  world->time_flush = timer_elapsed_ms(&t);
+  world->time_post_out = timer_elapsed_ms(&t);
 
   // Flush staging: delete dead + stage new brains + submit GPU copy
   world_flush_staging(world);
@@ -1017,4 +1004,21 @@ void agent_input_processor(void *arg) {
              a->in, BRAIN_INPUT_SIZE * sizeof(float));
     }
   }
+}
+
+// Seed both double-buffer input slots with valid data after world load/init.
+// Must be called after world_sortGrid (for spatial neighbor queries) and
+// after brain weights have been uploaded to GPU.
+void world_seed_inputs(struct World *world) {
+  VKState *vk = world->brain_gpu;
+  if (!vk) return;
+  int32_t saved_slot = world->brain_slot;
+  // Populate slot 0
+  world->brain_slot = 1;
+  world_setInputsRunBrain(world);
+  // Populate slot 1
+  world->brain_slot = 0;
+  world_setInputsRunBrain(world);
+  // Restore
+  world->brain_slot = saved_slot;
 }

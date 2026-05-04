@@ -13,11 +13,12 @@ struct SerializedWorld {
 
 struct Base {
   struct World *world;
+  char world_file[256];
 };
 
 void base_init(struct Base *base, struct World *world);
 void base_saveworld(struct Base *base);
-void base_loadworld(struct Base *base);
+int  base_loadworld(struct Base *base);  // 1 on success, 0 on failure
 
 #ifdef __cplusplus
 }

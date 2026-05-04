@@ -60,11 +60,13 @@ struct World {
   size_t agent_grid[AGENT_BUCKETS];
 
   // Per-frame timing (ms) — reset each frame
-  double time_sort, time_inputs, time_compute, time_outputs;
-  double time_staging, time_flush, time_record, time_total_frame;
+  double time_food, time_sort, time_submit, time_inputs, time_compute;
+  double time_outputs, time_post_out, time_staging, time_record, time_total_frame;
 };
 
-void world_init(struct World *world, int initFood, size_t numbots);
+void world_alloc(struct World *world);
+void world_populate(struct World *world, int initFood, size_t numbots);
+void world_init(struct World *world, int initFood, size_t numbots);  // calls both
 void world_flush_staging(struct World *world);
 void world_update(struct World *world);
 void world_setInputsRunBrain(struct World *world);
@@ -76,6 +78,7 @@ void world_addCarnivore(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a);
 void world_writeReport(struct World *world);
 void world_free_agents(struct World *world);
+void world_seed_inputs(struct World *world);
 void world_reset(struct World *world);
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y);
 void world_sortGrid(struct World *world);

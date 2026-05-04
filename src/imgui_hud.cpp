@@ -181,46 +181,49 @@ void imgui_draw_diagnostics(struct VKView *view) {
         ImGui::Separator();
 
         // ---- Frame Timing (hierarchical) ----
-        double t_sort     = w->time_sort;
-        double t_inputs   = w->time_inputs;
-        double t_compute  = w->time_compute;
-        double t_outputs  = w->time_outputs;
-        double t_flush    = w->time_flush;
-        double t_staging  = w->time_staging;
-        double t_record   = w->time_record;
-        double t_total    = w->time_total_frame;
-        double t_agents   = t_sort + t_inputs + t_outputs;
-        double t_book     = t_flush + t_staging + t_record;
+        // Each time_* is already a delta (timer_elapsed_ms resets the clock)
+        double d_food    = w->time_food;
+        double d_sort    = w->time_sort;
+        double d_submit  = w->time_submit;
+        double d_inputs  = w->time_inputs;
+        double d_gpuwait = w->time_compute;
+        double d_outputs = w->time_outputs;
+        double d_post    = w->time_post_out;
+        double d_staging = w->time_staging;
+        double d_record  = w->time_record;
+        double d_tail    = w->time_total_frame;
+        double d_total   = d_food + d_sort + d_submit + d_inputs + d_gpuwait
+                          + d_outputs + d_post + d_staging + d_record + d_tail;
 
         char ftlbl[96];
-        snprintf(ftlbl, sizeof(ftlbl), "Frame Timing (Total: %.1f ms)###fttotal", t_total);
+        snprintf(ftlbl, sizeof(ftlbl), "Frame Timing (Total: %.1f ms)###fttotal", d_total);
         ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (ImGui::CollapsingHeader(ftlbl)) {
 
-            // ---- Agent Update ----
-            snprintf(ftlbl, sizeof(ftlbl), "Agent Update:  %.1f ms (%.0f%%)###ftagents",
-                     t_agents, t_total > 0.001 ? t_agents / t_total * 100.0 : 0.0);
+            // ---- Simulation Step ----
+            double d_sim = d_food + d_sort + d_submit + d_inputs + d_gpuwait + d_outputs + d_post;
+            snprintf(ftlbl, sizeof(ftlbl), "Sim Step:  %.1f ms (%.0f%%)###ftsim",
+                     d_sim, d_total > 0.001 ? d_sim / d_total * 100.0 : 0.0);
             ImGui::SetNextItemOpen(true, ImGuiCond_Once);
             if (ImGui::TreeNodeEx(ftlbl)) {
-                ImGui::Text("  Spatial Sort:    %6.1f ms", t_sort);
-                ImGui::Text("  Set Inputs:      %6.1f ms", t_inputs);
-                ImGui::Text("  Process Outputs: %6.1f ms", t_outputs);
+                ImGui::Text("  Food Update:      %6.1f ms", d_food);
+                ImGui::Text("  Spatial Sort:     %6.1f ms", d_sort);
+                ImGui::Text("  Submit Compute:   %6.1f ms", d_submit);
+                ImGui::Text("  Set Inputs:       %6.1f ms", d_inputs);
+                ImGui::Text("  GPU Wait:         %6.1f ms", d_gpuwait);
+                ImGui::Text("  Process Outputs:  %6.1f ms", d_outputs);
+                ImGui::Text("  Death+Repro+Pop:  %6.1f ms", d_post);
                 ImGui::TreePop();
             }
 
-            // ---- GPU Wait ----
-            ImGui::Text("GPU Wait:      %6.1f ms (%.0f%%)",
-                        t_compute,
-                        t_total > 0.001 ? t_compute / t_total * 100.0 : 0.0);
-
             // ---- Bookkeeping ----
-            snprintf(ftlbl, sizeof(ftlbl), "Bookkeeping:   %6.1f ms (%.0f%%)###ftbook",
-                     t_book, t_total > 0.001 ? t_book / t_total * 100.0 : 0.0);
+            double d_book = d_staging + d_record;
+            snprintf(ftlbl, sizeof(ftlbl), "Bookkeeping:  %.1f ms (%.0f%%)###ftbook",
+                     d_book, d_total > 0.001 ? d_book / d_total * 100.0 : 0.0);
             ImGui::SetNextItemOpen(true, ImGuiCond_Once);
             if (ImGui::TreeNodeEx(ftlbl)) {
-                ImGui::Text("  Flush Staging:   %6.1f ms", t_flush);
-                ImGui::Text("  Stage Brains:    %6.1f ms", t_staging);
-                ImGui::Text("  Record Dispatch: %6.1f ms", t_record);
+                ImGui::Text("  Flush Staging:    %6.1f ms", d_staging);
+                ImGui::Text("  Record Dispatch:  %6.1f ms", d_record);
                 ImGui::TreePop();
             }
         }

@@ -54,10 +54,16 @@ static void update_camera(VKState *vk, const VKViewState *view) {
 // ---- Update agent SSBO ----
 static int update_agents(VKState *vk, const VKViewState *view) {
     struct World *w = view->base->world;
-    int count = (int)w->agents.size;
-    if (count > VK_MAX_AGENTS) count = VK_MAX_AGENTS;
+    uint32_t count = (uint32_t)w->agents.size;
+    // Grow SSBO if population outgrows capacity (round up to next power of two)
+    if (count > vk->agent_capacity) {
+        uint32_t np = 1;
+        while (np < count) np <<= 1;
+        vkdraw_resize_agents(vk, np);
+    }
+    if (count > vk->agent_capacity) count = vk->agent_capacity;  // defensive
     AgentInstance *dst = vk->mapped_agents;
-    for (int i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         struct Agent *a = w->agents.agents[i];
         dst[i] = (AgentInstance){
             .pos_x = a->pos.x, .pos_y = a->pos.y,

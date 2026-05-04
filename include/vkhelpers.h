@@ -16,8 +16,9 @@ typedef struct GLFWwindow GLFWwindow;
 struct World;
 
 // ---- Constants ----
-#define VK_MAX_AGENTS   200000
 #define VK_MAX_FRAMES_IN_FLIGHT 1  // single FIF: shared agent/food/camera buffers can't be double-buffered
+// Agent SSBO capacity is now dynamic (vk->agent_capacity), sized to NUMBOTS at init
+// and grown on demand when population exceeds capacity.
 // One chunk's weight buffer at ~1 GB — derives agent count from brain size
 #define BRAIN_CHUNK_AGENTS ((uint32_t)((1024ULL*1024*1024) / (BRAIN_WEIGHT_UINTS * 4)))
 
@@ -94,6 +95,7 @@ typedef struct BrainChunk {
     uint32_t         capacity;      // max agents this chunk can hold
     uint32_t         alive_count;   // indices [0..alive_count-1] are live
     struct Agent   **slot_owner;    // slot_owner[i] = agent at this slot (for move updates)
+    bool             weights_staged; // true when weights were copied (release queued on xfer queue)
 } BrainChunk;
 
 // ---- VKState ----
@@ -157,6 +159,7 @@ typedef struct VKState {
 
     VkBuffer       cam_ubo_buf;  VkDeviceMemory cam_ubo_mem;  float         *mapped_cam;
     VkBuffer       agent_buf;    VkDeviceMemory agent_mem;    AgentInstance *mapped_agents;
+    uint32_t       agent_capacity;                          // SSBO size in agents (resized on demand)
     VkBuffer       food_data_buf; VkDeviceMemory food_data_mem; float *mapped_food_data;
     VkDescriptorSet desc_set_food;  // binding 0=camera, 1=food SSBO
 
@@ -234,6 +237,9 @@ void      vkbrain_stage_brain(VKState *vk, uint32_t chunk, uint32_t slot, const 
 void      vkbrain_record_dispatch(VKState *vk, uint32_t read_slot);
 void      vkbrain_flush_staging(VKState *vk);
 void      vkbrain_drain_staging(VKState *vk);
+
+// ---- Dynamic agent SSBO resize ----
+void      vkdraw_resize_agents(VKState *vk, uint32_t new_capacity);
 uint32_t  vkbrain_total_capacity(VKState *vk);
 void      vkbrain_try_reclaim_last(VKState *vk);
 

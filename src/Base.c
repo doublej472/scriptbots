@@ -7,43 +7,47 @@
 #include "helpers.h"
 #include "lock.h"
 
-void base_init(struct Base *base, struct World *world) { base->world = world; }
+void base_init(struct Base *base, struct World *world) {
+  base->world = world;
+  base->world_file[0] = '\0';
+}
 
 void base_saveworld(struct Base *base) {
-  // Wait until we have no agents being worked on
   queue_wait_until_done(base->world->queue);
   world_flush_staging(base->world);
 
-  FILE *f = fopen("world.dat", "wb");
-  printf("Saving world to world.dat...\n");
+  const char *fn = base->world_file[0] ? base->world_file : "world.dat";
+  FILE *f = fopen(fn, "wb");
+  printf("Saving world to %s...\n", fn);
 
   struct World *w = malloc(sizeof(struct World));
   memcpy(w, base->world, sizeof(struct World));
-  // Clean up pointers
   w->agents.agents = NULL;
   w->agents_staging.agents = NULL;
   w->sorted_agents = NULL;
   w->sorted_capacity = 0;
   fwrite(w, sizeof(struct World), 1, f);
-
   free(w);
 
   printf("Writing %zu agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
-  for (size_t i = 0; i < base->world->agents.size; i++) {
+  for (size_t i = 0; i < base->world->agents.size; i++)
     fwrite(base->world->agents.agents[i], sizeof(struct Agent), 1, f);
-  }
 
   fclose(f);
   printf("Done!\n");
 }
 
-void base_loadworld(struct Base *base) {
-  // Wait until we have no agents being worked on
+int base_loadworld(struct Base *base) {
   queue_wait_until_done(base->world->queue);
   world_flush_staging(base->world);
-  printf("Loading world from world.dat...\n");
-  FILE *f = fopen("world.dat", "rb");
+  const char *fn = base->world_file[0] ? base->world_file : "world.dat";
+  printf("Loading world from %s...\n", fn);
+  FILE *f = fopen(fn, "rb");
+  if (!f) {
+    fprintf(stderr, "ERROR: cannot open '%s' for reading\n", fn);
+    return 0;
+  }
 
   world_free_agents(base->world);
 
@@ -89,4 +93,5 @@ void base_loadworld(struct Base *base) {
 
   fclose(f);
   printf("Done!\n");
+  return 1;
 }

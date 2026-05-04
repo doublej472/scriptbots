@@ -125,6 +125,7 @@ static int vkbrain_alloc_chunk(VKState *vk) {
 
     c->capacity    = cap;
     c->alive_count = 0;
+    c->weights_staged = false;
     vk->chunk_count++;
     return (int)(vk->chunk_count - 1);
 }
@@ -289,6 +290,7 @@ static void record_staging_copy(VKState *vk, uint32_t idx) {
             vkCmdPipelineBarrier(vk->staging_cmd[idx], VK_PIPELINE_STAGE_TRANSFER_BIT,
                                  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
                                  0, NULL, 1, &bmb, 0, NULL);
+            vk->chunks[ci].weights_staged = true;
             first = last;
         }
     }
@@ -341,26 +343,34 @@ void vkbrain_record_dispatch(VKState *vk, uint32_t read_slot) {
         BrainChunk *c = &vk->chunks[ci];
         if (c->alive_count == 0) continue;
 
-        // Acquire weights from transfer queue + make host writes visible
-        VkBufferMemoryBarrier preBarriers[2] = {
-            { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-              .srcAccessMask = 0,
-              .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-              .srcQueueFamilyIndex = vk->transfer_family,
-              .dstQueueFamilyIndex = vk->compute_family,
-              .buffer = c->weights_buf, .size = VK_WHOLE_SIZE },
-            { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-              .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
-              .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-              .buffer = c->inputs_buf[read_slot], .size = VK_WHOLE_SIZE },
+        // Acquire weights (only when staged — paired release in record_staging_copy)
+        // + make host-write of inputs visible to shader
+        VkBufferMemoryBarrier preBarriers[2];
+        uint32_t numPre = 0;
+        if (c->weights_staged) {
+            preBarriers[numPre++] = (VkBufferMemoryBarrier){
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = 0,
+                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .srcQueueFamilyIndex = vk->transfer_family,
+                .dstQueueFamilyIndex = vk->compute_family,
+                .buffer = c->weights_buf, .size = VK_WHOLE_SIZE,
+            };
+            if (vk->transfer_family == vk->compute_family)
+                preBarriers[0].srcQueueFamilyIndex = preBarriers[0].dstQueueFamilyIndex
+                    = VK_QUEUE_FAMILY_IGNORED;
+            c->weights_staged = false;
+        }
+        preBarriers[numPre++] = (VkBufferMemoryBarrier){
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .buffer = c->inputs_buf[read_slot], .size = VK_WHOLE_SIZE,
         };
-        if (vk->transfer_family == vk->compute_family)
-            preBarriers[0].srcQueueFamilyIndex = preBarriers[0].dstQueueFamilyIndex
-                = VK_QUEUE_FAMILY_IGNORED;
         vkCmdPipelineBarrier(cmd,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_HOST_BIT,
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            0, 0, NULL, 2, preBarriers, 0, NULL);
+            0, 0, NULL, numPre, preBarriers, 0, NULL);
 
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
                                 vk->brain_layout, 0, 1,
@@ -518,6 +528,7 @@ void vkbrain_reset_counts(VKState *vk) {
     for (uint32_t ci = 0; ci < vk->chunk_count; ci++) {
         BrainChunk *c = &vk->chunks[ci];
         c->alive_count = 0;
+        c->weights_staged = false;
         memset(c->slot_owner, 0, c->capacity * sizeof(struct Agent *));
     }
 }
