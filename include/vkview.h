@@ -51,6 +51,10 @@ typedef struct VKView {
     int    max_fps;           // 0 = unlimited, else clamped to ≥10
     double frame_start;       // timestamp of start of current frame
 
+    // --- GPU upload timings (measured in vkdraw_frame) ---
+    double time_agent_upload;  // SSBO agent instance copy (ms)
+    double time_food_upload;   // SSBO food grid copy (ms)
+
     // --- Diagnostics window ---
     bool   show_diag_window;  // collapse state survives across frames
 } VKView;

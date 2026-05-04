@@ -6,7 +6,26 @@
 
 #include "imgui.h"
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
+
+// Portable half → float (fp16 bit layout → IEEE float32)
+static float half_to_float(uint16_t h) {
+    uint32_t sign = ((uint32_t)h >> 15) & 1u;
+    uint32_t exp  = ((uint32_t)h >> 10) & 0x1fu;
+    uint32_t mant = (uint32_t)h & 0x3ffu;
+    if (exp == 0) {
+        if (mant == 0) { uint32_t r = sign << 31; float f; memcpy(&f, &r, 4); return f; }
+        exp = 1;
+        while ((mant & 0x400u) == 0) { mant <<= 1; exp--; }
+        mant &= 0x3ffu;
+    } else if (exp == 31) {
+        uint32_t r = (sign << 31) | (0xffu << 23) | (mant << 13);
+        float f; memcpy(&f, &r, 4); return f;
+    }
+    uint32_t r = (sign << 31) | (((exp - 15 + 127) & 0xffu) << 23) | (mant << 13);
+    float f; memcpy(&f, &r, 4); return f;
+}
 
 void imgui_draw_agent_hud(struct VKView *view) {
     struct World *w = view->base->world;
@@ -57,12 +76,17 @@ void imgui_draw_agent_hud(struct VKView *view) {
 
     // Brain weights summary (GPU doesn't expose layer activations)
     ImGui::Text("Brain Weights (GPU)");
-    ImGui::Text("  %d params, %.1f KB", BRAIN_WEIGHT_FLOATS,
-                BRAIN_WEIGHT_FLOATS * 4.0f / 1024.0f);
+    ImGui::Text("  %d params, %.1f KB (fp16)", BRAIN_WEIGHT_FLOATS,
+                (float)BRAIN_WEIGHT_UINTS * 4.0f / 1024.0f);
     float wmin = 1e10f, wmax = -1e10f;
-    for (int i = 0; i < BRAIN_WEIGHT_FLOATS; i++) {
-        if (sel->brain[i] < wmin) wmin = sel->brain[i];
-        if (sel->brain[i] > wmax) wmax = sel->brain[i];
+    for (int i = 0; i < BRAIN_WEIGHT_UINTS; i++) {
+        uint32_t pair = sel->brain[i];
+        float flo = half_to_float((uint16_t)(pair & 0xffffu));
+        float fhi = half_to_float((uint16_t)(pair >> 16));
+        if (flo < wmin) wmin = flo;
+        if (flo > wmax) wmax = flo;
+        if (fhi < wmin) wmin = fhi;
+        if (fhi > wmax) wmax = fhi;
     }
     ImGui::Text("  Range: [%.3f, %.3f]", wmin, wmax);
 
@@ -147,15 +171,59 @@ void imgui_draw_diagnostics(struct VKView *view) {
         }
 
         ImGui::Separator();
-        ImGui::Text("Frame timing:");
-        ImGui::Text("  Sort:     %6.1f ms", w->time_sort);
-        ImGui::Text("  Inputs:   %6.1f ms", w->time_inputs);
-        ImGui::Text("  GPU wait: %6.1f ms", w->time_compute);
-        ImGui::Text("  Outputs:  %6.1f ms", w->time_outputs);
-        ImGui::Text("  Flush:    %6.1f ms", w->time_flush);
-        ImGui::Text("  Stage:    %6.1f ms", w->time_staging);
-        ImGui::Text("  Record:   %6.1f ms", w->time_record);
-        ImGui::Text("  Total:    %6.1f ms", w->time_total_frame);
+        if (view->vkstate && view->vkstate->timestamp_supported)
+            ImGui::Text("GPU:   compute %5.2f ms  draw %5.2f ms",
+                        view->vkstate->gpu_compute_ms,
+                        view->vkstate->gpu_graphics_ms);
+
+        ImGui::Text("Upload: agents %5.2f ms  food %5.2f ms",
+                    view->time_agent_upload, view->time_food_upload);
+        ImGui::Separator();
+
+        // ---- Frame Timing (hierarchical) ----
+        double t_sort     = w->time_sort;
+        double t_inputs   = w->time_inputs;
+        double t_compute  = w->time_compute;
+        double t_outputs  = w->time_outputs;
+        double t_flush    = w->time_flush;
+        double t_staging  = w->time_staging;
+        double t_record   = w->time_record;
+        double t_total    = w->time_total_frame;
+        double t_agents   = t_sort + t_inputs + t_outputs;
+        double t_book     = t_flush + t_staging + t_record;
+
+        char ftlbl[96];
+        snprintf(ftlbl, sizeof(ftlbl), "Frame Timing (Total: %.1f ms)###fttotal", t_total);
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+        if (ImGui::CollapsingHeader(ftlbl)) {
+
+            // ---- Agent Update ----
+            snprintf(ftlbl, sizeof(ftlbl), "Agent Update:  %.1f ms (%.0f%%)###ftagents",
+                     t_agents, t_total > 0.001 ? t_agents / t_total * 100.0 : 0.0);
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+            if (ImGui::TreeNodeEx(ftlbl)) {
+                ImGui::Text("  Spatial Sort:    %6.1f ms", t_sort);
+                ImGui::Text("  Set Inputs:      %6.1f ms", t_inputs);
+                ImGui::Text("  Process Outputs: %6.1f ms", t_outputs);
+                ImGui::TreePop();
+            }
+
+            // ---- GPU Wait ----
+            ImGui::Text("GPU Wait:      %6.1f ms (%.0f%%)",
+                        t_compute,
+                        t_total > 0.001 ? t_compute / t_total * 100.0 : 0.0);
+
+            // ---- Bookkeeping ----
+            snprintf(ftlbl, sizeof(ftlbl), "Bookkeeping:   %6.1f ms (%.0f%%)###ftbook",
+                     t_book, t_total > 0.001 ? t_book / t_total * 100.0 : 0.0);
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+            if (ImGui::TreeNodeEx(ftlbl)) {
+                ImGui::Text("  Flush Staging:   %6.1f ms", t_flush);
+                ImGui::Text("  Stage Brains:    %6.1f ms", t_staging);
+                ImGui::Text("  Record Dispatch: %6.1f ms", t_record);
+                ImGui::TreePop();
+            }
+        }
     }
 
     // ---- Simulation State ----

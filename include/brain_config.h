@@ -4,10 +4,10 @@
 #define BRAIN_CONFIG_H
 
 // How many weight-matrix transitions (hidden layers + output layer)
-#define BRAIN_LAYERS 4
+#define BRAIN_LAYERS 8
 
 // How many neurons per layer (also GPU workgroup size, must be ≤ maxComputeWorkGroupInvocations)
-#define NEURONS_PER_LAYER 64
+#define NEURONS_PER_LAYER 48
 
 // How many floats per layer in GPU layout: weights[N×N] + biases[N]
 #define WEIGHTS_PER_LAYER  (NEURONS_PER_LAYER * NEURONS_PER_LAYER)
@@ -16,6 +16,11 @@
 
 // Total floats per brain in GPU-layout flat array
 #define BRAIN_WEIGHT_FLOATS (BRAIN_LAYERS * FLOATS_PER_LAYER)
+
+// Weights are stored as packed fp16 pairs (2 floats per uint32_t).
+// I/O buffers remain float32.
+#define BRAIN_WEIGHT_UINTS (BRAIN_WEIGHT_FLOATS / 2)
+#define FLOATS_PER_UINT      2
 
 // Brain I/O sizes (padded to workgroup size)
 #define BRAIN_INPUT_SIZE  NEURONS_PER_LAYER

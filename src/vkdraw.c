@@ -15,10 +15,12 @@
 //   7. vkQueuePresentKHR(wait: render_done)
 //
 #include "vkhelpers.h"
+#include "vkview.h"
 #include "Base.h"
 #include "settings.h"
 #include "World.h"
 #include "Agent.h"
+#include "helpers.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -74,49 +76,25 @@ static int update_agents(VKState *vk, const VKViewState *view) {
     return count;
 }
 
-// ---- Update food vertex buffer ----
-static int update_food(VKState *vk, const VKViewState *view) {
+// ---- Update food SSBO ----
+// Food grid is y-major (same layout as SSBO), but items interleave amt+index.
+// Extract just the amt floats — sequential read stride is 8 bytes, well prefetched.
+static void update_food(VKState *vk, const VKViewState *view) {
     struct World *w = view->base->world;
-    int maxVerts = VK_MAX_FOOD_VERTS;
-    if (maxVerts < 6) maxVerts = 6;
-    FoodVertex *dst = vk->mapped_food;
-    int count = 0;
-    if (view->drawfood) {
-        float cellSize = CZ * view->scalemult;
-        float hw = view->wwidth / 2.0f;
-        float hh = view->wheight / 2.0f;
-        uint32_t limit = w->foodGrid.food_pivot;
-        for (uint32_t idx = 0; idx < limit && count + 6 <= maxVerts; idx++) {
-            uint32_t fi = w->foodGrid.food_sorted[idx];
-            int i = (int)(fi % FOOD_SQUARES_WIDTH);
-            int j = (int)(fi / FOOD_SQUARES_WIDTH);
-
-            float f = w->foodGrid.food[i][j].amt / FOODMAX;
-            float sx = (i * CZ + view->xtranslate) * view->scalemult + hw;
-            float sy = (j * CZ + view->ytranslate) * view->scalemult + hh;
-            if (sx + cellSize < 0.0f || sx > view->wwidth ||
-                sy + cellSize < 0.0f || sy > view->wheight)
-                continue;
-
-            float g = 0.02f + f * 0.8f;
-            float x0 = (float)(i * CZ), y0 = (float)(j * CZ);
-            dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
-            dst[count++] = (FoodVertex){ x0 + CZ, y0,      0.02f, g, 0.02f };
-            dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
-            dst[count++] = (FoodVertex){ x0,      y0,      0.02f, g, 0.02f };
-            dst[count++] = (FoodVertex){ x0 + CZ, y0 + CZ, 0.02f, g, 0.02f };
-            dst[count++] = (FoodVertex){ x0,      y0 + CZ, 0.02f, g, 0.02f };
-        }
-    }
-    return count;
+    if (!view->drawfood) return;
+    int n = FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT;
+    const struct FoodGridItem *src = &w->foodGrid.food[0][0];
+    float *dst = vk->mapped_food_data;
+    for (int i = 0; i < n; i++)
+        dst[i] = src[i].amt;
 }
 
 // ---- Draw command recording ----
 static void record_draws(VkCommandBuffer cmd, VKState *vk,
-                          int agentCount, int foodVertCount,
+                          const VKViewState *view, int agentCount,
                           vkdraw_imgui_cb imgui_cb, void *imgui_user,
                           uint32_t imgIdx) {
-    // CPU writes → GPU reads: camera UBO (uniform), agent SSBO (storage), food VBO (vertex)
+    // CPU writes → GPU reads: camera UBO (uniform), agent SSBO (storage), food SSBO (storage)
     VkBufferMemoryBarrier bufBarriers[3] = {
         { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
           .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
@@ -128,11 +106,11 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
           .buffer = vk->agent_buf, .offset = 0, .size = VK_WHOLE_SIZE },
         { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
           .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
-          .dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-          .buffer = vk->food_vbuf, .offset = 0, .size = VK_WHOLE_SIZE },
+          .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+          .buffer = vk->food_data_buf, .offset = 0, .size = VK_WHOLE_SIZE },
     };
     vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_HOST_BIT,
-                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                          0, 0, NULL, 3, bufBarriers, 0, NULL);
 
     VkClearValue clear = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
@@ -143,24 +121,38 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
         .renderArea = {{ 0, 0 }, vk->sc_extent },
         .clearValueCount = 1, .pClearValues = &clear,
     };
+    if (vk->timestamp_supported) {
+        vkCmdResetQueryPool(cmd, vk->timestamp_pool, 2, 2);
+    }
+
     vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+
+    if (vk->timestamp_supported)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                            vk->timestamp_pool, 2);
 
     VkViewport vp = { 0, 0, (float)vk->sc_extent.width, (float)vk->sc_extent.height, 0.0f, 1.0f };
     vkCmdSetViewport(cmd, 0, 1, &vp);
     VkRect2D scissor = {{ 0, 0 }, vk->sc_extent };
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    // Food grid (SSBO-based: single 6-vertex quad, fragment shader reads SSBO)
+    if (view->base->world && view->drawfood) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                vk->pipeline_layout, 0, 1, &vk->desc_set_food, 0, NULL);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
+        PushConstFood pcFood = { .worldW = (float)WIDTH, .worldH = (float)HEIGHT,
+                                 .cellSize = (float)CZ, .foodMax = FOODMAX };
+        vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT,
+                           0, sizeof(pcFood), &pcFood);
+        vkCmdDraw(cmd, 6, 1, 0, 0);
+    }
+
+    // Back to agent descriptor set
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                             vk->pipeline_layout, 0, 1, &vk->desc_set, 0, NULL);
 
     VkDeviceSize vbOff = 0;
-
-    // Food grid
-    if (foodVertCount > 0) {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_food);
-        vkCmdBindVertexBuffers(cmd, 0, 1, &vk->food_vbuf, &vbOff);
-        vkCmdDraw(cmd, foodVertCount, 1, 0, 0);
-    }
 
     // Agent bodies
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle);
@@ -197,6 +189,10 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk,
     vkCmdDraw(cmd, 4, agentCount, 12, 0);
 
     if (imgui_cb) imgui_cb(cmd, imgui_user);
+    if (vk->timestamp_supported)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                            vk->timestamp_pool, 3);
+
     vkCmdEndRenderPass(cmd);
 }
 
@@ -220,8 +216,13 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
 
     // Update CPU-side per-frame data
     update_camera(vk, view);
-    int agentCount   = update_agents(vk, view);
-    int foodVertCount = update_food(vk, view);
+
+    struct timespec tu;
+    timer_reset(&tu);
+    int agentCount = update_agents(vk, view);
+    VKVIEW.time_agent_upload = timer_elapsed_ms(&tu);
+    update_food(vk, view);
+    VKVIEW.time_food_upload = timer_elapsed_ms(&tu);
 
     // Record commands + submit
     VkCommandBufferBeginInfo cbbi = {
@@ -229,7 +230,7 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
     vkBeginCommandBuffer(vk->cmd_buf[cf], &cbbi);
-    record_draws(vk->cmd_buf[cf], vk, agentCount, foodVertCount, imgui_cb, imgui_user, imgIdx);
+    record_draws(vk->cmd_buf[cf], vk, view, agentCount, imgui_cb, imgui_user, imgIdx);
     vkEndCommandBuffer(vk->cmd_buf[cf]);
 
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -240,14 +241,14 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
         .commandBufferCount = 1, .pCommandBuffers = &vk->cmd_buf[cf],
         .signalSemaphoreCount = 1, .pSignalSemaphores = &vk->render_done[imgIdx],
     };
-    vkQueueSubmit(vk->queue, 1, &si, vk->in_flight[cf]);
+    vkQueueSubmit(vk->gfx_queue, 1, &si, vk->in_flight[cf]);
 
     VkPresentInfoKHR pi = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1, .pWaitSemaphores = &vk->render_done[imgIdx],
         .swapchainCount = 1, .pSwapchains = &vk->swapchain, .pImageIndices = &imgIdx,
     };
-    VkResult presentRes = vkQueuePresentKHR(vk->queue, &pi);
+    VkResult presentRes = vkQueuePresentKHR(vk->gfx_queue, &pi);
     if (presentRes == VK_ERROR_OUT_OF_DATE_KHR || presentRes == VK_SUBOPTIMAL_KHR)
         vk->needs_recreation = 1;
     vk->current_frame = (cf + 1) % VK_MAX_FRAMES_IN_FLIGHT;

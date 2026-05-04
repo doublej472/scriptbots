@@ -47,7 +47,7 @@ static void world_update_food(struct World *world) {
     // Grow current square
     food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, fminf(FOODGROWTH,food_to_add));
     // Grow surrounding squares only if well grown
-    if (world->foodGrid.food[fx][fy].amt > FOODMAX * 0.7f) {
+    if (world->foodGrid.food[fy][fx].amt > FOODMAX * 0.7f) {
       // Spread to random square nearby
       size_t fxx = randi(fx - 1, fx + 2);
       size_t fyy = randi(fy - 1, fy + 2);
@@ -149,7 +149,6 @@ void world_flush_staging(struct World *world) {
           vk_st->chunks[last_c].slot_owner[last_s] = NULL;
         }
       }
-      free(a->brain);
       free(a);
       avec_delete(&world->agents, i);
       i--;  // re-check the swapped-in agent
@@ -165,7 +164,7 @@ void world_flush_staging(struct World *world) {
               world->agents_staging.size - i);
       for (; i < world->agents_staging.size; i++) {
         struct Agent *xa = world->agents_staging.agents[i];
-        free(xa->brain); free(xa);
+        free(xa);
       }
       break;
     }
@@ -483,7 +482,7 @@ void world_submit_compute(struct World *world) {
   VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                       .commandBufferCount = 1,
                       .pCommandBuffers = &vk->cmd_compute[read_slot] };
-  vkQueueSubmit(vk->queue, 1, &si, vk->compute_fence);
+  vkQueueSubmit(vk->compute_queue, 1, &si, vk->compute_fence);
 }
 
 void world_record_compute(struct World *world) {
@@ -609,14 +608,10 @@ void world_reset(struct World *world) {
 }
 
 void world_free_agents(struct World *world) {
-  for (size_t i = 0; i < world->agents.size; i++) {
-    free(world->agents.agents[i]->brain);
+  for (size_t i = 0; i < world->agents.size; i++)
     free(world->agents.agents[i]);
-  }
-  for (size_t i = 0; i < world->agents_staging.size; i++) {
-    free(world->agents_staging.agents[i]->brain);
+  for (size_t i = 0; i < world->agents_staging.size; i++)
     free(world->agents_staging.agents[i]);
-  }
   avec_free(&world->agents);
   avec_free(&world->agents_staging);
 }
@@ -691,56 +686,38 @@ void world_sortGrid(struct World *world) {
                                     world->sorted_capacity * sizeof(struct Agent *));
   }
 
-  // Mark all live agents with this frame's generation
-  static uint64_t gen = 0;
-  gen++;
-  // Prevent theoretical wrap (585M years at 1000 fps)
-  if (gen == 0) { gen = 1; for (size_t i = 0; i < n; i++) world->agents.agents[i]->sort_alive = 0; }
-  for (size_t i = 0; i < n; i++)
-    world->agents.agents[i]->sort_alive = gen;
+  // Counting sort by spatial bucket — O(N), groups agents into contiguous
+  // bucket ranges so the 9-bucket scan in agent_set_inputs is cache-friendly.
+  uint32_t *counts = calloc(AGENT_BUCKETS, sizeof(uint32_t));
 
-  // Compact: copy old sorted_agents entries that are still alive (keep order),
-  // and clear their marker so new agents can be identified.
-  size_t out = 0, old_n = world->sorted_size;
-  for (size_t i = 0; i < old_n; i++) {
-    struct Agent *a = world->sorted_agents[i];
-    if (a->sort_alive == gen) {
-      a->sort_alive = 0;  // consumed — won't be appended as "new"
-      world->sorted_agents[out++] = a;
-    }
-  }
-  // Append new agents (in agents[] but not in old sorted_agents)
+  // 1. Count agents per bucket
   for (size_t i = 0; i < n; i++) {
-    struct Agent *a = world->agents.agents[i];
-    if (a->sort_alive == gen)  // marker still set = new agent
-      world->sorted_agents[out++] = a;
+    size_t b = get_bucket_from_pos((int64_t)(world->agents.agents[i]->pos.x / DIST),
+                                    (int64_t)(world->agents.agents[i]->pos.y / DIST));
+    counts[b]++;
   }
 
-  // Insertion sort — O(N) on mostly-sorted data (agents move slowly)
-  for (size_t i = 1; i < n; i++) {
-    struct Agent *key = world->sorted_agents[i];
-    size_t key_b = get_bucket_from_pos((int64_t)(key->pos.x / DIST),
-                                        (int64_t)(key->pos.y / DIST));
-    long j = (long)i - 1;
-    while (j >= 0) {
-      struct Agent *a2 = world->sorted_agents[j];
-      size_t ab = get_bucket_from_pos((int64_t)(a2->pos.x / DIST),
-                                       (int64_t)(a2->pos.y / DIST));
-      if (ab <= key_b) break;
-      world->sorted_agents[j + 1] = world->sorted_agents[j];
-      j--;
-    }
-    world->sorted_agents[j + 1] = key;
+  // 2. Prefix sum → start offsets per bucket
+  uint32_t total = 0;
+  for (size_t b = 0; b < AGENT_BUCKETS; b++) {
+    uint32_t c = counts[b];
+    counts[b] = total;
+    total += c;
   }
 
-  // Populate agent_grid: end-index into sorted_agents per bucket
-  size_t cur = 0;
+  // 3. Scatter agents into sorted_agents (counts now holds start offsets)
   for (size_t i = 0; i < n; i++) {
-    size_t b = get_bucket_from_pos((int64_t)(world->sorted_agents[i]->pos.x / DIST),
-                                    (int64_t)(world->sorted_agents[i]->pos.y / DIST));
-    while (b > cur) world->agent_grid[cur++] = i;
+    size_t b = get_bucket_from_pos((int64_t)(world->agents.agents[i]->pos.x / DIST),
+                                    (int64_t)(world->agents.agents[i]->pos.y / DIST));
+    world->sorted_agents[counts[b]++] = world->agents.agents[i];
   }
-  while (cur < AGENT_BUCKETS) world->agent_grid[cur++] = n;
+
+  // 4. Build agent_grid end-indices from the final scatter offsets
+  //    (counts[b] now holds end of bucket b = start of bucket b+1)
+  for (size_t b = 0; b < AGENT_BUCKETS; b++)
+    world->agent_grid[b] = counts[b];
+
+  free(counts);
   world->sorted_size = n;
 }
 
@@ -821,7 +798,7 @@ void agent_output_processor(void *arg) {
     int32_t cy = (int32_t)a->pos.y / CZ;
     if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH &&
         (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
-        world->foodGrid.food[cx][cy].amt > 0.0f &&
+        world->foodGrid.food[cy][cx].amt > 0.0f &&
         a->health < 2.0f && a->herbivore > 0.1f) {
       float to_take = FOODINTAKE;
       float speedmul = ((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) * 0.25f + 0.5f;
@@ -833,7 +810,7 @@ void agent_output_processor(void *arg) {
 
     a->rep = 0;
 
-    if (world->modcounter % 15 == 0 && a->repcounter < 0.0f && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.8f) {
+    if (a->repcounter < 0.0f && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.05333f) {  // ~80% ÷ 15
       a->health -= a->health / ((float)BABIES + 1.0f);
       a->rep = 1;
       a->repcounter = a->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
@@ -865,7 +842,7 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   a->in[4] = 0.0f;
   if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH &&
       (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT)
-    a->in[4] = world->foodGrid.food[cx][cy].amt / FOODMAX;
+    a->in[4] = world->foodGrid.food[cy][cx].amt / FOODMAX;
 
   // Accumulators
   float p1 = 0, r1 = 0, g1 = 0, b1 = 0;
@@ -876,7 +853,11 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
 
   // Precompute per-agent constants (constant for this frame)
   float acos = cosf(a->angle), asin = sinf(a->angle);
-  float leye_off = -PI8, reye_off = PI8;  // eye angle offsets from forward
+  // Cone axes: cos/sin of eye directions (a ± π/16) via angle-sum identities
+  float leye_cx = acos * COS_PI16 + asin * SIN_PI16;  // cos(a - π/16)
+  float leye_cy = asin * COS_PI16 - acos * SIN_PI16;  // sin(a - π/16)
+  float reye_cx = acos * COS_PI16 - asin * SIN_PI16;  // cos(a + π/16)
+  float reye_cy = asin * COS_PI16 + acos * SIN_PI16;  // sin(a + π/16)
   float invDIST = 1.0f / DIST;
   float invGROUP = 1.0f / DIST_GROUPING;
   float DIST2 = DIST * DIST;
@@ -923,30 +904,38 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
       float dot = acos * dx + asin * dy;
       if (dot < DOT_SKIP * d) goto skip_vision;
 
-      // Only compute angle if close enough for eyes/blood to register
-      float ang_diff;
+      // Cone pre-tests (no atan2f) for eye-range neighbors
       if (d2 < EYE_RANGE2) {
-        float cross = asin * dx - acos * dy;
-        ang_diff = atan2f(cross, dot);
+        float leye_dot   = leye_cx * dx + leye_cy * dy;
+        float reye_dot   = reye_cx * dx + reye_cy * dy;
+        bool  leye_pass  = leye_dot > 0.0f &&
+               fabsf(leye_cx * dy - leye_cy * dx) < leye_dot * TAN_3PI16;
+        bool  reye_pass  = reye_dot > 0.0f &&
+               fabsf(reye_cx * dy - reye_cy * dx) < reye_dot * TAN_3PI16;
+        bool  blood_pass = dot > 0.0f &&
+               fabsf(asin * dx - acos * dy) < dot * TAN_3PI16;
 
-        // Left eye: |ang_diff - π/8| < 3π/8 ?
-        float diff = ang_diff + leye_off;
-        if (fabsf(diff) < PI38) {
-          float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
-          float p = mul * (d * invDIST);
-          p1 += p; r1 += mul * a2->red; g1 += mul * a2->gre; b1 += mul * a2->blu;
-        }
-        // Right eye: |ang_diff + π/8| < 3π/8 ?
-        diff = ang_diff + reye_off;
-        if (fabsf(diff) < PI38) {
-          float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
-          float p = mul * (d * invDIST);
-          p2 += p; r2 += mul * a2->red; g2 += mul * a2->gre; b2 += mul * a2->blu;
-        }
-        // Forward blood: |ang_diff| < 3π/8 ?
-        if (fabsf(ang_diff) < PI38) {
-          float mul = BLOOD_SENSITIVITY * ((PI38 - fabsf(ang_diff)) / PI38) * dist_falloff;
-          blood += mul * (1.0f - a2->health * 0.5f);
+        if (leye_pass || reye_pass || blood_pass) {
+          // Only now compute atan2f for angle falloff weighting
+          float cross = asin * dx - acos * dy;
+          float ang_diff = atan2f(cross, dot);
+
+          if (leye_pass) {
+            float diff = ang_diff - PI8;  // left eye centered at -π/16
+            float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
+            float p = mul * (d * invDIST);
+            p1 += p; r1 += mul * a2->red; g1 += mul * a2->gre; b1 += mul * a2->blu;
+          }
+          if (reye_pass) {
+            float diff = ang_diff + PI8;  // right eye centered at +π/16
+            float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
+            float p = mul * (d * invDIST);
+            p2 += p; r2 += mul * a2->red; g2 += mul * a2->gre; b2 += mul * a2->blu;
+          }
+          if (blood_pass) {
+            float mul = BLOOD_SENSITIVITY * ((PI38 - fabsf(ang_diff)) / PI38) * dist_falloff;
+            blood += mul * (1.0f - a2->health * 0.5f);
+          }
         }
       }
 

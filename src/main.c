@@ -85,6 +85,9 @@ int main(int argc, char **argv) {
   vkview_main_loop();
   vkview_cleanup();
 
+  // brain_gpu was destroyed by vkview_cleanup — null it so
+  // world_flush_staging (called by base_saveworld) skips GPU path
+  base.world->brain_gpu = NULL;
   base_saveworld(&base);
   queue_close(base.world->queue);
 

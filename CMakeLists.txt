@@ -87,7 +87,9 @@ endif()
 
 if (ASAN)
 	target_link_options(scriptbots PRIVATE -fsanitize=address)
-	target_compile_options(scriptbots PRIVATE -fsanitize=address)
+	target_compile_options(scriptbots PRIVATE
+	    -fsanitize=address -fno-omit-frame-pointer)
+	set(USE_LTO OFF CACHE BOOL "LTO incompatible with ASAN" FORCE)
 endif()
 
 if (DEVIRTLTO)

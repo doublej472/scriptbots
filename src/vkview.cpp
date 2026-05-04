@@ -153,8 +153,8 @@ void vkview_init(int argc, char **argv) {
 
     VkPhysicalDevice phys = vkinit_get_phys_device(VKVIEW.vkstate);
     VkDevice dev = vkinit_get_device(VKVIEW.vkstate);
-    uint32_t qfam = vkinit_get_queue_family(VKVIEW.vkstate);
-    VkQueue queue = vkinit_get_queue(VKVIEW.vkstate);
+    uint32_t qfam = vkinit_get_gfx_family(VKVIEW.vkstate);
+    VkQueue queue = vkinit_get_gfx_queue(VKVIEW.vkstate);
     VkRenderPass rp = vkinit_get_render_pass(VKVIEW.vkstate);
 
     // ImGui descriptor pool
@@ -288,6 +288,9 @@ void vkview_process_normal_key(int key, int mods) {
                 VKState *vk = VKVIEW.vkstate;
                 vkDeviceWaitIdle(vk->device);
                 vkResetFences(vk->device, 1, &vk->compute_fence);
+                // Destroy old chunks and re-upload from scratch
+                // Reuse existing chunk buffers — zero slot counts instead of freeing
+                vkbrain_reset_counts(vk);
                 // Reassign GPU brain slots for all loaded agents
                 for (size_t i = 0; i < VKVIEW.base->world->agents.size; i++) {
                     struct Agent *a = VKVIEW.base->world->agents.agents[i];
@@ -295,6 +298,8 @@ void vkview_process_normal_key(int key, int mods) {
                     vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index);
                 }
                 vkbrain_upload_all(VKVIEW.vkstate, VKVIEW.base->world);
+                // Reclaim chunks left empty by smaller world (hysteresis still applies)
+                for (int ci = 0; ci < 3; ci++) vkbrain_try_reclaim_last(vk);
                 vkbrain_record_dispatch(VKVIEW.vkstate, 0);
                 printf("Re-uploaded brains to GPU after load.\n");
             }
@@ -488,6 +493,20 @@ void vkview_main_loop(void) {
             // Draw world via Vulkan (+ ImGui rendered inside same pass)
             VKViewState vs = build_view_state(VKVIEW.vkstate);
             vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
+
+            // Read GPU timestamps (previous frame's work is done —
+            // vkdraw_frame waited on in_flight, world_update waited on compute_fence)
+            VKState *vk = VKVIEW.vkstate;
+            if (vk && vk->timestamp_supported) {
+                uint64_t results[4];
+                if (vkGetQueryPoolResults(vk->device, vk->timestamp_pool, 0, 4,
+                        sizeof(results), results, sizeof(uint64_t),
+                        VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
+                    float ns = vk->timestamp_period;
+                    vk->gpu_compute_ms  = (float)((int64_t)(results[1] - results[0])) * ns * 1e-6f;
+                    vk->gpu_graphics_ms = (float)((int64_t)(results[3] - results[2])) * ns * 1e-6f;
+                }
+            }
         } else {
             // Even when not drawing, we need to pump events
             // A small sleep prevents busy-waiting

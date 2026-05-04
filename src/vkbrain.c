@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STAGING_FLOATS (512 * 1024 * 1024 / 4)   // 512 MB staging buffer
+#define STAGING_UINTS (512 * 1024 * 1024 / 4)   // 512 MB staging buffer (uint32_t units)
 
 // ---- Host-visible buffer helper ----
 static void alloc_buffer(VKState *vk, VkDeviceSize size, VkBufferUsageFlags usage,
@@ -80,7 +80,7 @@ static int vkbrain_alloc_chunk(VKState *vk) {
     BrainChunk *c = &vk->chunks[vk->chunk_count];
 
     uint32_t cap = BRAIN_CHUNK_AGENTS;
-    VkDeviceSize wsize  = (VkDeviceSize)cap * BRAIN_WEIGHT_FLOATS * sizeof(float);
+    VkDeviceSize wsize  = (VkDeviceSize)cap * BRAIN_WEIGHT_UINTS * sizeof(uint32_t);
     VkDeviceSize iosize = (VkDeviceSize)cap * BRAIN_INPUT_SIZE   * sizeof(float);
 
     printf("[VKBrain] Allocating chunk %u: %u agents, weights %.1f GB\n",
@@ -204,13 +204,14 @@ bool vkbrain_assign_slot(VKState *vk, struct Agent *a,
     return true;
 }
 
-void vkbrain_stage_brain(VKState *vk, uint32_t chunk, uint32_t slot, const float *brain) {
+void vkbrain_stage_brain(VKState *vk, uint32_t chunk, uint32_t slot, const uint32_t *brain) {
     if (vk->staging_count >= vk->staging_capacity)
         vkbrain_flush_staging(vk);
     vk->staging_chunks[vk->staging_count]  = chunk;
     vk->staging_indices[vk->staging_count] = slot;
-    float *dst = vk->mapped_staging + vk->staging_count * BRAIN_WEIGHT_FLOATS;
-    memcpy(dst, brain, BRAIN_WEIGHT_FLOATS * sizeof(float));
+    // Brain is already packed fp16 on CPU — direct memcpy to staging
+    memcpy(vk->mapped_staging + vk->staging_count * BRAIN_WEIGHT_UINTS,
+           brain, BRAIN_WEIGHT_UINTS * sizeof(uint32_t));
     vk->staging_count++;
 }
 
@@ -239,15 +240,15 @@ void vkbrain_move_slot(VKState *vk, uint32_t from_c, uint32_t from_s,
 
 // ---- Staging flush: copy staged brains to per-chunk weight buffers ----
 
-static void record_staging_copy(VKState *vk) {
+static void record_staging_copy(VKState *vk, uint32_t idx) {
     if (vk->staging_count == 0) return;
 
     VkCommandBufferBeginInfo bi = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
-    vkResetCommandBuffer(vk->staging_cmd, 0);
-    vkBeginCommandBuffer(vk->staging_cmd, &bi);
+    vkResetCommandBuffer(vk->staging_cmd[idx], 0);
+    vkBeginCommandBuffer(vk->staging_cmd[idx], &bi);
 
     // Batch copies by chunk for fewer barriers
     for (uint32_t ci = 0; ci < vk->chunk_count; ci++) {
@@ -264,49 +265,57 @@ static void record_staging_copy(VKState *vk) {
             for (uint32_t i = 0; i < n; i++) {
                 uint32_t slot = vk->staging_indices[first + i];
                 regions[i] = (VkBufferCopy){
-                    .srcOffset = (VkDeviceSize)(first + i) * BRAIN_WEIGHT_FLOATS * sizeof(float),
-                    .dstOffset = (VkDeviceSize)slot * BRAIN_WEIGHT_FLOATS * sizeof(float),
-                    .size      = BRAIN_WEIGHT_FLOATS * sizeof(float),
+                    .srcOffset = (VkDeviceSize)(first + i) * BRAIN_WEIGHT_UINTS * sizeof(uint32_t),
+                    .dstOffset = (VkDeviceSize)slot * BRAIN_WEIGHT_UINTS * sizeof(uint32_t),
+                    .size      = BRAIN_WEIGHT_UINTS * sizeof(uint32_t),
                 };
             }
-            vkCmdCopyBuffer(vk->staging_cmd, vk->brain_staging_buf,
+            vkCmdCopyBuffer(vk->staging_cmd[idx], vk->brain_staging_buf,
                             vk->chunks[ci].weights_buf, n, regions);
             free(regions);
 
+            // Release weights for this chunk to compute queue family
+            // (use IGNORED when the two families are the same to avoid validation noise)
             VkBufferMemoryBarrier bmb = {
                 .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
                 .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .dstAccessMask = 0,
+                .srcQueueFamilyIndex = vk->transfer_family,
+                .dstQueueFamilyIndex = vk->compute_family,
                 .buffer = vk->chunks[ci].weights_buf, .size = VK_WHOLE_SIZE,
             };
-            vkCmdPipelineBarrier(vk->staging_cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+            if (vk->transfer_family == vk->compute_family)
+                bmb.srcQueueFamilyIndex = bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            vkCmdPipelineBarrier(vk->staging_cmd[idx], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
                                  0, NULL, 1, &bmb, 0, NULL);
             first = last;
         }
     }
 
-    vkEndCommandBuffer(vk->staging_cmd);
+    vkEndCommandBuffer(vk->staging_cmd[idx]);
 
     VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                         .commandBufferCount = 1,
-                        .pCommandBuffers = &vk->staging_cmd };
-    vkResetFences(vk->device, 1, &vk->staging_fence);
-    vkQueueSubmit(vk->queue, 1, &si, vk->staging_fence);
-    vkWaitForFences(vk->device, 1, &vk->staging_fence, VK_TRUE, UINT64_MAX);
+                        .pCommandBuffers = &vk->staging_cmd[idx] };
+    vkResetFences(vk->device, 1, &vk->staging_fence[idx]);
+    vkQueueSubmit(vk->transfer_queue, 1, &si, vk->staging_fence[idx]);
+    vk->staging_fence_idx = 1 - idx;
 
     vk->staging_count = 0;
 }
 
 void vkbrain_flush_staging(VKState *vk) {
     if (vk->staging_count == 0) return;
-    vkWaitForFences(vk->device, 1, &vk->staging_fence, VK_TRUE, UINT64_MAX);
-    record_staging_copy(vk);
+    // Wait for the fence we're about to reuse (submitted 2 flushes ago)
+    uint32_t idx = vk->staging_fence_idx;
+    vkWaitForFences(vk->device, 1, &vk->staging_fence[idx], VK_TRUE, UINT64_MAX);
+    record_staging_copy(vk, idx);
 }
 
 void vkbrain_drain_staging(VKState *vk) {
     if (vk->staging_count > 0) vkbrain_flush_staging(vk);
-    vkWaitForFences(vk->device, 1, &vk->staging_fence, VK_TRUE, UINT64_MAX);
+    vkWaitForFences(vk->device, 2, vk->staging_fence, VK_TRUE, UINT64_MAX);
 }
 
 // ---- Dispatch: one bind+dispatch per non-empty chunk ----
@@ -320,24 +329,36 @@ void vkbrain_record_dispatch(VKState *vk, uint32_t read_slot) {
     };
     vkBeginCommandBuffer(cmd, &bi);
 
+    if (vk->timestamp_supported) {
+        vkCmdResetQueryPool(cmd, vk->timestamp_pool, 0, 2);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            vk->timestamp_pool, 0);
+    }
+
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vk->brain_pipeline);
 
     for (uint32_t ci = 0; ci < vk->chunk_count; ci++) {
         BrainChunk *c = &vk->chunks[ci];
         if (c->alive_count == 0) continue;
 
+        // Acquire weights from transfer queue + make host writes visible
         VkBufferMemoryBarrier preBarriers[2] = {
             { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-              .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+              .srcAccessMask = 0,
               .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+              .srcQueueFamilyIndex = vk->transfer_family,
+              .dstQueueFamilyIndex = vk->compute_family,
               .buffer = c->weights_buf, .size = VK_WHOLE_SIZE },
             { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
               .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
               .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
               .buffer = c->inputs_buf[read_slot], .size = VK_WHOLE_SIZE },
         };
+        if (vk->transfer_family == vk->compute_family)
+            preBarriers[0].srcQueueFamilyIndex = preBarriers[0].dstQueueFamilyIndex
+                = VK_QUEUE_FAMILY_IGNORED;
         vkCmdPipelineBarrier(cmd,
-            VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_HOST_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_HOST_BIT,
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0, 0, NULL, 2, preBarriers, 0, NULL);
 
@@ -376,6 +397,10 @@ void vkbrain_record_dispatch(VKState *vk, uint32_t read_slot) {
                                  0, NULL, out_count, outBarriers, 0, NULL);
         free(outBarriers);
     }
+
+    if (vk->timestamp_supported)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            vk->timestamp_pool, 1);
 
     vkEndCommandBuffer(cmd);
 }
@@ -424,32 +449,36 @@ void vkbrain_init(VKState *vk, uint32_t initial_cap) {
 
     // Staging buffer (global, shared across all chunks)
     {
-        VkDeviceSize staging_size = (VkDeviceSize)STAGING_FLOATS * sizeof(float);
+        VkDeviceSize staging_size = (VkDeviceSize)STAGING_UINTS * sizeof(uint32_t);
         alloc_buffer(vk, staging_size,
                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     &vk->brain_staging_buf, &vk->brain_staging_mem, &vk->mapped_staging);
+                     &vk->brain_staging_buf, &vk->brain_staging_mem,
+                     (float**)&vk->mapped_staging);
     }
-    vk->staging_capacity = STAGING_FLOATS / BRAIN_WEIGHT_FLOATS;
+    vk->staging_capacity = STAGING_UINTS / BRAIN_WEIGHT_UINTS;
     vk->staging_chunks  = malloc(sizeof(uint32_t) * vk->staging_capacity);
     vk->staging_indices = malloc(sizeof(uint32_t) * vk->staging_capacity);
     vk->staging_count   = 0;
 
-    // Command buffers
+    // Command buffers (from transfer and compute pools)
     {
         VkCommandBufferAllocateInfo cbai = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool = vk->cmd_pool, .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
+            .commandPool = vk->cmd_pool_transfer, .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 2,
         };
-        vkAllocateCommandBuffers(vk->device, &cbai, &vk->staging_cmd);
+        vkAllocateCommandBuffers(vk->device, &cbai, vk->staging_cmd);
+        cbai.commandPool = vk->cmd_pool_compute;
         cbai.commandBufferCount = 2;
         vkAllocateCommandBuffers(vk->device, &cbai, vk->cmd_compute);
         VkFenceCreateInfo fci = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
         vkCreateFence(vk->device, &fci, NULL, &vk->compute_fence);
+        // Double-buffered staging fences — both start SIGNALED so first flush is a no-wait
         VkFenceCreateInfo fci2 = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
                                     .flags = VK_FENCE_CREATE_SIGNALED_BIT };
-        vkCreateFence(vk->device, &fci2, NULL, &vk->staging_fence);
+        vkCreateFence(vk->device, &fci2, NULL, &vk->staging_fence[0]);
+        vkCreateFence(vk->device, &fci2, NULL, &vk->staging_fence[1]);
     }
 
     vk->chunks = NULL;
@@ -460,22 +489,10 @@ void vkbrain_init(VKState *vk, uint32_t initial_cap) {
     vk->brain_frame = 0;
 
     printf("[VKBrain] Pipeline ready. %u chunks, staging %.0f MB.\n",
-           vk->chunk_count, (double)(STAGING_FLOATS * 4) / (1024*1024));
+           vk->chunk_count, (double)(STAGING_UINTS * 4) / (1024*1024));
 }
 
-void vkbrain_destroy(VKState *vk) {
-    vkDestroyFence(vk->device, vk->compute_fence, NULL);
-    vkDestroyFence(vk->device, vk->staging_fence, NULL);
-    vkDestroyPipeline(vk->device, vk->brain_pipeline, NULL);
-    vkDestroyPipelineLayout(vk->device, vk->brain_layout, NULL);
-    vkDestroyDescriptorSetLayout(vk->device, vk->brain_desc_layout, NULL);
-    free(vk->staging_chunks);
-    free(vk->staging_indices);
-
-    vkUnmapMemory(vk->device, vk->brain_staging_mem);
-    vkDestroyBuffer(vk->device, vk->brain_staging_buf, NULL);
-    vkFreeMemory(vk->device, vk->brain_staging_mem, NULL);
-
+void vkbrain_reset(VKState *vk) {
     for (uint32_t ci = 0; ci < vk->chunk_count; ci++) {
         BrainChunk *c = &vk->chunks[ci];
         vkDestroyDescriptorPool(vk->device, c->desc_pool, NULL);
@@ -493,7 +510,33 @@ void vkbrain_destroy(VKState *vk) {
     }
     free(vk->chunks);
     vk->chunks = NULL;
-    vk->chunk_count = vk->chunk_capacity = 0;
+    vk->chunk_count = 0;
+    vk->chunk_capacity = 0;
+}
+
+void vkbrain_reset_counts(VKState *vk) {
+    for (uint32_t ci = 0; ci < vk->chunk_count; ci++) {
+        BrainChunk *c = &vk->chunks[ci];
+        c->alive_count = 0;
+        memset(c->slot_owner, 0, c->capacity * sizeof(struct Agent *));
+    }
+}
+
+void vkbrain_destroy(VKState *vk) {
+    vkDestroyFence(vk->device, vk->compute_fence, NULL);
+    vkDestroyFence(vk->device, vk->staging_fence[0], NULL);
+    vkDestroyFence(vk->device, vk->staging_fence[1], NULL);
+    vkDestroyPipeline(vk->device, vk->brain_pipeline, NULL);
+    vkDestroyPipelineLayout(vk->device, vk->brain_layout, NULL);
+    vkDestroyDescriptorSetLayout(vk->device, vk->brain_desc_layout, NULL);
+    free(vk->staging_chunks);
+    free(vk->staging_indices);
+
+    vkUnmapMemory(vk->device, vk->brain_staging_mem);
+    vkDestroyBuffer(vk->device, vk->brain_staging_buf, NULL);
+    vkFreeMemory(vk->device, vk->brain_staging_mem, NULL);
+
+    vkbrain_reset(vk);
 }
 
 void vkbrain_upload_all(VKState *vk, struct World *world) {

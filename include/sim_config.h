@@ -32,7 +32,7 @@
 #define SPIKESPEED 0.02f    // how quickly can attack spike go up?
 #define SPIKEMULT 2.0f      // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f  // how much boost do agents get? when boost neuron is on
-#define DIST 350.0f          // how far can the eyes see, ears hear, and nose smell on each bot?
+#define DIST 225.0f          // how far can the eyes see, ears hear, and nose smell on each bot?
 #define DIST_GROUPING 40.0f  // how close must another agent be to get grouping health gain
 #define EYE_SENSITIVITY 2.0f  // how sensitive are the eyes?
 #define BLOOD_SENSITIVITY 2.0f // how sensitive are blood sensors?
@@ -57,12 +57,12 @@
 #define CROWDING_PENALTY 0.00004f  // quadratic penalty per extra agent (× excess²)
 
 // ---- FOOD ----
-#define FOODSQUARES 4000        // how many food squares to check every FOODADDFREQ?
+#define FOODSQUARES 10000      // how many food squares to check every FOODADDFREQ?
 #define FOODGROWTH 0.25f       // how quickly does food grow on a square
 #define FOODINTAKE 0.00225f    // how much does every agent consume?
 #define FOODWASTE 0.001f       // how much food disappears if agent eats?
 #define FOODMAX 0.6f           // how much food per cell can there be at max?
-#define FOODADDFREQ 20         // how often does random square get to full food?
+#define FOODADDFREQ 5         // how often does random square get to full food?
 #define FOOD_DEAD 0.1f         // what percent of FOODMAX does a dead agent create
 #define FOOD_MEAT_VALUE 0.80f  // percentage that health is transferred when eaten
 #define FOODTRANSFER 0.001f    // how much is transferred between two agents trading food?
@@ -72,7 +72,11 @@
 #define FOOD_DISTRIBUTION_MAX NUMBOTS_CLOSE
 
 // ---- GEOMETRIC CONSTANTS (do not change) ----
-#define PI8  ((float)(M_PI / 8.0f / 2.0f))  // pi/8/2
-#define PI38 (3.0f * PI8)                    // 3pi/8/2
+#define PI8  ((float)(M_PI / 8.0f / 2.0f))  // pi/8/2 = pi/16
+#define PI38 (3.0f * PI8)                    // 3pi/8/2 = 3pi/16
+// Cone pre-test constants (derived from PI8/PI38)
+#define COS_PI16    0.98078528f  // cos(pi/16)
+#define SIN_PI16    0.19509032f  // sin(pi/16)
+#define TAN_3PI16   0.66817864f  // tan(3pi/16)
 
 #endif

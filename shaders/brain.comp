@@ -5,7 +5,7 @@ layout(local_size_x = NEURONS_PER_LAYER) in;
 
 shared float val[NEURONS_PER_LAYER];
 
-layout(set = 0, binding = 0, std430) readonly buffer BufW { float w[]; };
+layout(set = 0, binding = 0, std430) readonly buffer BufW { uint w_packed[]; };
 layout(set = 0, binding = 1, std430) readonly buffer BufI { float inp[]; };
 layout(set = 0, binding = 2, std430) buffer       BufO { float output_vals[]; };
 
@@ -23,15 +23,28 @@ void main() {
     val[lane] = inp[in_off + lane];
     barrier();
 
-    uint base = agent * BRAIN_WEIGHT_FLOATS;
+    uint base_u = agent * BRAIN_WEIGHT_UINTS;
+    uint layer_uints = FLOATS_PER_LAYER / FLOATS_PER_UINT;
+    uint weight_uints = WEIGHTS_PER_LAYER / FLOATS_PER_UINT;
+
     for (uint l = 0; l < BRAIN_LAYERS; l++) {
-        uint loff = base + l * FLOATS_PER_LAYER;
+        uint loff = base_u + l * layer_uints;
 
         float sum = 0.0;
-        for (uint j = 0; j < NEURONS_PER_LAYER; j++)
-            sum += val[j] * w[loff + j * NEURONS_PER_LAYER + lane];
+        for (uint j = 0; j < NEURONS_PER_LAYER; j++) {
+            uint widx = loff + (j * NEURONS_PER_LAYER + lane) / FLOATS_PER_UINT;
+            float w = ((j * NEURONS_PER_LAYER + lane) & 1u) == 0u
+                       ? unpackHalf2x16(w_packed[widx]).x
+                       : unpackHalf2x16(w_packed[widx]).y;
+            sum += val[j] * w;
+        }
 
-        sum += w[loff + WEIGHTS_PER_LAYER + lane];
+        uint bidx = loff + weight_uints + lane / FLOATS_PER_UINT;
+        float b = ((lane & 1u) == 0u)
+                   ? unpackHalf2x16(w_packed[bidx]).x
+                   : unpackHalf2x16(w_packed[bidx]).y;
+        sum += b;
+
         val[lane] = clamp(sum, 0.0, 1.0);
         barrier();
     }

@@ -7,20 +7,70 @@
 #include <string.h>
 #include <math.h>
 
-// ---- Brain helpers (flat float array, GPU-compatible layout) ----
+// ---- Brain helpers (packed fp16, identical to GPU layout) ----
 
-void brain_init_random(float *w) {
-    for (int i = 0; i < BRAIN_WEIGHT_FLOATS; i++)
-        w[i] = (randf(0.0f, 1.0f) - 0.5f) * BRAIN_WEIGHT_RANGE * 2.0f;
+// Portable float32 ↔ float16 (no intrinsics)
+static inline uint16_t float_to_half(float f) {
+    uint32_t x; memcpy(&x, &f, 4);
+    uint32_t sign = (x >> 16) & 0x8000u;
+    int e = (int)((x >> 23) & 0xffu) - 127 + 15;
+    uint32_t m = (x >> 13) & 0x3ffu;
+    if (e <= 0) return (uint16_t)(sign | (m >> (1 - e)));
+    if (e >= 31) return (uint16_t)(sign | 0x7c00u);
+    return (uint16_t)(sign | ((uint32_t)e << 10) | m);
 }
 
-void brain_mutate(float *w, float rate, float mag) {
-    for (int i = 0; i < BRAIN_WEIGHT_FLOATS; i++) {
+static inline float half_to_float(uint16_t h) {
+    uint32_t sign = ((uint32_t)h >> 15) & 1u;
+    uint32_t exp  = ((uint32_t)h >> 10) & 0x1fu;
+    uint32_t mant = (uint32_t)h & 0x3ffu;
+    if (exp == 0) {
+        if (mant == 0) { uint32_t r = sign << 31; float f; memcpy(&f, &r, 4); return f; }
+        exp = 1;
+        while ((mant & 0x400u) == 0) { mant <<= 1; exp--; }
+        mant &= 0x3ffu;
+    } else if (exp == 31) {
+        uint32_t r = (sign << 31) | (0xffu << 23) | (mant << 13);
+        float f; memcpy(&f, &r, 4); return f;
+    }
+    uint32_t r = (sign << 31) | (((exp - 15 + 127) & 0xffu) << 23) | (mant << 13);
+    float f; memcpy(&f, &r, 4); return f;
+}
+
+void brain_init_random(uint32_t *w) {
+    for (int i = 0; i < BRAIN_WEIGHT_UINTS; i++) {
+        uint64_t r = genRandLong();
+        double v = (double)(r >> 11) * (1.0 / 4503599627370496.0);
+        float f0 = (float)((v - 1.0) * BRAIN_WEIGHT_RANGE);
+        r = genRandLong();
+        v = (double)(r >> 11) * (1.0 / 4503599627370496.0);
+        float f1 = (float)((v - 1.0) * BRAIN_WEIGHT_RANGE);
+        w[i] = ((uint32_t)float_to_half(f1) << 16) | float_to_half(f0);
+    }
+}
+
+void brain_mutate(uint32_t *w, float rate, float mag) {
+    for (int i = 0; i < BRAIN_WEIGHT_UINTS; i++) {
+        uint16_t lo = (uint16_t)(w[i] & 0xffffu);
+        uint16_t hi = (uint16_t)(w[i] >> 16);
+        float flo = half_to_float(lo);
+        float fhi = half_to_float(hi);
+        bool ch_lo = false, ch_hi = false;
         if (randf(0.0f, 1.0f) < rate) {
-            w[i] += (randf(0.0f, 1.0f) - 0.5f) * mag * 2.0f;
-            if (w[i] > BRAIN_WEIGHT_RANGE)  w[i] = BRAIN_WEIGHT_RANGE;
-            if (w[i] < -BRAIN_WEIGHT_RANGE) w[i] = -BRAIN_WEIGHT_RANGE;
+            flo += (randf(0.0f, 1.0f) - 0.5f) * mag * 2.0f;
+            if (flo > BRAIN_WEIGHT_RANGE) flo = BRAIN_WEIGHT_RANGE;
+            if (flo < -BRAIN_WEIGHT_RANGE) flo = -BRAIN_WEIGHT_RANGE;
+            ch_lo = true;
         }
+        if (randf(0.0f, 1.0f) < rate) {
+            fhi += (randf(0.0f, 1.0f) - 0.5f) * mag * 2.0f;
+            if (fhi > BRAIN_WEIGHT_RANGE) fhi = BRAIN_WEIGHT_RANGE;
+            if (fhi < -BRAIN_WEIGHT_RANGE) fhi = -BRAIN_WEIGHT_RANGE;
+            ch_hi = true;
+        }
+        if (ch_lo || ch_hi)
+            w[i] = ((uint32_t)(ch_hi ? float_to_half(fhi) : hi) << 16) |
+                    (ch_lo ? float_to_half(flo) : lo);
     }
 }
 
@@ -60,14 +110,12 @@ void agent_init(struct Agent *agent) {
     agent->MUTRATE1 = METAMUTRATE1;
     agent->MUTRATE2 = METAMUTRATE2;
     agent->spiked = 0;
-    agent->sort_alive = 0;
     agent->brain_chunk = ~0u;
     agent->brain_index = 0;
 
     for (int i = 0; i < BRAIN_INPUT_SIZE; i++)  agent->in[i] = 0.0f;
     for (int i = 0; i < BRAIN_OUTPUT_SIZE; i++) agent->out[i] = 0.0f;
 
-    agent->brain = malloc(BRAIN_WEIGHT_FLOATS * sizeof(float));
     brain_init_random(agent->brain);
 }
 
@@ -109,8 +157,8 @@ void agent_reproduce(struct Agent *child, struct Agent *parent) {
         child->clockf2 = randn(child->clockf2, child->MUTRATE2);
     if (child->clockf2 < 2.0f) child->clockf2 = 2.0f;
 
-    // Mutate brain (flat float array)
-    memcpy(child->brain, parent->brain, BRAIN_WEIGHT_FLOATS * sizeof(float));
+    // Mutate brain (packed fp16, identical to GPU)
+    memcpy(child->brain, parent->brain, BRAIN_WEIGHT_UINTS * sizeof(uint32_t));
     brain_mutate(child->brain, child->MUTRATE1, child->MUTRATE2);
 }
 

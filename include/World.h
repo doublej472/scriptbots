@@ -16,7 +16,7 @@ typedef struct VKState VKState;
 extern "C" {
 #endif
 
-#define AGENT_BUCKETS (1024 * 64)  // 65536 — must exceed total occupied grid cells (~16K) to minimize hash collisions
+#define AGENT_BUCKETS (1024 * 128) // 131072 — must exceed occupied grid cells (~81K at DIST=225)
 
 struct AgentQueueItem {
   struct World *world;

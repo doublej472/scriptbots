@@ -34,11 +34,6 @@ void base_saveworld(struct Base *base) {
     fwrite(base->world->agents.agents[i], sizeof(struct Agent), 1, f);
   }
 
-  printf("Writing %zu brains...\n", base->world->agents.size);
-  for (size_t i = 0; i < base->world->agents.size; i++) {
-    fwrite(base->world->agents.agents[i]->brain, BRAIN_WEIGHT_FLOATS * sizeof(float), 1, f);
-  }
-
   fclose(f);
   printf("Done!\n");
 }
@@ -69,12 +64,6 @@ void base_loadworld(struct Base *base) {
   for (int i = 0; i < base->world->agents.size; i++) {
     base->world->agents.agents[i] = malloc(sizeof(struct Agent));
     fread(base->world->agents.agents[i], sizeof(struct Agent), 1, f);
-  }
-
-  printf("Reading %ld brains...\n", size);
-  for (size_t i = 0; i < base->world->agents.size; i++) {
-    base->world->agents.agents[i]->brain = malloc(BRAIN_WEIGHT_FLOATS * sizeof(float));
-    fread(base->world->agents.agents[i]->brain, BRAIN_WEIGHT_FLOATS * sizeof(float), 1, f);
   }
 
   printf("Fixing world struct...\n");

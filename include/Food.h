@@ -16,7 +16,7 @@ struct FoodGridItem {
 struct FoodGrid {
   uint32_t food_pivot;
   uint32_t food_sorted[TOTAL_FOOD_SQUARES];
-  struct FoodGridItem food[FOOD_SQUARES_WIDTH][FOOD_SQUARES_HEIGHT];
+  struct FoodGridItem food[FOOD_SQUARES_HEIGHT][FOOD_SQUARES_WIDTH];
 };
 
 void foodGrid_init(struct FoodGrid *foodGrid);
