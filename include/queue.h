@@ -1,57 +1,58 @@
 /*
-c-pthread-queue - c implementation of a bounded buffer queue using posix threads
-Copyright (C) 2008  Matthew Dickinson
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+queue.h — lock-free work-stealing dispatch for embarrassingly parallel agent phases.
+
+Workers sleep on a condvar until world_dispatch wakes them via generation bump.
+Workers atomically claim batches with fetch_add on a dedicated-cache-line cursor;
+fast cores claim more, slow cores fewer.  Completion uses a second condvar so
+the main thread sleeps instead of spinning.
+
+All atomic ops use RELAXED ordering — the mutex unlock→lock chain provides
+the necessary happens-before for phase parameters and completion signalling.
 */
 
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
-#include "lock.h"
-#include <stdio.h>
+#include <pthread.h>
+#include <stdint.h>
 
-#define QUEUE_BUFFER_SIZE 1000
+#define ATOMIC_FETCH_ADD(ptr, val) __atomic_fetch_add((ptr), (val), __ATOMIC_RELAXED)
+#define ATOMIC_LOAD(ptr) __atomic_load_n((ptr), __ATOMIC_RELAXED)
 
-struct QueueItem {
-  void (*function)(void *);
-  void *data;
+#define BATCH_SIZE 256
+
+enum {
+  QUEUE_PHASE_INPUTS = 0,
+  QUEUE_PHASE_OUTPUTS = 1,
 };
+
+struct World;
 
 struct Queue {
-  struct Lock lock;
-  struct LockCondition cond_item_added;
-  struct LockCondition cond_item_removed;
-  struct LockCondition cond_work_done;
-  // This value is set to 0 on init, and only ever written to once the entire
-  // program, which is when this queue is closed. So no protection around this
-  // variable.
-  int closed;
-  // Everything below this line needs the spinlock for safe modification
-  size_t size;
-  size_t in;
-  size_t out;
+  // ---- Cold section: accessed only under mutex, once per dispatch ----
+  int quit;
 
-  size_t num_work_items;
-  struct QueueItem buffer[QUEUE_BUFFER_SIZE];
+  pthread_mutex_t mutex;
+  pthread_cond_t work_cond; // workers sleep here
+  pthread_cond_t done_cond; // main thread sleeps here
+
+  // Phase context (written by world_dispatch, read by workers — all under mutex)
+  uint32_t generation;
+  uint32_t phase;
+  uint32_t total;
+  uint32_t brain_slot;
+  struct World *world;
+  uint32_t num_participants; // set by main() after thread creation
+
+  // ---- Hot section: lock-free atomics, each on its own cache line ----
+  __attribute__((aligned(64))) uint32_t cursor;     // atomic fetch_add
+  __attribute__((aligned(64))) uint32_t done_count; // atomic fetch_add
 };
 
-void queue_init(struct Queue *queue);
-void queue_destroy(struct Queue *queue);
-void queue_enqueue(struct Queue *queue, struct QueueItem value);
-struct QueueItem queue_dequeue(struct Queue *queue);
-size_t queue_size(struct Queue *queue);
-void queue_workdone(struct Queue *queue);
-void queue_close(struct Queue *queue);
-
-void queue_wait_until_done(struct Queue *queue);
+void queue_init(struct Queue *q);
+void queue_destroy(struct Queue *q);
+void queue_close(struct Queue *q);
+void world_dispatch(struct Queue *q, uint32_t phase, uint32_t slot);
+void *worker_thread(void *arg);
 
 #endif

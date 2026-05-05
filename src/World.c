@@ -6,16 +6,18 @@
 #include <string.h>
 #include <time.h>
 
+#include "Food.h"
 #include "World.h"
 #include "helpers.h"
 #include "queue.h"
-#include "vkhelpers.h"
 #include "settings.h"
 #include "vec.h"
 #include "vec2f.h"
-#include "Food.h"
+#include "vkhelpers.h"
 
-#define BATCH_SIZE 64
+// Forward declarations — these two are defined after world_update
+static void world_drain_spike_outboxes(struct World *world);
+static void world_apply_food_requests(struct World *world);
 
 // ============================================================================
 // Food & GUI
@@ -25,11 +27,13 @@ static void world_update_food(struct World *world) {
   // if (world->modcounter % 20 == 0) {
   //   printf("food_pivot: %d\n", world->foodGrid.food_pivot);
   // }
-  
-  float food_to_add = FOODMAX * 0.5f;
 
-  if (world->foodGrid.food_pivot == 0) {
-    // World is empty, add random food
+  float food_to_add = FOOD_ADD_PER_FRAME;
+
+  // When food density is very low, seed random cells to kick-start growth.
+  // Once enough cells are alive, switch to preferential growth on existing
+  // food squares so patches spread and thicken naturally.
+  if (world->foodGrid.food_pivot < (uint32_t)(TOTAL_FOOD_SQUARES * FOOD_SPARSE_THRESHOLD)) {
     while (food_to_add > 0.0f) {
       uint32_t food_idx = randi(0, TOTAL_FOOD_SQUARES);
       size_t fx = food_idx % FOOD_SQUARES_WIDTH;
@@ -45,14 +49,14 @@ static void world_update_food(struct World *world) {
     size_t fx = food_idx % FOOD_SQUARES_WIDTH;
     size_t fy = food_idx / FOOD_SQUARES_WIDTH;
     // Grow current square
-    food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, fminf(FOODGROWTH,food_to_add));
+    food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, fminf(FOODGROWTH, food_to_add));
     // Grow surrounding squares only if well grown
     if (world->foodGrid.food[fy][fx].amt > FOODMAX * 0.7f) {
       // Spread to random square nearby
       size_t fxx = randi(fx - 1, fx + 2);
       size_t fyy = randi(fy - 1, fy + 2);
 
-      food_to_add -= foodGrid_growFood(&world->foodGrid, fxx, fyy, fminf(FOODGROWTH,food_to_add));
+      food_to_add -= foodGrid_growFood(&world->foodGrid, fxx, fyy, fminf(FOODGROWTH, food_to_add));
     }
   }
 }
@@ -117,6 +121,9 @@ static struct AgentRange get_agent_range(struct World *world, size_t bucket_idx)
   return ret;
 }
 
+// Forward: defined below in "Agent Processing" section
+static void world_update_render_entry(struct World *world, size_t idx);
+
 void world_flush_staging(struct World *world) {
   VKState *vk_st = world->brain_gpu;
 
@@ -132,15 +139,15 @@ void world_flush_staging(struct World *world) {
         uint32_t last_c = vk_st->chunk_count;
         while (last_c > 0) {
           last_c--;
-          if (vk_st->chunks[last_c].alive_count > 0) break;
+          if (vk_st->chunks[last_c].alive_count > 0)
+            break;
         }
         if (last_c < vk_st->chunk_count) {
           uint32_t last_s = vk_st->chunks[last_c].alive_count - 1;
           struct Agent *last_a = vk_st->chunks[last_c].slot_owner[last_s];
           // Move last agent's brain into the freed slot (unless it IS the freed slot)
           if (!(a->brain_chunk == last_c && a->brain_index == last_s)) {
-            vkbrain_move_slot(vk_st, last_c, last_s,
-                              a->brain_chunk, a->brain_index, last_a);
+            vkbrain_move_slot(vk_st, last_c, last_s, a->brain_chunk, a->brain_index, last_a);
             last_a->brain_chunk = a->brain_chunk;
             last_a->brain_index = a->brain_index;
             vk_st->chunks[a->brain_chunk].slot_owner[a->brain_index] = last_a;
@@ -149,19 +156,49 @@ void world_flush_staging(struct World *world) {
           vk_st->chunks[last_c].slot_owner[last_s] = NULL;
         }
       }
+      if (world->selected_agent == a) {
+        world->selected_agent = NULL;
+        world->selected_index = 0;
+      }
+      if (world->movie_agent == a) {
+        world->movie_agent = NULL;
+        world->movie_index = 0;
+      }
+      world->agents.agents[i] = NULL; // poison for ASAN before avec_delete overwrites
+
+      // Move flat I/O + render entries from tail to this slot (matching avec_delete swap)
+      size_t last = world->agents.size - 1;
+      if (i < last) {
+        if (world->agent_inputs)
+          memcpy(world->agent_inputs + i * AGENT_INPUT_FLOATS, world->agent_inputs + last * AGENT_INPUT_FLOATS,
+                 AGENT_INPUT_FLOATS * sizeof(float));
+        if (world->agent_outputs)
+          memcpy(world->agent_outputs + i * AGENT_OUTPUT_FLOATS, world->agent_outputs + last * AGENT_OUTPUT_FLOATS,
+                 AGENT_OUTPUT_FLOATS * sizeof(float));
+        if (world->agent_render_data) {
+          AgentInstance *r = (AgentInstance *)world->agent_render_data;
+          r[i] = r[last];
+        }
+        // Fix up selected/movie index if the swapped agent was tracked
+        if (world->selected_agent && world->selected_index == last)
+          world->selected_index = i;
+        if (world->movie_agent && world->movie_index == last)
+          world->movie_index = i;
+      }
+
       free(a);
       avec_delete(&world->agents, i);
-      i--;  // re-check the swapped-in agent
+      i--; // re-check the swapped-in agent
     }
   }
 
   // Add agents from staging vector — assign GPU chunk+slot on demand
+  size_t old_size = world->agents.size;
   for (size_t i = 0; i < world->agents_staging.size; i++) {
     struct Agent *a = world->agents_staging.agents[i];
     uint32_t chunk, slot;
     if (vk_st && !vkbrain_assign_slot(vk_st, a, &chunk, &slot)) {
-      fprintf(stderr, "[World] GPU memory exhausted, discarding %zu excess agents\n",
-              world->agents_staging.size - i);
+      fprintf(stderr, "[World] GPU memory exhausted, discarding %zu excess agents\n", world->agents_staging.size - i);
       for (; i < world->agents_staging.size; i++) {
         struct Agent *xa = world->agents_staging.agents[i];
         free(xa);
@@ -175,21 +212,66 @@ void world_flush_staging(struct World *world) {
     }
     avec_push_back(&world->agents, a);
   }
+  // Grow flat I/O + render arrays to match final allocated capacity
+  if (world->agents.allocated > 0) {
+    size_t needed_inputs = world->agents.allocated * AGENT_INPUT_FLOATS;
+    size_t needed_outputs = world->agents.allocated * AGENT_OUTPUT_FLOATS;
+    world->agent_inputs = realloc(world->agent_inputs, needed_inputs * sizeof(float));
+    world->agent_outputs = realloc(world->agent_outputs, needed_outputs * sizeof(float));
+    // Zero the new tail portion (realloc preserves old data, new bytes are uninit)
+    if (old_size < world->agents.size) {
+      size_t new_start = old_size * AGENT_INPUT_FLOATS;
+      memset(world->agent_inputs + new_start, 0, (needed_inputs - new_start) * sizeof(float));
+      memset(world->agent_outputs + new_start, 0, (needed_outputs - new_start) * sizeof(float));
+    }
+    if (world->agent_render_capacity < world->agents.allocated) {
+      world->agent_render_capacity = world->agents.allocated;
+      world->agent_render_data =
+          realloc(world->agent_render_data, world->agent_render_capacity * sizeof(AgentInstance));
+    }
+  }
+  // Populate render entries for newborn agents
+  if (world->agent_render_data) {
+    for (size_t i = old_size; i < world->agents.size; i++)
+      world_update_render_entry(world, i);
+  }
   world->agents_staging.size = 0;
 
   // Submit staging copies now (separate from compute dispatch)
-  if (vk_st) vkbrain_flush_staging(vk_st);
+  if (vk_st)
+    vkbrain_flush_staging(vk_st);
 
   // Reclaim empty chunks (with hysteresis)
-  if (vk_st) vkbrain_try_reclaim_last(vk_st);
+  if (vk_st)
+    vkbrain_try_reclaim_last(vk_st);
+
+  // Update cached population counts (used by diagnostics)
+  int32_t h = 0, c = 0;
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i]->herbivore > 0.5f)
+      h++;
+    else
+      c++;
+  }
+  world->cached_herbivores = h;
+  world->cached_carnivores = c;
 }
 
 void world_alloc(struct World *world) {
   memset(world, 0, sizeof(struct World));
+  world->selected_agent = NULL;
+  world->movie_agent = NULL;
+  world->selected_index = 0;
+  world->movie_index = 0;
+  world->agent_inputs = NULL;
+  world->agent_outputs = NULL;
+  world->agent_render_data = NULL;
+  world->agent_render_capacity = 0;
   for (size_t i = 0; i < AGENT_BUCKETS; i++)
     world->agent_grid[i] = 0;
   world->queue = malloc(sizeof(struct Queue));
   queue_init(world->queue);
+  world->queue->world = world;
   world->closed = CLOSED;
 }
 
@@ -205,7 +287,8 @@ void world_populate(struct World *world, int initFood, size_t numbots) {
 
   foodGrid_init(&world->foodGrid);
   if (initFood) {
-    printf("Initializing food.."); fflush(stdout);
+    printf("Initializing food..");
+    fflush(stdout);
     for (int i = 0; i < FOOD_INIT_ITER; i++)
       world_update_food(world);
     printf("\n");
@@ -241,6 +324,8 @@ void world_dist_dead_agent(struct World *world, size_t i) {
     // For each agent
     for (size_t agent_idx = agent_range.start; agent_idx < agent_range.end; agent_idx++) {
       struct Agent *a2 = world->sorted_agents[agent_idx];
+      if (!a2)
+        continue;
 
       // Ignore ourselves
       if (a == a2) {
@@ -315,101 +400,109 @@ void world_dist_dead_agent(struct World *world, size_t i) {
 
 static void world_wait_compute(struct World *world) {
   VKState *vk = world->brain_gpu;
-  if (!vk) return;
+  if (!vk)
+    return;
   vkWaitForFences(vk->device, 1, &vk->compute_fence, VK_TRUE, UINT64_MAX);
   vkResetFences(vk->device, 1, &vk->compute_fence);
 }
 
 void world_update(struct World *world) {
-  struct timespec t;
-  timer_reset(&t);
+  struct timespec t0;
+  double prev = 0.0, now;
+  timer_reset(&t0);
 
   world->modcounter++;
 
-  // Increment Epoch
   if (world->modcounter >= 10000) {
     world->modcounter = 0;
     world->current_epoch++;
   }
 
-  // Write report every REPORTS_PER_EPOCH
   if (REPORTS_PER_EPOCH > 0 && (world->modcounter % (int32_t)reportInterval == 0)) {
     world_writeReport(world);
   }
 
   world_update_food(world);
-  world->time_food  = timer_elapsed_ms(&t);
+  now = timer_since_ms(&t0);
+  world->timing.food_update = (float)(now - prev);
+  prev = now;
 
-  // Sort sorted_agents[] pointers (stable — agents[] never reordered, GPU brain safe)
   world_sortGrid(world);
-  world->time_sort  = timer_elapsed_ms(&t);
+  now = timer_since_ms(&t0);
+  world->timing.spatial_sort = (float)(now - prev);
+  prev = now;
 
   world_submit_compute(world);
-  world->time_submit = timer_elapsed_ms(&t);
+  now = timer_since_ms(&t0);
+  world->timing.submit_compute = (float)(now - prev);
+  prev = now;
 
   // Gather inputs for NEXT frame (overlaps with GPU compute)
   world_setInputsRunBrain(world);
-  world->time_inputs = timer_elapsed_ms(&t);
+  world_drain_spike_outboxes(world);
+  now = timer_since_ms(&t0);
+  world->timing.input_staging = (float)(now - prev);
+  prev = now;
 
   world_wait_compute(world);
-  world->time_compute = timer_elapsed_ms(&t);
+  now = timer_since_ms(&t0);
+  world->timing.gpu_wait = (float)(now - prev);
+  prev = now;
 
-  // read output and process consequences of bots on environment. requires out[]
+  // read output and process consequences of bots on environment.
   world_processOutputs(world);
-  world->time_outputs = timer_elapsed_ms(&t);
+  world_apply_food_requests(world);
+  now = timer_since_ms(&t0);
+  world->timing.output_physics = (float)(now - prev);
+  prev = now;
 
-  // Phase 2: Apply accumulated cross-agent interactions (single-threaded, no races)
-  for (size_t i = 0; i < world->agents.size; i++) {
-    struct Agent *a = world->agents.agents[i];
-    a->health += a->pending_damage;
-    if (a->pending_spiked) a->spiked = 1;
-    a->pending_damage = 0.0f;
-    a->pending_spiked = 0;
-    if (a->health > 2.0f) a->health = 2.0f;
-    if (a->health < 0.0f) a->health = 0.0f;
-  }
-
+  // Death distribution, movie mode — single-threaded
   struct Agent *newMovieAgent = NULL;
   struct Agent *prevMovieAgent = NULL;
+  size_t newMovieIndex = 0;
+  size_t prevMovieIndex = 0;
   int32_t newMostChildren = -1;
   int32_t prevMostChildren = -1;
 
-  // Some things need to be done single threaded
-  for (int i = 0; i < world->agents.size; i++) {
+  for (int i = 0; i < (int)world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
     if (a->health <= 0 && a->spiked == 1) {
-      // Distribute dead agents to nearby carnivores
-      world_dist_dead_agent(world, i);
+      world_dist_dead_agent(world, (size_t)i);
     }
-
-    if (a->rep) {
-      world_reproduce(world, a);
-    }
-
     if (world->movieMode) {
-      if (a->selectflag) {
+      if (a == world->movie_agent) {
         prevMostChildren = a->numchildren;
         prevMovieAgent = a;
-      } else {
-        if (a->numchildren > newMostChildren) {
-          newMostChildren = a->numchildren;
-          newMovieAgent = a;
-        }
+        prevMovieIndex = (size_t)i;
+      } else if (a->numchildren > newMostChildren) {
+        newMostChildren = a->numchildren;
+        newMovieAgent = a;
+        newMovieIndex = (size_t)i;
       }
-      a->selectflag = 0;
     }
   }
 
-  if (newMovieAgent != NULL) {
-    if (prevMovieAgent != NULL) {
-      if (prevMostChildren >= newMostChildren) {
-        prevMovieAgent->selectflag = 1;
+  if (world->movieMode) {
+    // If the previous movie agent died or wasn't found, switch to new
+    if (newMovieAgent != NULL) {
+      if (prevMovieAgent != NULL && prevMostChildren >= newMostChildren) {
+        world->movie_agent = prevMovieAgent;
+        world->movie_index = prevMovieIndex;
       } else {
-        newMovieAgent->selectflag = 1;
+        world->movie_agent = newMovieAgent;
+        world->movie_index = newMovieIndex;
       }
-    } else {
-      newMovieAgent->selectflag = 1;
+    } else if (prevMovieAgent == NULL) {
+      world->movie_agent = NULL;
+      world->movie_index = 0;
     }
+  }
+
+  // Reproduction (single-threaded: world_reproduce calls malloc + brain init;
+  // parallel dispatch added no real concurrency since staging_lock serialized it)
+  for (size_t i = 0; i < world->agents.size; i++) {
+    if (world->agents.agents[i]->rep)
+      world_reproduce(world, world->agents.agents[i]);
   }
 
   // add new agents, if environment isn't closed
@@ -426,15 +519,16 @@ void world_update(struct World *world) {
       }
     }
   }
-  world->time_post_out = timer_elapsed_ms(&t);
+  world->timing.death_repro = (float)(timer_since_ms(&t0) - prev);
+  prev = timer_since_ms(&t0);
 
   // Flush staging: delete dead + stage new brains + submit GPU copy
   world_flush_staging(world);
-  world->time_staging = timer_elapsed_ms(&t);
+  world->timing.flush_staging = (float)(timer_since_ms(&t0) - prev);
+  prev = timer_since_ms(&t0);
 
   world_record_compute(world);
-  world->time_record = timer_elapsed_ms(&t);
-  world->time_total_frame = timer_elapsed_ms(&t);
+  world->timing.record_compute = (float)(timer_since_ms(&t0) - prev);
 }
 
 // ============================================================================
@@ -442,39 +536,39 @@ void world_update(struct World *world) {
 // ============================================================================
 
 void world_setInputsRunBrain(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
-  for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
-    size_t start = (i * BATCH_SIZE);
-    size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
-    if (end > world->agents.size) {
-      end = world->agents.size;
+  VKState *vk = world->brain_gpu;
+  uint32_t write_slot = vk ? 1u - (uint32_t)world->brain_slot : 0;
+  world_dispatch(world->queue, QUEUE_PHASE_INPUTS, write_slot);
+}
+
+// Drain every agent's spike outbox, applying damage to defenders.
+// Called single-threaded after the input dispatch completes.
+static void world_drain_spike_outboxes(struct World *world) {
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = world->agents.agents[i];
+    for (uint32_t j = 0; j < a->spike_outbox_count; j++) {
+      struct Agent *def = a->spike_outbox[j].target;
+      def->pending_damage -= a->spike_outbox[j].damage;
+      def->pending_spiked = 1;
     }
-    struct AgentQueueItem *agentQueueItem = &agentQueueItems[i];
-    agentQueueItem->world = world;
-    agentQueueItem->start = start;
-    agentQueueItem->end = end;
-
-    struct QueueItem queueItem = {agent_input_processor, agentQueueItem};
-    queue_enqueue(world->queue, queueItem);
+    a->spike_outbox_count = 0;
   }
-
-  queue_wait_until_done(world->queue);
-  // Note: GPU dispatch is submitted separately (world_submit_compute)
 }
 
 void world_submit_compute(struct World *world) {
   VKState *vk = world->brain_gpu;
-  if (!vk) return;
+  if (!vk)
+    return;
   uint32_t read_slot = (uint32_t)world->brain_slot;
-  VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                      .commandBufferCount = 1,
-                      .pCommandBuffers = &vk->cmd_compute[read_slot] };
+  VkSubmitInfo si = {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &vk->cmd_compute[read_slot]};
   vkQueueSubmit(vk->compute_queue, 1, &si, vk->compute_fence);
 }
 
 void world_record_compute(struct World *world) {
   VKState *vk = world->brain_gpu;
-  if (!vk) return;
+  if (!vk)
+    return;
   // Record for NEXT frame's read slot (the slot we just wrote inputs to)
   uint32_t next_slot = 1u - (uint32_t)world->brain_slot;
   vkbrain_record_dispatch(vk, next_slot);
@@ -482,26 +576,28 @@ void world_record_compute(struct World *world) {
 }
 
 void world_processOutputs(struct World *world) {
-  struct AgentQueueItem agentQueueItems[((world->agents.size / BATCH_SIZE) + 1)];
-  for (size_t i = 0; i * BATCH_SIZE < world->agents.size; i++) {
-    size_t start = (i * BATCH_SIZE);
-    size_t end = (i * BATCH_SIZE) + BATCH_SIZE;
-    if (end > world->agents.size) {
-      end = world->agents.size;
+  uint32_t read_slot = (uint32_t)world->brain_slot;
+  world_dispatch(world->queue, QUEUE_PHASE_OUTPUTS, read_slot);
+}
+
+// Apply deferred food consumption requests.  Runs single-threaded after the
+// output dispatch so foodGrid_takeFood (which does RMW on food[y][x].amt and
+// mutates the food_pivot / food_sorted index) has no concurrent writers.
+static void world_apply_food_requests(struct World *world) {
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = world->agents.agents[i];
+    if (a->food_request <= 0.0f)
+      continue;
+    int32_t cx = (int32_t)a->pos.x / CZ;
+    int32_t cy = (int32_t)a->pos.y / CZ;
+    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
+        world->foodGrid.food[cy][cx].amt > 0.0f) {
+      float taken = foodGrid_takeFood(&world->foodGrid, cx, cy, a->food_request);
+      a->health += taken;
+      a->repcounter -= 3.0f * taken;
     }
-    struct AgentQueueItem *agentQueueItem = &agentQueueItems[i];
-    agentQueueItem->world = world;
-    agentQueueItem->start = start;
-    agentQueueItem->end = end;
-
-    struct QueueItem queueItem = {agent_output_processor, agentQueueItem};
-    queue_enqueue(world->queue, queueItem);
+    a->food_request = 0.0f;
   }
-
-  queue_wait_until_done(world->queue);
-  // printf("output done, %zu size, %zu work items\n", world->queue->size,
-  // world->queue->num_work_items);
-  // printf("nagets: %zu\n", world->agents.size);
 }
 
 // ============================================================================
@@ -576,8 +672,8 @@ void world_writeReport(struct World *world) {
 
   FILE *fp = fopen("report.csv", "a");
 
-  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn, topherb, topcarn,
-          avg_age, world->numAgentsAdded);
+  fprintf(fp, "%f,%i,%i,%i,%i,%i,%i\n", epoch_decimal, numherb, numcarn, topherb, topcarn, avg_age,
+          world->numAgentsAdded);
 
   fclose(fp);
 
@@ -601,6 +697,13 @@ void world_free_agents(struct World *world) {
     free(world->agents_staging.agents[i]);
   avec_free(&world->agents);
   avec_free(&world->agents_staging);
+  free(world->agent_inputs);
+  free(world->agent_outputs);
+  free(world->agent_render_data);
+  world->agent_inputs = NULL;
+  world->agent_outputs = NULL;
+  world->agent_render_data = NULL;
+  world->agent_render_capacity = 0;
 }
 
 void world_processMouse(struct World *world, int32_t button, int32_t state, int32_t x, int32_t y) {
@@ -608,46 +711,38 @@ void world_processMouse(struct World *world, int32_t button, int32_t state, int3
     float mind = 1e10;
     struct Agent *nearest = NULL;
 
-    // Use spatial grid to only check agents in nearby buckets
-    struct BucketList buckets = get_buckets_from_pos((float)x, (float)y);
-    for (size_t b = 0; b < 9; b++) {
-      struct AgentRange range = get_agent_range(world, buckets.buckets[b]);
-      for (size_t i = range.start; i < range.end; i++) {
-        struct Agent *a = world->sorted_agents[i];
-        float dx = (float)x - a->pos.x, dy = (float)y - a->pos.y;
-        float d = dx * dx + dy * dy;
-        if (d < mind) { mind = d; nearest = a; }
+    // Linear scan — mouse clicks are rare, O(n) is negligible.
+    // The old bucket-based search only checked a 3×3 hash neighbourhood
+    // and missed agents when clicking on empty regions.
+    size_t nearest_idx = 0;
+    for (size_t i = 0; i < world->agents.size; i++) {
+      struct Agent *a = world->agents.agents[i];
+      float dx = (float)x - a->pos.x, dy = (float)y - a->pos.y;
+      float d = dx * dx + dy * dy;
+      if (d < mind) {
+        mind = d;
+        nearest = a;
+        nearest_idx = i;
       }
     }
-    // Toggle selection by pointer identity (avoids O(n) index lookup)
+
+    // Toggle: clicking the already-selected agent deselects it;
+    // clicking any other agent selects it.
     if (nearest) {
-      for (size_t i = 0; i < world->agents.size; i++) {
-        world->agents.agents[i]->selectflag =
-            (world->agents.agents[i] == nearest) ? !nearest->selectflag : 0;
+      if (world->selected_agent == nearest) {
+        world->selected_agent = NULL;
+        world->selected_index = 0;
+      } else {
+        world->selected_agent = nearest;
+        world->selected_index = nearest_idx;
       }
     }
   }
 }
 
-int32_t world_numHerbivores(struct World *world) {
-  int32_t numherb = 0;
-  for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i]->herbivore > 0.5f)
-      numherb++;
-  }
+int32_t world_numHerbivores(struct World *world) { return world->cached_herbivores; }
 
-  return numherb;
-}
-
-int32_t world_numCarnivores(struct World *world) {
-  int32_t numcarn = 0;
-  for (size_t i = 0; i < world->agents.size; i++) {
-    if (world->agents.agents[i]->herbivore <= 0.5f)
-      numcarn++;
-  }
-
-  return numcarn;
-}
+int32_t world_numCarnivores(struct World *world) { return world->cached_carnivores; }
 
 int32_t world_numAgents(struct World *world) {
   if (world->closed && world->agents.size == 0) {
@@ -657,9 +752,7 @@ int32_t world_numAgents(struct World *world) {
   return world->agents.size;
 }
 
-float world_getTotalFood(struct World *world) {
-  return foodGrid_getTotalFood(&world->foodGrid);
-}
+float world_getTotalFood(struct World *world) { return foodGrid_getTotalFood(&world->foodGrid); }
 
 // ============================================================================
 // Spatial Grid Sorting
@@ -669,18 +762,21 @@ void world_sortGrid(struct World *world) {
   size_t n = world->agents.size;
   if (n > world->sorted_capacity) {
     world->sorted_capacity = n * 2;
-    world->sorted_agents = realloc(world->sorted_agents,
-                                    world->sorted_capacity * sizeof(struct Agent *));
+    world->sorted_agents = realloc(world->sorted_agents, world->sorted_capacity * sizeof(struct Agent *));
   }
 
   // Counting sort by spatial bucket — O(N), groups agents into contiguous
   // bucket ranges so the 9-bucket scan in agent_set_inputs is cache-friendly.
+  // Zero the full array first so any counting-sort bug or hash collision
+  // leaves NULL instead of a stale pointer from a previous (larger) population.
+  memset(world->sorted_agents, 0, world->sorted_capacity * sizeof(struct Agent *));
+
   uint32_t *counts = calloc(AGENT_BUCKETS, sizeof(uint32_t));
 
   // 1. Count agents per bucket
   for (size_t i = 0; i < n; i++) {
     size_t b = get_bucket_from_pos((int64_t)(world->agents.agents[i]->pos.x / DIST),
-                                    (int64_t)(world->agents.agents[i]->pos.y / DIST));
+                                   (int64_t)(world->agents.agents[i]->pos.y / DIST));
     counts[b]++;
   }
 
@@ -695,7 +791,7 @@ void world_sortGrid(struct World *world) {
   // 3. Scatter agents into sorted_agents (counts now holds start offsets)
   for (size_t i = 0; i < n; i++) {
     size_t b = get_bucket_from_pos((int64_t)(world->agents.agents[i]->pos.x / DIST),
-                                    (int64_t)(world->agents.agents[i]->pos.y / DIST));
+                                   (int64_t)(world->agents.agents[i]->pos.y / DIST));
     world->sorted_agents[counts[b]++] = world->agents.agents[i];
   }
 
@@ -712,46 +808,88 @@ void world_sortGrid(struct World *world) {
 // Agent Processing (thread workers)
 // ============================================================================
 
-void agent_output_processor(void *arg) {
-  struct AgentQueueItem *aqi = (struct AgentQueueItem *)arg;
-  struct World *world = aqi->world;
+// Copy all rendering-relevant fields from agent → contiguous render cache.
+// Called from output processor (pays the cache-miss cost once per frame per
+// agent) and from flush_staging (agent birth / swap-on-delete).
+// vkdraw's update_agents then just memcpy's the entire cache to the SSBO.
+static void world_update_render_entry(struct World *world, size_t idx) {
+  struct Agent *a = world->agents.agents[idx];
+  AgentInstance *r = &((AgentInstance *)world->agent_render_data)[idx];
+  r->pos_x = a->pos.x;
+  r->pos_y = a->pos.y;
+  r->color_r = a->red;
+  r->color_g = a->gre;
+  r->color_b = a->blu;
+  r->angle = a->angle;
+  r->health = a->health;
+  r->herbivore = a->herbivore;
+  r->soundmul = a->soundmul;
+  r->spike_length = a->spikeLength;
+  r->boost = a->boost ? 1 : 0;
+  r->select_flag = 0; // patched by vkdraw per select/movie agent
+  r->indicator_r = a->ir;
+  r->indicator_g = a->ig;
+  r->indicator_b = a->ib;
+  r->indicator_size = a->indicator;
+}
+
+// Full rebuild of render cache (called after world load, before first frame)
+void world_render_populate_all(struct World *world) {
+  // Ensure flat I/O arrays are allocated
+  if (!world->agent_inputs) {
+    world->agent_inputs = calloc(world->agents.allocated * AGENT_INPUT_FLOATS, sizeof(float));
+  }
+  if (!world->agent_outputs) {
+    world->agent_outputs = calloc(world->agents.allocated * AGENT_OUTPUT_FLOATS, sizeof(float));
+  }
+  if (!world->agent_render_data) {
+    world->agent_render_capacity = world->agents.allocated;
+    world->agent_render_data = calloc(world->agent_render_capacity, sizeof(AgentInstance));
+  }
+  for (size_t i = 0; i < world->agents.size; i++)
+    world_update_render_entry(world, i);
+}
+
+// Range-based version — called by lock-free cursor dispatch.
+void agent_output_processor_range(struct World *world, uint32_t start, uint32_t end, uint32_t read_slot) {
   VKState *vk = world->brain_gpu;
-  uint32_t read_slot = (uint32_t)world->brain_slot;
-
-  for (size_t i = aqi->start; i < aqi->end; i++) {
+  for (uint32_t i = start; i < end; i++) {
     struct Agent *a = world->agents.agents[i];
+    if (!a)
+      continue;
 
-    // Read GPU outputs + recurrence (memcpy is SIMD-optimized, faster than scalar loop)
+    float *out_ptr = world->agent_outputs + i * AGENT_OUTPUT_FLOATS;
+    float *in_ptr = world->agent_inputs + i * AGENT_INPUT_FLOATS;
+
+    // Copy GPU outputs to CPU + recurrence
     if (vk && a->brain_chunk != ~0u) {
       BrainChunk *c = &vk->chunks[a->brain_chunk];
-      memcpy(a->out,
-             c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE,
+      memcpy(out_ptr, c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE,
              BRAIN_OUTPUT_SIZE * sizeof(float));
-      memcpy(a->in + 18, a->out + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
+      memcpy(in_ptr + 18, out_ptr + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
     }
 
-    a->w1 = a->out[0];
-    a->w2 = a->out[1];
-    a->red = fmaxf(a->out[2], 0.15f);
-    a->gre = fmaxf(a->out[3], 0.15f);
-    a->blu = fmaxf(a->out[4], 0.15f);
-    a->boost = a->out[6] > 0.5f;
-    a->soundmul = a->out[7];
-    a->give = a->out[8];
+    a->w1 = out_ptr[0];
+    a->w2 = out_ptr[1];
+    a->red = fmaxf(out_ptr[2], 0.15f);
+    a->gre = fmaxf(out_ptr[3], 0.15f);
+    a->blu = fmaxf(out_ptr[4], 0.15f);
+    a->boost = out_ptr[6] > 0.5f;
+    a->soundmul = out_ptr[7];
+    a->give = out_ptr[8];
 
     float greadj = fmaxf(0.0f, a->herbivore - 0.5f);
     float redadj = fmaxf(0.0f, 0.5f - a->herbivore);
     a->gre = fminf(a->gre + greadj, 1.0f);
     a->red = fminf(a->red + redadj, 1.0f);
 
-    float g = a->out[5];
+    float g = out_ptr[5];
     if (a->spikeLength < g)
       a->spikeLength += SPIKESPEED;
     else if (a->spikeLength > g)
       a->spikeLength = g;
 
     // Wheel orientation: cos(a+π/2)=−sin(a), sin(a+π/2)=cos(a)
-    // Compiler fuses adjacent sinf/cosf on same arg into a single x86 sincos.
     float halfR = BOTRADIUS * 0.5f;
     float sina = cosf(a->angle), cosa = -sinf(a->angle);
     float vx = halfR * cosa, vy = halfR * sina;
@@ -760,63 +898,86 @@ void agent_output_processor(void *arg) {
 
     float BW1 = BOTSPEED * a->w1;
     float BW2 = BOTSPEED * a->w2;
-    if (a->boost) { BW1 *= BOOSTSIZEMULT; BW2 *= BOOSTSIZEMULT; }
+    if (a->boost) {
+      BW1 *= BOOSTSIZEMULT;
+      BW2 *= BOOSTSIZEMULT;
+    }
 
-    // Rotate around w2p by -BW1 (small-angle: sin≈x, cos≈1-x²/2)
     float vvx = w2px - a->pos.x, vvy = w2py - a->pos.y;
-    float bw1s = -BW1, bw1c = 1.0f - BW1*BW1*0.5f;  // sin≈-BW1, cos≈1-BW1²/2
+    float bw1s = -BW1, bw1c = 1.0f - BW1 * BW1 * 0.5f;
     float nvx = vvx * bw1c - vvy * bw1s, nvy = vvx * bw1s + vvy * bw1c;
     a->pos.x = w2px - nvx;
     a->pos.y = w2py - nvy;
     a->angle -= BW1;
-    if (a->angle < (float)-M_PI) a->angle = (float)M_PI - ((float)-M_PI - a->angle);
+    if (a->angle < (float)-M_PI)
+      a->angle = (float)M_PI - ((float)-M_PI - a->angle);
 
-    // Rotate around w1p by +BW2 (small-angle approximation)
-    vvx = a->pos.x - w1px; vvy = a->pos.y - w1py;
-    float bw2s = BW2, bw2c = 1.0f - BW2*BW2*0.5f;  // sin≈BW2, cos≈1-BW2²/2
-    nvx = vvx * bw2c - vvy * bw2s; nvy = vvx * bw2s + vvy * bw2c;
+    vvx = a->pos.x - w1px;
+    vvy = a->pos.y - w1py;
+    float bw2s = BW2, bw2c = 1.0f - BW2 * BW2 * 0.5f;
+    nvx = vvx * bw2c - vvy * bw2s;
+    nvy = vvx * bw2s + vvy * bw2c;
     a->pos.x = w1px + nvx;
     a->pos.y = w1py + nvy;
     a->angle += BW2;
-    if (a->angle > (float)M_PI) a->angle = (float)-M_PI + (a->angle - (float)M_PI);
+    if (a->angle > (float)M_PI)
+      a->angle = (float)-M_PI + (a->angle - (float)M_PI);
 
-    // Food intake (inlined bounds check)
+    // Food intake — record request, applied single-threaded after dispatch
+    // (avoids data race on foodGrid.food[y][x].amt and foodGrid_place's pivot)
+    a->food_request = 0.0f;
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH &&
-        (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
-        world->foodGrid.food[cy][cx].amt > 0.0f &&
-        a->health < 2.0f && a->herbivore > 0.1f) {
+    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
+        world->foodGrid.food[cy][cx].amt > 0.0f && a->health < 2.0f && a->herbivore > 0.1f) {
       float to_take = FOODINTAKE;
       float speedmul = ((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) * 0.25f + 0.5f;
       to_take *= speedmul * a->herbivore * a->herbivore;
-      float itk = foodGrid_takeFood(&world->foodGrid, cx, cy, to_take);
-      a->health += itk;
-      a->repcounter -= 3.0f * itk;
+      a->food_request = to_take;
     }
 
     a->rep = 0;
 
-    if (a->repcounter < 0.0f && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.05333f) {  // ~80% ÷ 15
+    if (a->repcounter < 0.0f && a->health > REP_MIN_HEALTH && randf(0, 1) < 0.05333f) {
       a->health -= a->health / ((float)BABIES + 1.0f);
       a->rep = 1;
       a->repcounter = a->herbivore * randf(REPRATEH - 0.1f, REPRATEH + 0.1f) +
                       (1.0f - a->herbivore) * randf(REPRATEC - 0.1f, REPRATEC + 0.1f);
     }
 
-    // Inlined agent_process_health
+    // Phase 2: apply accumulated cross-agent interactions (was a separate loop)
+    a->health += a->pending_damage;
+    if (a->pending_spiked)
+      a->spiked = 1;
+    a->pending_damage = 0.0f;
+    a->pending_spiked = 0;
+
+    // Health decay
     float healthloss = LOSS_BASE;
     if (a->age > 500.0f)
-      healthloss += LOSS_AGE * ((a->age - 500.0f) * 0.004f);  // /250 = *0.004
+      healthloss += LOSS_AGE * ((a->age - 500.0f) * 0.004f);
     float wavg = (fabsf(a->w1) + fabsf(a->w2)) * BOTSPEED;
     healthloss += LOSS_SPEED * (a->boost ? wavg * 0.5f : wavg);
-    if (a->boost) healthloss += LOSS_BOOST;
+    if (a->boost)
+      healthloss += LOSS_BOOST;
     healthloss += LOSS_SHOUTING * a->soundmul;
     a->health -= healthloss;
+
+    if (a->health > 2.0f)
+      a->health = 2.0f;
+    if (a->health < 0.0f)
+      a->health = 0.0f;
+
+    // Update contiguous render cache (pays cache-miss once, then
+    // vkdraw just memcpy's this dense array to the GPU SSBO)
+    if (world->agent_render_data)
+      world_update_render_entry(world, i);
   }
 }
 
-void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList buckets_to_check) {
+void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList buckets_to_check, size_t agent_idx) {
+  float *in_ptr = world->agent_inputs + agent_idx * AGENT_INPUT_FLOATS;
+
   a->spiked = 0;
   a->indicator = fmaxf(a->indicator - 1.0f, 0.0f);
 
@@ -826,34 +987,33 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   // Food sensor
   int32_t cx = (int32_t)a->pos.x / CZ;
   int32_t cy = (int32_t)a->pos.y / CZ;
-  a->in[4] = 0.0f;
-  if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH &&
-      (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT)
-    a->in[4] = world->foodGrid.food[cy][cx].amt / FOODMAX;
+  in_ptr[4] = 0.0f;
+  if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT)
+    in_ptr[4] = world->foodGrid.food[cy][cx].amt / FOODMAX;
 
   // Accumulators
   float p1 = 0, r1 = 0, g1 = 0, b1 = 0;
   float p2 = 0, r2 = 0, g2 = 0, b2 = 0;
   float soaccum = 0, smaccum = 0, hearaccum = 0, blood = 0;
-  int   nearby_count = 0;
+  int nearby_count = 0;
   float ratio_sum = 0;
 
   // Precompute per-agent constants (constant for this frame)
   float acos = cosf(a->angle), asin = sinf(a->angle);
   // Cone axes: cos/sin of eye directions (a ± π/16) via angle-sum identities
-  float leye_cx = acos * COS_PI16 + asin * SIN_PI16;  // cos(a - π/16)
-  float leye_cy = asin * COS_PI16 - acos * SIN_PI16;  // sin(a - π/16)
-  float reye_cx = acos * COS_PI16 - asin * SIN_PI16;  // cos(a + π/16)
-  float reye_cy = asin * COS_PI16 + acos * SIN_PI16;  // sin(a + π/16)
+  float leye_cx = acos * COS_PI16 + asin * SIN_PI16; // cos(a - π/16)
+  float leye_cy = asin * COS_PI16 - acos * SIN_PI16; // sin(a - π/16)
+  float reye_cx = acos * COS_PI16 - asin * SIN_PI16; // cos(a + π/16)
+  float reye_cy = asin * COS_PI16 + acos * SIN_PI16; // sin(a + π/16)
   float invDIST = 1.0f / DIST;
   float invGROUP = 1.0f / DIST_GROUPING;
   float DIST2 = DIST * DIST;
   float GROUP2 = DIST_GROUPING * DIST_GROUPING;
-  float SHARE2  = FOOD_SHARING_DISTANCE * FOOD_SHARING_DISTANCE;
+  float SHARE2 = FOOD_SHARING_DISTANCE * FOOD_SHARING_DISTANCE;
   float COLLISION_RADIUS = BOTRADIUS * 1.9f;
   float COLLISION2 = COLLISION_RADIUS * COLLISION_RADIUS;
-  float DOT_SKIP = -0.5f;  // cos(120°) — skip eye/blood for agents behind
-  float EYE_RANGE2 = DIST2 * 0.36f;  // (0.6*DIST)² — skip angle math for distant agents
+  float DOT_SKIP = -0.5f;           // cos(120°) — skip eye/blood for agents behind
+  float EYE_RANGE2 = DIST2 * 0.36f; // (0.6*DIST)² — skip angle math for distant agents
 
   for (size_t j = 0; j < 9; j++) {
     size_t bucket = buckets_to_check.buckets[j];
@@ -861,46 +1021,48 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
 
     for (size_t idx = r.start; idx < r.end; idx++) {
       struct Agent *a2 = world->sorted_agents[idx];
-      if (a == a2) continue;
+      if (!a2 || a == a2)
+        continue;
 
       float dx = a2->pos.x - a->pos.x;
       float dy = a2->pos.y - a->pos.y;
-      float d2 = dx*dx + dy*dy;
-      if (d2 > DIST2) continue;
+      float d2 = dx * dx + dy * dy;
+      if (d2 > DIST2)
+        continue;
 
       float d = sqrtf(d2);
-      float dist_falloff = 1.0f - d * invDIST;  // (DIST-d)/DIST
+      float dist_falloff = 1.0f - d * invDIST; // (DIST-d)/DIST
 
       // Smell & hearing (cheap, always evaluated)
-      smaccum  += 0.3f * dist_falloff;
+      smaccum += 0.3f * dist_falloff;
       hearaccum += a2->soundmul * dist_falloff;
 
       // Grouping proximity
       if (d2 < GROUP2) {
-        float ratio = 1.0f - d * invGROUP;  // 1 at center, 0 at threshold
+        float ratio = 1.0f - d * invGROUP; // 1 at center, 0 at threshold
         nearby_count++;
         ratio_sum += ratio;
         if (5.0f * ratio > a->indicator) {
           a->indicator = 5.0f * ratio;
-          a->ir = 0.5f; a->ig = 0.5f; a->ib = 0.5f;
+          a->ir = 0.5f;
+          a->ig = 0.5f;
+          a->ib = 0.5f;
         }
         soaccum += 0.4f * dist_falloff * fmaxf(fabsf(a2->w1), fabsf(a2->w2));
       }
 
       // Eye / blood / collision — skip if behind us
       float dot = acos * dx + asin * dy;
-      if (dot < DOT_SKIP * d) goto skip_vision;
+      if (dot < DOT_SKIP * d)
+        goto skip_vision;
 
       // Cone pre-tests (no atan2f) for eye-range neighbors
       if (d2 < EYE_RANGE2) {
-        float leye_dot   = leye_cx * dx + leye_cy * dy;
-        float reye_dot   = reye_cx * dx + reye_cy * dy;
-        bool  leye_pass  = leye_dot > 0.0f &&
-               fabsf(leye_cx * dy - leye_cy * dx) < leye_dot * TAN_3PI16;
-        bool  reye_pass  = reye_dot > 0.0f &&
-               fabsf(reye_cx * dy - reye_cy * dx) < reye_dot * TAN_3PI16;
-        bool  blood_pass = dot > 0.0f &&
-               fabsf(asin * dx - acos * dy) < dot * TAN_3PI16;
+        float leye_dot = leye_cx * dx + leye_cy * dy;
+        float reye_dot = reye_cx * dx + reye_cy * dy;
+        bool leye_pass = leye_dot > 0.0f && fabsf(leye_cx * dy - leye_cy * dx) < leye_dot * TAN_3PI16;
+        bool reye_pass = reye_dot > 0.0f && fabsf(reye_cx * dy - reye_cy * dx) < reye_dot * TAN_3PI16;
+        bool blood_pass = dot > 0.0f && fabsf(asin * dx - acos * dy) < dot * TAN_3PI16;
 
         if (leye_pass || reye_pass || blood_pass) {
           // Only now compute atan2f for angle falloff weighting
@@ -908,16 +1070,22 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
           float ang_diff = atan2f(cross, dot);
 
           if (leye_pass) {
-            float diff = ang_diff - PI8;  // left eye centered at -π/16
+            float diff = ang_diff - PI8; // left eye centered at -π/16
             float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
             float p = mul * (d * invDIST);
-            p1 += p; r1 += mul * a2->red; g1 += mul * a2->gre; b1 += mul * a2->blu;
+            p1 += p;
+            r1 += mul * a2->red;
+            g1 += mul * a2->gre;
+            b1 += mul * a2->blu;
           }
           if (reye_pass) {
-            float diff = ang_diff + PI8;  // right eye centered at +π/16
+            float diff = ang_diff + PI8; // right eye centered at +π/16
             float mul = EYE_SENSITIVITY * ((PI38 - fabsf(diff)) / PI38) * dist_falloff;
             float p = mul * (d * invDIST);
-            p2 += p; r2 += mul * a2->red; g2 += mul * a2->gre; b2 += mul * a2->blu;
+            p2 += p;
+            r2 += mul * a2->red;
+            g2 += mul * a2->gre;
+            b2 += mul * a2->blu;
           }
           if (blood_pass) {
             float mul = BLOOD_SENSITIVITY * ((PI38 - fabsf(ang_diff)) / PI38) * dist_falloff;
@@ -937,71 +1105,81 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
       // Spike collision
       if (d2 < COLLISION2) {
         float diff = a->angle - atan2f(dy, dx);
-        if (diff < -(float)M_PI) diff += 2.0f * (float)M_PI;
-        if (diff >  (float)M_PI) diff -= 2.0f * (float)M_PI;
+        if (diff < -(float)M_PI)
+          diff += 2.0f * (float)M_PI;
+        if (diff > (float)M_PI)
+          diff -= 2.0f * (float)M_PI;
         diff = fabsf(diff);
 
         if (diff < (float)M_PI / 4.0f) {
-          float DMG = SPIKEMULT * a->spikeLength * (1.0f - a->herbivore)
-                      * fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
+          float DMG =
+              SPIKEMULT * a->spikeLength * (1.0f - a->herbivore) * fmaxf(fabsf(a->w1), fabsf(a->w2)) * BOOSTSIZEMULT;
           if (DMG > 1.25f) {
-            a2->pending_damage -= DMG;
+            if (a->spike_outbox_count < SPIKE_OUTBOX_SIZE) {
+              a->spike_outbox[a->spike_outbox_count].target = a2;
+              a->spike_outbox[a->spike_outbox_count].damage = DMG;
+              a->spike_outbox_count++;
+            }
             a->spikeLength = fmaxf(a->spikeLength - DMG, 0.0f);
             if (10.0f * DMG > a->indicator) {
               a->indicator = 10.0f * DMG;
-              a->ir = 1.0f; a->ig = 1.0f; a->ib = 0.0f;
+              a->ir = 1.0f;
+              a->ig = 1.0f;
+              a->ib = 0.0f;
             }
-            a2->pending_spiked = 1;
           }
         }
       }
-      skip_vision:;
+    skip_vision:;
     }
   }
 
   // Grouping health gain
   {
     float effective_ratio = fminf((float)ratio_sum, CROWDING_LIMIT * 0.6f);
-    float gain    = GAIN_GROUPING * effective_ratio;
-    int   excess  = nearby_count - CROWDING_LIMIT;
+    float gain = GAIN_GROUPING * effective_ratio;
+    int excess = nearby_count - CROWDING_LIMIT;
     float penalty = (excess > 0) ? CROWDING_PENALTY * (float)(excess * excess) : 0.0f;
     a->health += gain - penalty;
   }
 
-  if (a->health > 2.0f) a->health = 2.0f;
+  if (a->health > 2.0f)
+    a->health = 2.0f;
 
-  a->in[0]  = cap(p1);  a->in[1]  = cap(r1);
-  a->in[2]  = cap(g1);  a->in[3]  = cap(b1);
-  a->in[5]  = cap(p2);  a->in[6]  = cap(r2);
-  a->in[7]  = cap(g2);  a->in[8]  = cap(b2);
-  a->in[9]  = cap(soaccum);
-  a->in[10] = cap(smaccum);
-  a->in[11] = cap(a->health * 0.5f);
-  a->in[12] = fabsf(sinf((float)world->modcounter / a->clockf1));
-  a->in[13] = fabsf(sinf((float)world->modcounter / a->clockf2));
-  a->in[14] = cap(hearaccum);
-  a->in[15] = cap(blood);
-  a->in[16] = cap((float)a->touch);
+  in_ptr[0] = cap(p1);
+  in_ptr[1] = cap(r1);
+  in_ptr[2] = cap(g1);
+  in_ptr[3] = cap(b1);
+  in_ptr[5] = cap(p2);
+  in_ptr[6] = cap(r2);
+  in_ptr[7] = cap(g2);
+  in_ptr[8] = cap(b2);
+  in_ptr[9] = cap(soaccum);
+  in_ptr[10] = cap(smaccum);
+  in_ptr[11] = cap(a->health * 0.5f);
+  in_ptr[12] = fabsf(sinf((float)world->modcounter / a->clockf1));
+  in_ptr[13] = fabsf(sinf((float)world->modcounter / a->clockf2));
+  in_ptr[14] = cap(hearaccum);
+  in_ptr[15] = cap(blood);
+  in_ptr[16] = cap((float)a->touch);
   if (randf(0.0f, 1.0f) > 0.95f)
-    a->in[17] = randf(0.0f, 1.0f);
+    in_ptr[17] = randf(0.0f, 1.0f);
 }
 
-void agent_input_processor(void *arg) {
-  struct AgentQueueItem *aqi = (struct AgentQueueItem *)arg;
-  struct World *world = aqi->world;
+// Range-based input processor — called by lock-free cursor dispatch.
+void agent_input_processor_range(struct World *world, uint32_t start, uint32_t end, uint32_t write_slot) {
   VKState *vk = world->brain_gpu;
-  // P1 writes to the NEXT frame's slot (not current frame's read slot)
-  uint32_t write_slot = (vk ? 1u - (uint32_t)world->brain_slot : 0);
-
-  for (size_t i = aqi->start; i < aqi->end; i++) {
+  for (uint32_t i = start; i < end; i++) {
     struct Agent *a = world->agents.agents[i];
+    if (!a)
+      continue;
     struct BucketList buckets_to_check = get_buckets_from_pos(a->pos.x, a->pos.y);
-    agent_set_inputs(world, a, buckets_to_check);
+    agent_set_inputs(world, a, buckets_to_check, i);
 
     if (vk && a->brain_chunk != ~0u) {
       BrainChunk *c = &vk->chunks[a->brain_chunk];
       memcpy(c->mapped_inputs[write_slot] + a->brain_index * BRAIN_INPUT_SIZE,
-             a->in, BRAIN_INPUT_SIZE * sizeof(float));
+             world->agent_inputs + i * AGENT_INPUT_FLOATS, BRAIN_INPUT_SIZE * sizeof(float));
     }
   }
 }
@@ -1011,7 +1189,8 @@ void agent_input_processor(void *arg) {
 // after brain weights have been uploaded to GPU.
 void world_seed_inputs(struct World *world) {
   VKState *vk = world->brain_gpu;
-  if (!vk) return;
+  if (!vk)
+    return;
   int32_t saved_slot = world->brain_slot;
   // Populate slot 0
   world->brain_slot = 1;

@@ -18,7 +18,7 @@ struct Base {
 
 void base_init(struct Base *base, struct World *world);
 void base_saveworld(struct Base *base);
-int  base_loadworld(struct Base *base);  // 1 on success, 0 on failure
+int base_loadworld(struct Base *base); // 1 on success, 0 on failure
 
 #ifdef __cplusplus
 }

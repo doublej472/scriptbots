@@ -1,102 +1,171 @@
-#include <pthread.h>
-#include <time.h>
+/*
+queue.c — lock-free dispatch implementation.
 
-#include "lock.h"
+Workers sleep on work_cond until world_dispatch bumps generation and broadcasts.
+The main thread participates directly, then waits on done_cond for completion.
+The last worker to finish signals done_cond — no busy-spinning.
+
+Phase parameters are set under the mutex so workers see a consistent snapshot.
+The mutex uses PTHREAD_MUTEX_ADAPTIVE_NP (brief spin before futex) since all
+critical sections are sub-microsecond.
+*/
+
 #include "queue.h"
+#include "World.h"
+#include "helpers.h"
 
-void queue_init(struct Queue *queue) {
-  queue->size = 0;
-  queue->in = 0;
-  queue->out = 0;
-  queue->closed = 0;
-  queue->num_work_items = 0;
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h> /* CLOCK_MONOTONIC */
 
-  lock_init(&queue->lock);
-  lock_condition_init(&queue->cond_item_added);
-  lock_condition_init(&queue->cond_item_removed);
-  lock_condition_init(&queue->cond_work_done);
+// ---- Lifecycle ----
+
+void queue_init(struct Queue *q) {
+  q->quit = 0;
+  q->generation = 0;
+  q->phase = 0;
+  q->total = 0;
+  q->brain_slot = 0;
+  q->world = NULL;
+  q->cursor = 0;
+  q->done_count = 0;
+  q->num_participants = 1; /* safe default: main thread only */
+
+  /* Adaptive mutex: spins briefly before futex — ideal for sub-µs critical sections */
+  pthread_mutexattr_t mattr;
+  pthread_mutexattr_init(&mattr);
+  pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ADAPTIVE_NP);
+  pthread_mutex_init(&q->mutex, &mattr);
+  pthread_mutexattr_destroy(&mattr);
+
+  /* Monotonic clock: immune to NTP / time jumps */
+  pthread_condattr_t cattr;
+  pthread_condattr_init(&cattr);
+  pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC);
+  pthread_cond_init(&q->work_cond, &cattr);
+  pthread_cond_init(&q->done_cond, &cattr);
+  pthread_condattr_destroy(&cattr);
 }
 
-void queue_destroy(struct Queue *queue) {
-  queue->size = 0;
-  queue->in = 0;
-  queue->out = 0;
-  queue->closed = 0;
-
-  lock_destroy(&queue->lock);
-  lock_condition_destroy(&queue->cond_item_added);
-  lock_condition_destroy(&queue->cond_item_removed);
-  lock_condition_destroy(&queue->cond_work_done);
+void queue_destroy(struct Queue *q) {
+  pthread_mutex_destroy(&q->mutex);
+  pthread_cond_destroy(&q->work_cond);
+  pthread_cond_destroy(&q->done_cond);
 }
 
-void queue_enqueue(struct Queue *queue, struct QueueItem value) {
-  lock_lock(&queue->lock);
-  while (queue->size == QUEUE_BUFFER_SIZE) {
-    if (queue->closed != 0) {
-      lock_unlock(&queue->lock);
-      pthread_exit(0);
+void queue_close(struct Queue *q) {
+  pthread_mutex_lock(&q->mutex);
+  q->quit = 1;
+  pthread_mutex_unlock(&q->mutex);
+  pthread_cond_broadcast(&q->work_cond);
+}
+
+// ---- Worker entry point ----
+
+void *worker_thread(void *arg) {
+  struct Queue *q = (struct Queue *)arg;
+  init_thread_random();
+
+  uint32_t my_gen = 0; /* last generation we participated in */
+
+  for (;;) {
+    /* Wait for new work — reads phase params with full visibility
+     * because the mutex unlock→lock chain synchronises with the
+     * main thread's writes inside world_dispatch. */
+    pthread_mutex_lock(&q->mutex);
+    while (q->generation == my_gen && !q->quit)
+      pthread_cond_wait(&q->work_cond, &q->mutex);
+    if (q->quit) {
+      pthread_mutex_unlock(&q->mutex);
+      return NULL;
     }
-    lock_condition_wait(&queue->lock, &queue->cond_item_removed);
-  }
-  queue->buffer[queue->in] = value;
-  ++queue->size;
-  ++queue->in;
-  queue->in %= QUEUE_BUFFER_SIZE;
-  ++queue->num_work_items;
-  lock_condition_signal(&queue->cond_item_added);
-  lock_unlock(&queue->lock);
-}
+    my_gen = q->generation;
+    uint32_t phase = q->phase;
+    uint32_t total = q->total;
+    uint32_t slot = q->brain_slot;
+    struct World *w = q->world;
+    pthread_mutex_unlock(&q->mutex);
 
-struct QueueItem queue_dequeue(struct Queue *queue) {
-  lock_lock(&queue->lock);
-  while (queue->size == 0) {
-    if (queue->closed != 0) {
-      lock_unlock(&queue->lock);
-      pthread_exit(0);
+    /* Work-stealing: claim batches via lock-free atomic cursor */
+    for (;;) {
+      uint32_t start = ATOMIC_FETCH_ADD(&q->cursor, BATCH_SIZE);
+      if (start >= total)
+        break;
+      uint32_t end = start + BATCH_SIZE;
+      if (end > total)
+        end = total;
+
+      switch (phase) {
+      case QUEUE_PHASE_INPUTS:
+        agent_input_processor_range(w, start, end, slot);
+        break;
+      case QUEUE_PHASE_OUTPUTS:
+        agent_output_processor_range(w, start, end, slot);
+        break;
+      }
     }
-    lock_condition_wait(&queue->lock, &queue->cond_item_added);
-  }
-  struct QueueItem value = queue->buffer[queue->out];
-  --queue->size;
-  ++queue->out;
-  queue->out %= QUEUE_BUFFER_SIZE;
-  lock_condition_signal(&queue->cond_item_removed);
-  lock_unlock(&queue->lock);
-  return value;
-}
 
-void queue_workdone(struct Queue *queue) {
-  lock_lock(&queue->lock);
-  size_t n = --queue->num_work_items;
-  size_t size = queue->size;
-  lock_unlock(&queue->lock);
-  if (n == 0 && size == 0) {
-    lock_condition_broadcast(&queue->cond_work_done);
+    /* Last worker to finish wakes the main thread */
+    uint32_t prev = ATOMIC_FETCH_ADD(&q->done_count, 1);
+    if (prev + 1 == q->num_participants) {
+      pthread_mutex_lock(&q->mutex);
+      pthread_cond_signal(&q->done_cond);
+      pthread_mutex_unlock(&q->mutex);
+    }
   }
 }
 
-void queue_close(struct Queue *queue) {
-  lock_lock(&queue->lock);
-  queue->closed = 1;
-  lock_unlock(&queue->lock);
+// ---- Main-thread dispatch (participates as a worker, then waits for others) ----
 
-  // Wake up all threads so they exit quicker
-  lock_condition_broadcast(&queue->cond_item_added);
-  lock_condition_broadcast(&queue->cond_item_removed);
-  lock_condition_broadcast(&queue->cond_work_done);
-}
+void world_dispatch(struct Queue *q, uint32_t phase, uint32_t slot) {
+  /*
+   * Phase parameters are set UNDER the mutex, then the generation bump +
+   * broadcast wake all workers.  The mutex unlock→lock chain guarantees
+   * workers see the new parameters (fixes weak-ordering hazard on ARM).
+   * The plain done_count = 0 store is likewise covered by the mutex
+   * happens-before (not a data race per C11 §5.1.2.4p25).
+   */
+  pthread_mutex_lock(&q->mutex);
+  q->phase = phase;
+  q->total = (uint32_t)q->world->agents.size;
+  q->brain_slot = slot;
+  q->cursor = 0;
+  q->done_count = 0;
+  q->generation++;
+  pthread_cond_broadcast(&q->work_cond);
+  pthread_mutex_unlock(&q->mutex);
 
-size_t queue_size(struct Queue *queue) {
-  lock_lock(&queue->lock);
-  size_t size = queue->size;
-  lock_unlock(&queue->lock);
-  return size;
-}
+  /* Main thread participates — reduces dispatch latency */
+  uint32_t total = q->total;
+  for (;;) {
+    uint32_t start = ATOMIC_FETCH_ADD(&q->cursor, BATCH_SIZE);
+    if (start >= total)
+      break;
+    uint32_t end = start + BATCH_SIZE;
+    if (end > total)
+      end = total;
 
-void queue_wait_until_done(struct Queue *queue) {
-  lock_lock(&queue->lock);
-  while (queue->num_work_items != 0 || queue->size != 0) {
-    lock_condition_wait(&queue->lock, &queue->cond_work_done);
+    switch (phase) {
+    case QUEUE_PHASE_INPUTS:
+      agent_input_processor_range(q->world, start, end, slot);
+      break;
+    case QUEUE_PHASE_OUTPUTS:
+      agent_output_processor_range(q->world, start, end, slot);
+      break;
+    }
   }
-  lock_unlock(&queue->lock);
+
+  /*
+   * Completion: condvar wait replaces the old busy-spin.
+   * The while-loop guards against lost signals (worker signals before we
+   * lock) and spurious wakeups.  The mutex lock provides acquire semantics
+   * so the RELAXED ATOMIC_LOAD sees every worker's RELAXED fetch_add.
+   */
+  uint32_t prev = ATOMIC_FETCH_ADD(&q->done_count, 1);
+  if (prev + 1 < q->num_participants) {
+    pthread_mutex_lock(&q->mutex);
+    while (ATOMIC_LOAD(&q->done_count) < q->num_participants)
+      pthread_cond_wait(&q->done_cond, &q->mutex);
+    pthread_mutex_unlock(&q->mutex);
+  }
 }

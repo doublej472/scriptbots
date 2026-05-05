@@ -12,30 +12,18 @@
 #include <fenv.h>
 #endif
 
-#include "vkview.h"
 #include "Base.h"
 #include "World.h"
 #include "helpers.h"
 #include "queue.h"
 #include "settings.h"
+#include "vkview.h"
 
 int32_t VERBOSE;
 int32_t NUM_THREADS;
 struct Base base;
 
 void signal_handler(int signum) { base.world->stopSim = 1; }
-
-void *worker_thread(void *arg) {
-  struct Queue *queue = (struct Queue *)arg;
-  init_thread_random();
-  while (1) {
-    struct QueueItem qi = queue_dequeue(queue);
-    assert(qi.data != NULL);
-    assert(qi.function != NULL);
-    qi.function(qi.data);
-    queue_workdone(queue);
-  }
-}
 
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
@@ -45,8 +33,10 @@ int main(int argc, char **argv) {
   init_thread_random();
   VERBOSE = 0;
   NUM_THREADS = get_nprocs();
-  if (NUM_THREADS > 1) NUM_THREADS--;
-  if (NUM_THREADS < 1)  NUM_THREADS = 1;
+  if (NUM_THREADS > 1)
+    NUM_THREADS--;
+  if (NUM_THREADS < 1)
+    NUM_THREADS = 1;
 
   int load_world = 0;
   for (int i = 1; i < argc; i++) {
@@ -59,7 +49,7 @@ int main(int argc, char **argv) {
   }
 
   struct World *world = malloc(sizeof(struct World));
-  world_alloc(world);  // minimal setup: queue, zeroing
+  world_alloc(world); // minimal setup: queue, zeroing
   base_init(&base, world);
 
   if (load_world) {
@@ -88,8 +78,10 @@ int main(int argc, char **argv) {
   printf("---------------------------------------------------------------------\n");
 
   pthread_t *threads = malloc(sizeof(pthread_t) * NUM_THREADS);
+  // Workers live in queue.c; they wake on cond broadcast, claim batches via atomic cursor
   for (int i = 0; i < NUM_THREADS; i++)
     pthread_create(&threads[i], NULL, worker_thread, base.world->queue);
+  base.world->queue->num_participants = NUM_THREADS + 1;
 
   vkview_init(argc, argv);
   VKVIEW.base = &base;

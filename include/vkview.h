@@ -4,8 +4,8 @@
 #include "Base.h"
 #include "vkhelpers.h"
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -15,48 +15,44 @@ extern "C" {
 #endif
 
 typedef struct VKView {
-    // --- Window ---
-    GLFWwindow *window;
-    int  wwidth, wheight;
-    int  prev_width, prev_height;
-    bool is_fullscreen;
+  // --- Window ---
+  GLFWwindow *window;
+  int wwidth, wheight;
+  int prev_width, prev_height;
+  bool is_fullscreen;
 
-    // --- Vulkan state (opaque) ---
-    struct VKState *vkstate;
-    VkDescriptorPool imgui_descriptor_pool;
+  // --- Vulkan state (opaque) ---
+  struct VKState *vkstate;
+  VkDescriptorPool imgui_descriptor_pool;
 
-    // --- View state (same fields as old GLVIEW) ---
-    struct Base *base;
-    int  paused;
-    int  draw;
-    int  drawfood;
-    char buf[100];
-    char buf2[256];
-    int  modcounter;
-    int  lastUpdate;
-    int  frames;
-    int  totalFrames;       // total rendered frames
-    float smoothFPS;        // exponential moving average FPS
-    float smoothFrameMs;    // exponential moving average frame time (ms)
-    float minFrameMs;       // minimum frame time this period
-    float maxFrameMs;       // maximum frame time this period
+  // --- View state (same fields as old GLVIEW) ---
+  struct Base *base;
+  int paused;
+  int draw;
+  int drawfood;
+  char buf[100];
+  char buf2[256];
+  int modcounter;
+  int lastUpdate;
+  int frames;
+  int totalFrames;     // total rendered frames
+  float smoothFPS;     // exponential moving average FPS
+  float smoothFrameMs; // exponential moving average frame time (ms)
+  float minFrameMs;    // minimum frame time this period
+  float maxFrameMs;    // maximum frame time this period
 
-    float scalemult;
-    float xtranslate, ytranslate;
-    int  downb[2];
-    int  mousex, mousey;
-    int  draw_text;
+  float scalemult;
+  float xtranslate, ytranslate;
+  int downb[2];
+  int mousex, mousey;
+  int draw_text;
 
-    // --- FPS limiter ---
-    int    max_fps;           // 0 = unlimited, else clamped to ≥10
-    double frame_start;       // timestamp of start of current frame
+  // --- FPS limiter ---
+  int max_fps;        // 0 = unlimited, else clamped to ≥10
+  double frame_start; // timestamp of start of current frame
 
-    // --- GPU upload timings (measured in vkdraw_frame) ---
-    double time_agent_upload;  // SSBO agent instance copy (ms)
-    double time_food_upload;   // SSBO food grid copy (ms)
-
-    // --- Diagnostics window ---
-    bool   show_diag_window;  // collapse state survives across frames
+  // --- Diagnostics window ---
+  bool show_diag_window; // collapse state survives across frames
 } VKView;
 
 extern VKView VKVIEW;

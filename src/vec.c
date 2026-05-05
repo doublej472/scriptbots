@@ -12,7 +12,8 @@ void avec_init(struct AVec *vec, size_t size) {
 void avec_free(struct AVec *vec) { free(vec->agents); }
 
 void avec_delete(struct AVec *vec, size_t idx) {
-  if (vec->size == 0) return;
+  if (vec->size == 0)
+    return;
   vec->size--;
   vec->agents[idx] = vec->agents[vec->size];
 }
@@ -21,7 +22,10 @@ void avec_push_back(struct AVec *vec, struct Agent *a) {
   if (vec->size >= vec->allocated) {
     vec->allocated *= 2;
     struct Agent **p = realloc(vec->agents, vec->allocated * sizeof(struct Agent *));
-    if (!p) { fprintf(stderr, "FATAL: out of memory\n"); return; }
+    if (!p) {
+      fprintf(stderr, "FATAL: out of memory\n");
+      return;
+    }
     vec->agents = p;
   }
   vec->agents[vec->size++] = a;

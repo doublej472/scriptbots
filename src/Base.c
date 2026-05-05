@@ -5,7 +5,6 @@
 
 #include "Base.h"
 #include "helpers.h"
-#include "lock.h"
 
 void base_init(struct Base *base, struct World *world) {
   base->world = world;
@@ -13,7 +12,7 @@ void base_init(struct Base *base, struct World *world) {
 }
 
 void base_saveworld(struct Base *base) {
-  queue_wait_until_done(base->world->queue);
+  // Workers idle (main thread between dispatches, or loop exited)
   world_flush_staging(base->world);
 
   const char *fn = base->world_file[0] ? base->world_file : "world.dat";
@@ -26,6 +25,12 @@ void base_saveworld(struct Base *base) {
   w->agents_staging.agents = NULL;
   w->sorted_agents = NULL;
   w->sorted_capacity = 0;
+  w->agent_render_data = NULL;
+  w->agent_render_capacity = 0;
+  w->agent_inputs = NULL;
+  w->agent_outputs = NULL;
+  w->selected_agent = NULL;
+  w->movie_agent = NULL;
   fwrite(w, sizeof(struct World), 1, f);
   free(w);
 
@@ -39,7 +44,7 @@ void base_saveworld(struct Base *base) {
 }
 
 int base_loadworld(struct Base *base) {
-  queue_wait_until_done(base->world->queue);
+  // Workers should be idle (no dispatch in progress after main loop stops)
   world_flush_staging(base->world);
   const char *fn = base->world_file[0] ? base->world_file : "world.dat";
   printf("Loading world from %s...\n", fn);
@@ -78,17 +83,21 @@ int base_loadworld(struct Base *base) {
   base->world->sorted_agents = NULL;
   base->world->sorted_capacity = 0;
   base->world->sorted_size = 0;
+  base->world->agent_render_data = NULL;
+  base->world->agent_render_capacity = 0;
+  base->world->agent_inputs = NULL;
+  base->world->agent_outputs = NULL;
+  base->world->selected_index = 0;
+  base->world->movie_index = 0;
+  base->world->selected_agent = NULL;
+  base->world->movie_agent = NULL;
 
-  // Wait until we have no agents being worked on
-  lock_lock(&base->world->queue->lock);
-
-  base->world->queue->size = 0;
-  base->world->queue->in = 0;
-  base->world->queue->out = 0;
-  base->world->queue->num_work_items = 0;
-  lock_unlock(&base->world->queue->lock);
+  // Reset queue state (old code reset lock-protected counters)
+  base->world->queue->cursor = 0;
+  base->world->queue->done_count = 0;
 
   world_flush_staging(base->world);
+  world_render_populate_all(base->world);
   world_sortGrid(base->world);
 
   fclose(f);

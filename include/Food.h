@@ -1,8 +1,8 @@
 #ifndef FOOD_H
 #define FOOD_H
+#include "settings.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "settings.h"
 
 #define FOOD_SQUARES_WIDTH (WIDTH / CZ)
 #define FOOD_SQUARES_HEIGHT (HEIGHT / CZ)
