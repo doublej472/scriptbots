@@ -67,10 +67,10 @@ struct World {
   size_t selected_index;        // index into agents[] (valid iff selected_agent != NULL)
   size_t movie_index;           // index into agents[] (valid iff movie_agent != NULL)
 
-  // Contiguous flat arrays — move Agent.in[]/out[] from scattered mallocs
-  // into dense SoA layout for GPU upload/download via single memcpy.
-  float *agent_inputs;  // [agents.allocated * AGENT_INPUT_FLOATS]
-  float *agent_outputs; // [agents.allocated * AGENT_OUTPUT_FLOATS]
+  // Contiguous input staging — recurrence (indices 18..47) resides here between
+  // frames; sensory inputs (0..17) are added by the input dispatch each frame.
+  // The combined 48-float vector is copied to the GPU mapped input buffer.
+  float *agent_inputs; // [agents.allocated * AGENT_INPUT_FLOATS]
 
   // Contiguous render staging — mirrors agents[i] in GPU-ready AgentInstance layout.
   // Updated incrementally (output processing, agent creation) so vkdraw's
@@ -91,6 +91,7 @@ void world_record_compute(struct World *world);
 void world_processOutputs(struct World *world);
 void world_addRandomBots(struct World *world, int32_t num);
 void world_addCarnivore(struct World *world);
+void world_addHerbivore(struct World *world);
 void world_reproduce(struct World *world, struct Agent *a);
 void world_writeReport(struct World *world);
 

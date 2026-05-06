@@ -28,7 +28,6 @@ void base_saveworld(struct Base *base) {
   w->agent_render_data = NULL;
   w->agent_render_capacity = 0;
   w->agent_inputs = NULL;
-  w->agent_outputs = NULL;
   w->selected_agent = NULL;
   w->movie_agent = NULL;
   fwrite(w, sizeof(struct World), 1, f);
@@ -77,6 +76,11 @@ int base_loadworld(struct Base *base) {
 
   printf("Fixing world struct...\n");
 
+  // Reset fields not serialised (or stale from older save formats)
+  for (int i = 0; i < base->world->agents.size; i++) {
+    base->world->agents.agents[i]->pending_health_delta = 0.0f;
+  }
+
   base->world->queue = old_queue;
   base->world->brain_gpu = NULL;
   base->world->brain_slot = 0;
@@ -86,7 +90,6 @@ int base_loadworld(struct Base *base) {
   base->world->agent_render_data = NULL;
   base->world->agent_render_capacity = 0;
   base->world->agent_inputs = NULL;
-  base->world->agent_outputs = NULL;
   base->world->selected_index = 0;
   base->world->movie_index = 0;
   base->world->selected_agent = NULL;

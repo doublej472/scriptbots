@@ -969,6 +969,235 @@ void vkinit_destroy(VKState *vk) {
   free(vk);
 }
 
+// ---- Headless Vulkan init (compute only, no window / surface / swapchain) ----
+VKState *vkinit_create_headless(void) {
+  VKState *vk = calloc(1, sizeof(VKState));
+
+  // --- Instance (no surface extensions needed for compute-only) ---
+  {
+    uint32_t availExtCount = 0;
+    vkEnumerateInstanceExtensionProperties(NULL, &availExtCount, NULL);
+    VkExtensionProperties *availExts = malloc(sizeof(VkExtensionProperties) * availExtCount);
+    vkEnumerateInstanceExtensionProperties(NULL, &availExtCount, availExts);
+
+    int haveDebugUtils = ext_available(availExts, availExtCount, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    VkDebugUtilsMessengerCreateInfoEXT dbgInfo = make_debug_info();
+
+    const char *exts[1];
+    uint32_t extCount = 0;
+    if (haveDebugUtils)
+      exts[extCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+
+    VkApplicationInfo appInfo = {
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pApplicationName = "ScriptBots-Headless",
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "No Engine",
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = VK_API_VERSION_1_2,
+    };
+    const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
+    VkInstanceCreateInfo ici = {
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pApplicationInfo = &appInfo,
+        .enabledExtensionCount = extCount,
+        .ppEnabledExtensionNames = exts,
+        .enabledLayerCount = 1,
+        .ppEnabledLayerNames = layers,
+        .pNext = haveDebugUtils ? &dbgInfo : NULL,
+    };
+    VkResult instRes = vkCreateInstance(&ici, NULL, &vk->instance);
+    if (instRes != VK_SUCCESS) {
+      fprintf(stderr, "[Headless] instance creation failed, retrying without validation...\n");
+      ici.enabledLayerCount = 0;
+      ici.pNext = NULL;
+      ici.enabledExtensionCount = extCount;
+      instRes = vkCreateInstance(&ici, NULL, &vk->instance);
+      if (instRes != VK_SUCCESS) {
+        fprintf(stderr, "FATAL: Vulkan instance creation failed (VkResult=%d).\n", instRes);
+        free(availExts);
+        free(vk);
+        return NULL;
+      }
+    }
+    if (haveDebugUtils) {
+      PFN_vkCreateDebugUtilsMessengerEXT fn =
+          (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vk->instance, "vkCreateDebugUtilsMessengerEXT");
+      if (fn)
+        fn(vk->instance, &dbgInfo, NULL, &vk->debug_messenger);
+    }
+    free(availExts);
+  }
+
+  // --- Pick physical device: prefer discrete GPU with compute support ---
+  {
+    uint32_t devCount;
+    vkEnumeratePhysicalDevices(vk->instance, &devCount, NULL);
+    if (devCount == 0) {
+      fprintf(stderr, "FATAL: No Vulkan physical devices found\n");
+      vkinit_destroy_headless(vk);
+      return NULL;
+    }
+    VkPhysicalDevice *devs = malloc(sizeof(VkPhysicalDevice) * devCount);
+    vkEnumeratePhysicalDevices(vk->instance, &devCount, devs);
+    vk->phys_device = VK_NULL_HANDLE;
+    vk->compute_family = vk->transfer_family = UINT32_MAX;
+    int bestScore = -1;
+
+    for (uint32_t i = 0; i < devCount; i++) {
+      VkPhysicalDeviceProperties props;
+      vkGetPhysicalDeviceProperties(devs[i], &props);
+
+      int score = 0;
+      if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        score = 1000;
+      else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+        score = 500;
+      else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+        score = 100;
+      else
+        continue;
+
+      uint32_t qfCount;
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i], &qfCount, NULL);
+      VkQueueFamilyProperties *qfs = malloc(sizeof(VkQueueFamilyProperties) * qfCount);
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i], &qfCount, qfs);
+
+      uint32_t best_comp = UINT32_MAX, best_xfer = UINT32_MAX;
+      int comp_cost = 999, xfer_cost = 999;
+
+      for (uint32_t j = 0; j < qfCount; j++) {
+        VkQueueFlags f = qfs[j].queueFlags;
+        int cap_count = __builtin_popcount((unsigned int)f);
+
+        // Compute: prefer COMPUTE-only (penalise GRAPHICS)
+        if (f & VK_QUEUE_COMPUTE_BIT) {
+          int cost = cap_count + ((f & VK_QUEUE_GRAPHICS_BIT) ? 8 : 0);
+          if (cost < comp_cost) {
+            comp_cost = cost;
+            best_comp = j;
+          }
+        }
+        // Transfer: prefer TRANSFER-only (penalise GRAPHICS+COMPUTE)
+        if (f & VK_QUEUE_TRANSFER_BIT) {
+          int cost = cap_count + ((f & VK_QUEUE_GRAPHICS_BIT) ? 8 : 0) + ((f & VK_QUEUE_COMPUTE_BIT) ? 4 : 0);
+          if (cost < xfer_cost) {
+            xfer_cost = cost;
+            best_xfer = j;
+          }
+        }
+      }
+      free(qfs);
+
+      if (best_comp == UINT32_MAX)
+        continue;
+
+      // Fall back to less-specialised families
+      uint32_t comp = best_comp;
+      uint32_t xfer = (best_xfer != UINT32_MAX) ? best_xfer : comp;
+
+      if (xfer != comp)
+        score += 20;
+
+      if (score > bestScore) {
+        bestScore = score;
+        vk->phys_device = devs[i];
+        vk->compute_family = comp;
+        vk->transfer_family = xfer;
+      }
+    }
+    free(devs);
+
+    if (vk->phys_device == VK_NULL_HANDLE) {
+      fprintf(stderr, "FATAL: No suitable Vulkan device with compute support found.\n");
+      vkinit_destroy_headless(vk);
+      return NULL;
+    }
+
+    VkPhysicalDeviceProperties chosenProps;
+    vkGetPhysicalDeviceProperties(vk->phys_device, &chosenProps);
+    printf("[Headless] %s | score=%d | compute=%u transfer=%u\n", chosenProps.deviceName, bestScore, vk->compute_family,
+           vk->transfer_family);
+  }
+
+  // --- Create device (compute + transfer queues only) ---
+  {
+    float prio = 1.0f;
+    uint32_t fams[2];
+    int fc = 0;
+    fams[fc++] = vk->compute_family;
+    if (vk->transfer_family != fams[0])
+      fams[fc++] = vk->transfer_family;
+
+    VkDeviceQueueCreateInfo qcis[2];
+    for (int i = 0; i < fc; i++)
+      qcis[i] = (VkDeviceQueueCreateInfo){
+          .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+          .queueFamilyIndex = fams[i],
+          .queueCount = 1,
+          .pQueuePriorities = &prio,
+      };
+
+    VkPhysicalDeviceFeatures features = {0};
+    VkDeviceCreateInfo dci = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = (uint32_t)fc,
+        .pQueueCreateInfos = qcis,
+        .enabledExtensionCount = 0,
+        .ppEnabledExtensionNames = NULL,
+        .pEnabledFeatures = &features,
+    };
+    if (vkCreateDevice(vk->phys_device, &dci, NULL, &vk->device) != VK_SUCCESS) {
+      fprintf(stderr, "FATAL: device creation failed\n");
+      vkinit_destroy_headless(vk);
+      return NULL;
+    }
+    vkGetDeviceQueue(vk->device, vk->compute_family, 0, &vk->compute_queue);
+    vkGetDeviceQueue(vk->device, vk->transfer_family, 0, &vk->transfer_queue);
+  }
+
+  // --- Command pools ---
+  {
+    VkCommandPoolCreateInfo cpci = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    };
+    cpci.queueFamilyIndex = vk->compute_family;
+    vkCreateCommandPool(vk->device, &cpci, NULL, &vk->cmd_pool_compute);
+    cpci.queueFamilyIndex = vk->transfer_family;
+    vkCreateCommandPool(vk->device, &cpci, NULL, &vk->cmd_pool_transfer);
+  }
+
+  // No timestamp queries in headless mode (compute profiling not needed by default)
+  vk->timestamp_supported = false;
+
+  // Initialise brain compute pipeline + staging + chunks
+  vkbrain_init(vk, NUMBOTS);
+  printf("[Headless] Vulkan compute initialised successfully.\n");
+  return vk;
+}
+
+void vkinit_destroy_headless(VKState *vk) {
+  if (vk->device) {
+    vkDeviceWaitIdle(vk->device);
+    vkbrain_destroy(vk);
+    if (vk->cmd_pool_compute)
+      vkDestroyCommandPool(vk->device, vk->cmd_pool_compute, NULL);
+    if (vk->cmd_pool_transfer)
+      vkDestroyCommandPool(vk->device, vk->cmd_pool_transfer, NULL);
+    vkDestroyDevice(vk->device, NULL);
+  }
+  if (vk->debug_messenger) {
+    PFN_vkDestroyDebugUtilsMessengerEXT fn =
+        (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vk->instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (fn)
+      fn(vk->instance, vk->debug_messenger, NULL);
+  }
+  if (vk->instance)
+    vkDestroyInstance(vk->instance, NULL);
+  free(vk);
+}
+
 // Getters
 VkRenderPass vkinit_get_render_pass(VKState *vk) { return vk->render_pass; }
 VkDevice vkinit_get_device(VKState *vk) { return vk->device; }

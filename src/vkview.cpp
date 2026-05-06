@@ -83,7 +83,8 @@ void vkview_init(int argc, char **argv) {
   VKVIEW.downb[0] = VKVIEW.downb[1] = 0;
   VKVIEW.mousex = VKVIEW.mousey = 0;
   VKVIEW.max_fps = 0;
-  VKVIEW.show_diag_window = true;
+  VKVIEW.show_perf = true;
+  VKVIEW.show_sim = true;
   VKVIEW.frame_start = 0.0;
   VKVIEW.wwidth = WWIDTH; // placeholder; overwritten below with actual window size
   VKVIEW.wheight = WHEIGHT;
@@ -425,6 +426,24 @@ static bool vkview_recreate_swapchain_if_needed(VKView *view) {
   return true;
 }
 
+// ---- Headless main loop ----
+void vkview_main_loop_headless(void) {
+  int steps = 0;
+  while (VKVIEW.base->world->stopSim == 0) {
+    if (VKVIEW.max_steps > 0 && steps >= VKVIEW.max_steps)
+      break;
+
+    VKState *vk = VKVIEW.vkstate;
+    if (vk && vk->timestamp_supported)
+      vk->timestamp_frame_idx ^= 1;
+
+    world_update(VKVIEW.base->world);
+    steps++;
+  }
+  printf("Headless simulation stopped (epoch %d, %zu agents, %d steps)\n", VKVIEW.base->world->current_epoch,
+         VKVIEW.base->world->agents.size, steps);
+}
+
 // ---- Main loop ----
 static const int MILLS_PER_UPDATE = 250;
 
@@ -496,7 +515,8 @@ void vkview_main_loop(void) {
       ImGui::NewFrame();
 
       imgui_draw_agent_hud(&VKVIEW);
-      imgui_draw_diagnostics(&VKVIEW);
+      imgui_draw_performance(&VKVIEW);
+      imgui_draw_sim_controls(&VKVIEW);
 
       ImGui::Render();
 

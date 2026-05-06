@@ -6,8 +6,9 @@ Workers atomically claim batches with fetch_add on a dedicated-cache-line cursor
 fast cores claim more, slow cores fewer.  Completion uses a second condvar so
 the main thread sleeps instead of spinning.
 
-All atomic ops use RELAXED ordering — the mutex unlock→lock chain provides
-the necessary happens-before for phase parameters and completion signalling.
+Cursor uses RELAXED ordering (work-stealing, no shared data between batches).
+Done-count uses RELEASE on worker final-write and ACQUIRE on main-thread check
+so that the agent-field stores are visible before the main thread reads them.
 */
 
 #ifndef _QUEUE_H
@@ -17,7 +18,8 @@ the necessary happens-before for phase parameters and completion signalling.
 #include <stdint.h>
 
 #define ATOMIC_FETCH_ADD(ptr, val) __atomic_fetch_add((ptr), (val), __ATOMIC_RELAXED)
-#define ATOMIC_LOAD(ptr) __atomic_load_n((ptr), __ATOMIC_RELAXED)
+#define ATOMIC_FETCH_ADD_REL(ptr, val) __atomic_fetch_add((ptr), (val), __ATOMIC_RELEASE)
+#define ATOMIC_LOAD_ACQ(ptr) __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
 
 #define BATCH_SIZE 256
 

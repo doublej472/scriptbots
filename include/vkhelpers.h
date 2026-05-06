@@ -212,7 +212,9 @@ typedef struct VKState {
 
 // ---- VKState accessors ----
 VKState *vkinit_create(GLFWwindow *window);
+VKState *vkinit_create_headless(void);
 void vkinit_destroy(VKState *vk);
+void vkinit_destroy_headless(VKState *vk);
 
 VkRenderPass vkinit_get_render_pass(VKState *vk);
 VkDevice vkinit_get_device(VKState *vk);

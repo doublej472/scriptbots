@@ -106,7 +106,7 @@ void *worker_thread(void *arg) {
     }
 
     /* Last worker to finish wakes the main thread */
-    uint32_t prev = ATOMIC_FETCH_ADD(&q->done_count, 1);
+    uint32_t prev = ATOMIC_FETCH_ADD_REL(&q->done_count, 1);
     if (prev + 1 == q->num_participants) {
       pthread_mutex_lock(&q->mutex);
       pthread_cond_signal(&q->done_cond);
@@ -158,13 +158,14 @@ void world_dispatch(struct Queue *q, uint32_t phase, uint32_t slot) {
   /*
    * Completion: condvar wait replaces the old busy-spin.
    * The while-loop guards against lost signals (worker signals before we
-   * lock) and spurious wakeups.  The mutex lock provides acquire semantics
-   * so the RELAXED ATOMIC_LOAD sees every worker's RELAXED fetch_add.
+   * lock) and spurious wakeups.  The ACQ_REL fetch_add pairs with each
+   * worker's RELEASE fetch_add so agent-field writes are visible after
+   * dispatch returns (even when the main thread is the last to finish).
    */
-  uint32_t prev = ATOMIC_FETCH_ADD(&q->done_count, 1);
+  uint32_t prev = __atomic_fetch_add(&q->done_count, 1, __ATOMIC_ACQ_REL);
   if (prev + 1 < q->num_participants) {
     pthread_mutex_lock(&q->mutex);
-    while (ATOMIC_LOAD(&q->done_count) < q->num_participants)
+    while (ATOMIC_LOAD_ACQ(&q->done_count) < q->num_participants)
       pthread_cond_wait(&q->done_cond, &q->mutex);
     pthread_mutex_unlock(&q->mutex);
   }

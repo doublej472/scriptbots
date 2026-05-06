@@ -172,9 +172,6 @@ void world_flush_staging(struct World *world) {
         if (world->agent_inputs)
           memcpy(world->agent_inputs + i * AGENT_INPUT_FLOATS, world->agent_inputs + last * AGENT_INPUT_FLOATS,
                  AGENT_INPUT_FLOATS * sizeof(float));
-        if (world->agent_outputs)
-          memcpy(world->agent_outputs + i * AGENT_OUTPUT_FLOATS, world->agent_outputs + last * AGENT_OUTPUT_FLOATS,
-                 AGENT_OUTPUT_FLOATS * sizeof(float));
         if (world->agent_render_data) {
           AgentInstance *r = (AgentInstance *)world->agent_render_data;
           r[i] = r[last];
@@ -215,14 +212,11 @@ void world_flush_staging(struct World *world) {
   // Grow flat I/O + render arrays to match final allocated capacity
   if (world->agents.allocated > 0) {
     size_t needed_inputs = world->agents.allocated * AGENT_INPUT_FLOATS;
-    size_t needed_outputs = world->agents.allocated * AGENT_OUTPUT_FLOATS;
     world->agent_inputs = realloc(world->agent_inputs, needed_inputs * sizeof(float));
-    world->agent_outputs = realloc(world->agent_outputs, needed_outputs * sizeof(float));
     // Zero the new tail portion (realloc preserves old data, new bytes are uninit)
     if (old_size < world->agents.size) {
       size_t new_start = old_size * AGENT_INPUT_FLOATS;
       memset(world->agent_inputs + new_start, 0, (needed_inputs - new_start) * sizeof(float));
-      memset(world->agent_outputs + new_start, 0, (needed_outputs - new_start) * sizeof(float));
     }
     if (world->agent_render_capacity < world->agents.allocated) {
       world->agent_render_capacity = world->agents.allocated;
@@ -264,7 +258,6 @@ void world_alloc(struct World *world) {
   world->selected_index = 0;
   world->movie_index = 0;
   world->agent_inputs = NULL;
-  world->agent_outputs = NULL;
   world->agent_render_data = NULL;
   world->agent_render_capacity = 0;
   for (size_t i = 0; i < AGENT_BUCKETS; i++)
@@ -433,13 +426,18 @@ void world_update(struct World *world) {
   prev = now;
 
   world_submit_compute(world);
-  now = timer_since_ms(&t0);
-  world->timing.submit_compute = (float)(now - prev);
-  prev = now;
 
   // Gather inputs for NEXT frame (overlaps with GPU compute)
   world_setInputsRunBrain(world);
   world_drain_spike_outboxes(world);
+  // Commit deferred health deltas from input dispatch (parallel-safe)
+  for (size_t i = 0; i < world->agents.size; i++) {
+    struct Agent *a = world->agents.agents[i];
+    a->health += a->pending_health_delta;
+    if (a->health > 2.0f)
+      a->health = 2.0f;
+    a->pending_health_delta = 0.0f;
+  }
   now = timer_since_ms(&t0);
   world->timing.input_staging = (float)(now - prev);
   prev = now;
@@ -627,6 +625,16 @@ void world_addCarnivore(struct World *world) {
   world->numAgentsAdded++;
 }
 
+void world_addHerbivore(struct World *world) {
+  struct Agent *a = malloc(sizeof(struct Agent));
+  agent_init(a);
+  a->herbivore = randf(0.9f, 1.0f);
+
+  avec_push_back(&world->agents_staging, a);
+
+  world->numAgentsAdded++;
+}
+
 void world_reproduce(struct World *world, struct Agent *a) {
   agent_initevent(a, 30, 0.0f, 0.8f, 0.0f);
   for (int32_t i = 0; i < BABIES; i++) {
@@ -682,8 +690,20 @@ void world_writeReport(struct World *world) {
 }
 
 void world_reset(struct World *world) {
+  // Free old agents and their GPU brain slots
+  for (size_t i = 0; i < world->agents.size; i++)
+    free(world->agents.agents[i]);
+  for (size_t i = 0; i < world->agents_staging.size; i++)
+    free(world->agents_staging.agents[i]);
   avec_free(&world->agents_staging);
   avec_free(&world->agents);
+
+  // Release GPU brain slots so new agents reuse the existing chunks
+  if (world->brain_gpu) {
+    vkDeviceWaitIdle(vkinit_get_device(world->brain_gpu));
+    vkbrain_reset_counts(world->brain_gpu);
+  }
+
   avec_init(&world->agents_staging, NUMBOTS);
   avec_init(&world->agents, NUMBOTS);
   world_addRandomBots(world, NUMBOTS);
@@ -698,10 +718,8 @@ void world_free_agents(struct World *world) {
   avec_free(&world->agents);
   avec_free(&world->agents_staging);
   free(world->agent_inputs);
-  free(world->agent_outputs);
   free(world->agent_render_data);
   world->agent_inputs = NULL;
-  world->agent_outputs = NULL;
   world->agent_render_data = NULL;
   world->agent_render_capacity = 0;
 }
@@ -839,9 +857,6 @@ void world_render_populate_all(struct World *world) {
   if (!world->agent_inputs) {
     world->agent_inputs = calloc(world->agents.allocated * AGENT_INPUT_FLOATS, sizeof(float));
   }
-  if (!world->agent_outputs) {
-    world->agent_outputs = calloc(world->agents.allocated * AGENT_OUTPUT_FLOATS, sizeof(float));
-  }
   if (!world->agent_render_data) {
     world->agent_render_capacity = world->agents.allocated;
     world->agent_render_data = calloc(world->agent_render_capacity, sizeof(AgentInstance));
@@ -858,32 +873,33 @@ void agent_output_processor_range(struct World *world, uint32_t start, uint32_t 
     if (!a)
       continue;
 
-    float *out_ptr = world->agent_outputs + i * AGENT_OUTPUT_FLOATS;
     float *in_ptr = world->agent_inputs + i * AGENT_INPUT_FLOATS;
 
-    // Copy GPU outputs to CPU + recurrence
+    // Read GPU outputs directly from mapped buffer (host-coherent, compute done)
+    const float *gpu_out = NULL;
     if (vk && a->brain_chunk != ~0u) {
       BrainChunk *c = &vk->chunks[a->brain_chunk];
-      memcpy(out_ptr, c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE,
-             BRAIN_OUTPUT_SIZE * sizeof(float));
-      memcpy(in_ptr + 18, out_ptr + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
+      gpu_out = c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE;
+      // Recurrence: copy from GPU output to input staging for next frame
+      memcpy(in_ptr + 18, gpu_out + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
     }
 
-    a->w1 = out_ptr[0];
-    a->w2 = out_ptr[1];
-    a->red = fmaxf(out_ptr[2], 0.15f);
-    a->gre = fmaxf(out_ptr[3], 0.15f);
-    a->blu = fmaxf(out_ptr[4], 0.15f);
-    a->boost = out_ptr[6] > 0.5f;
-    a->soundmul = out_ptr[7];
-    a->give = out_ptr[8];
+    // Agent fields from GPU output (or zero if no GPU)
+    a->w1 = gpu_out ? gpu_out[0] : 0.0f;
+    a->w2 = gpu_out ? gpu_out[1] : 0.0f;
+    a->red = gpu_out ? fmaxf(gpu_out[2], 0.15f) : 0.0f;
+    a->gre = gpu_out ? fmaxf(gpu_out[3], 0.15f) : 0.0f;
+    a->blu = gpu_out ? fmaxf(gpu_out[4], 0.15f) : 0.0f;
+    a->boost = gpu_out ? (gpu_out[6] > 0.5f) : 0;
+    a->soundmul = gpu_out ? gpu_out[7] : 1.0f;
+    a->give = gpu_out ? gpu_out[8] : 0.0f;
 
     float greadj = fmaxf(0.0f, a->herbivore - 0.5f);
     float redadj = fmaxf(0.0f, 0.5f - a->herbivore);
     a->gre = fminf(a->gre + greadj, 1.0f);
     a->red = fminf(a->red + redadj, 1.0f);
 
-    float g = out_ptr[5];
+    float g = gpu_out ? gpu_out[5] : 0.0f;
     if (a->spikeLength < g)
       a->spikeLength += SPIKESPEED;
     else if (a->spikeLength > g)
@@ -1006,14 +1022,16 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   float reye_cx = acos * COS_PI16 - asin * SIN_PI16; // cos(a + π/16)
   float reye_cy = asin * COS_PI16 + acos * SIN_PI16; // sin(a + π/16)
   float invDIST = 1.0f / DIST;
-  float invGROUP = 1.0f / DIST_GROUPING;
+  float invDIST2 = 1.0f / (DIST * DIST);
+  float invGROUP2 = 1.0f / (DIST_GROUPING * DIST_GROUPING);
   float DIST2 = DIST * DIST;
   float GROUP2 = DIST_GROUPING * DIST_GROUPING;
   float SHARE2 = FOOD_SHARING_DISTANCE * FOOD_SHARING_DISTANCE;
   float COLLISION_RADIUS = BOTRADIUS * 1.9f;
   float COLLISION2 = COLLISION_RADIUS * COLLISION_RADIUS;
-  float DOT_SKIP = -0.5f;           // cos(120°) — skip eye/blood for agents behind
-  float EYE_RANGE2 = DIST2 * 0.36f; // (0.6*DIST)² — skip angle math for distant agents
+  float DOT_SKIP = -0.5f;                // cos(120°) — skip eye/blood for agents behind
+  float DOT_SKIP2 = DOT_SKIP * DOT_SKIP; // 0.25 = cos²(120°)
+  float EYE_RANGE2 = DIST2 * 0.36f;      // (0.6*DIST)² — skip angle math for distant agents
 
   for (size_t j = 0; j < 9; j++) {
     size_t bucket = buckets_to_check.buckets[j];
@@ -1030,16 +1048,16 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
       if (d2 > DIST2)
         continue;
 
-      float d = sqrtf(d2);
-      float dist_falloff = 1.0f - d * invDIST; // (DIST-d)/DIST
+      // Squared-distance falloffs for smell/hearing/grouping (avoid sqrt)
+      float df2 = 1.0f - d2 * invDIST2; // = 1 - (d/DIST)²
 
       // Smell & hearing (cheap, always evaluated)
-      smaccum += 0.3f * dist_falloff;
-      hearaccum += a2->soundmul * dist_falloff;
+      smaccum += 0.3f * df2;
+      hearaccum += a2->soundmul * df2;
 
       // Grouping proximity
       if (d2 < GROUP2) {
-        float ratio = 1.0f - d * invGROUP; // 1 at center, 0 at threshold
+        float ratio = 1.0f - d2 * invGROUP2; // = 1 - (d/GROUP)²
         nearby_count++;
         ratio_sum += ratio;
         if (5.0f * ratio > a->indicator) {
@@ -1048,16 +1066,20 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
           a->ig = 0.5f;
           a->ib = 0.5f;
         }
-        soaccum += 0.4f * dist_falloff * fmaxf(fabsf(a2->w1), fabsf(a2->w2));
+        soaccum += 0.4f * df2 * fmaxf(fabsf(a2->w1), fabsf(a2->w2));
       }
 
-      // Eye / blood / collision — skip if behind us
+      // Eye / blood / collision — skip if more than 120° behind
       float dot = acos * dx + asin * dy;
-      if (dot < DOT_SKIP * d)
+      if (dot < 0.0f && (dot * dot) > DOT_SKIP2 * d2)
         goto skip_vision;
 
       // Cone pre-tests (no atan2f) for eye-range neighbors
       if (d2 < EYE_RANGE2) {
+        // Need sqrt for angle calculations in eye sensors
+        float d = sqrtf(d2);
+        float dist_falloff = 1.0f - d * invDIST;
+
         float leye_dot = leye_cx * dx + leye_cy * dy;
         float reye_dot = reye_cx * dx + reye_cy * dy;
         bool leye_pass = leye_dot > 0.0f && fabsf(leye_cx * dy - leye_cy * dx) < leye_dot * TAN_3PI16;
@@ -1065,9 +1087,8 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
         bool blood_pass = dot > 0.0f && fabsf(asin * dx - acos * dy) < dot * TAN_3PI16;
 
         if (leye_pass || reye_pass || blood_pass) {
-          // Only now compute atan2f for angle falloff weighting
           float cross = asin * dx - acos * dy;
-          float ang_diff = atan2f(cross, dot);
+          float ang_diff = approx_atan2(cross, dot);
 
           if (leye_pass) {
             float diff = ang_diff - PI8; // left eye centered at -π/16
@@ -1097,14 +1118,14 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
       // Food sharing
       if (d2 < SHARE2) {
         if (a->give > 0.5f && a2->health < 2.0f)
-          a->health -= FOODTRANSFER;
+          a->pending_health_delta -= FOODTRANSFER;
         if (a2->give > 0.5f && a->health < 2.0f)
-          a->health += FOODTRANSFER;
+          a->pending_health_delta += FOODTRANSFER;
       }
 
       // Spike collision
       if (d2 < COLLISION2) {
-        float diff = a->angle - atan2f(dy, dx);
+        float diff = a->angle - approx_atan2(dy, dx);
         if (diff < -(float)M_PI)
           diff += 2.0f * (float)M_PI;
         if (diff > (float)M_PI)
@@ -1140,11 +1161,15 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
     float gain = GAIN_GROUPING * effective_ratio;
     int excess = nearby_count - CROWDING_LIMIT;
     float penalty = (excess > 0) ? CROWDING_PENALTY * (float)(excess * excess) : 0.0f;
-    a->health += gain - penalty;
+    a->pending_health_delta += gain - penalty;
   }
 
-  if (a->health > 2.0f)
-    a->health = 2.0f;
+  {
+    float effective_health = a->health + a->pending_health_delta;
+    if (effective_health > 2.0f)
+      effective_health = 2.0f;
+    in_ptr[11] = cap(effective_health * 0.5f);
+  }
 
   in_ptr[0] = cap(p1);
   in_ptr[1] = cap(r1);
@@ -1156,7 +1181,6 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   in_ptr[8] = cap(b2);
   in_ptr[9] = cap(soaccum);
   in_ptr[10] = cap(smaccum);
-  in_ptr[11] = cap(a->health * 0.5f);
   in_ptr[12] = fabsf(sinf((float)world->modcounter / a->clockf1));
   in_ptr[13] = fabsf(sinf((float)world->modcounter / a->clockf2));
   in_ptr[14] = cap(hearaccum);

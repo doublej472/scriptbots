@@ -63,6 +63,10 @@ struct Agent {
   // --- Deferred food consumption (parallel-safe) ---
   // Set by output dispatch; applied single-threaded after.
   float food_request;
+
+  // --- Deferred health delta (parallel-safe) ---
+  // Accumulated during input dispatch; committed single-threaded after.
+  float pending_health_delta;
 };
 
 // Sizes for contiguous flat arrays (per-agent, stored in World)

@@ -51,8 +51,12 @@ typedef struct VKView {
   int max_fps;        // 0 = unlimited, else clamped to ≥10
   double frame_start; // timestamp of start of current frame
 
-  // --- Diagnostics window ---
-  bool show_diag_window; // collapse state survives across frames
+  // --- Diagnostics / Controls ---
+  bool show_perf; // performance window
+  bool show_sim;  // simulation state + controls window
+
+  // --- Headless runtime limit ---
+  int max_steps; // 0 = unlimited, else stop after this many world_update calls
 } VKView;
 
 extern VKView VKVIEW;
@@ -60,6 +64,7 @@ extern VKView VKVIEW;
 // Lifecycle
 void vkview_init(int argc, char **argv);
 void vkview_main_loop(void);
+void vkview_main_loop_headless(void);
 void vkview_cleanup(void);
 
 // Called from input callbacks (exposed for main.c if needed)
@@ -71,7 +76,8 @@ void vkview_toggle_fullscreen(void);
 
 // ImGui overlays (implemented in imgui_hud.cpp)
 void imgui_draw_agent_hud(struct VKView *view);
-void imgui_draw_diagnostics(struct VKView *view);
+void imgui_draw_performance(struct VKView *view);
+void imgui_draw_sim_controls(struct VKView *view);
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,9 @@
 // imgui_hud.cpp — ImGui overlays: agent inspector + diagnostics
 #include "Agent.h"
+#include "Base.h"
 #include "World.h"
 #include "settings.h"
+#include "vkhelpers.h"
 #include "vkview.h"
 
 #include "imgui.h"
@@ -49,7 +51,17 @@ void imgui_draw_agent_hud(struct VKView *view) {
     return;
   size_t sel_idx = w->selected_agent ? w->selected_index : w->movie_index;
   float *sel_in = w->agent_inputs + sel_idx * AGENT_INPUT_FLOATS;
-  float *sel_out = w->agent_outputs + sel_idx * AGENT_OUTPUT_FLOATS;
+
+  // Read output directly from GPU mapped buffer (stable during draw phase)
+  float sel_out_buf[BRAIN_OUTPUT_SIZE];
+  float *sel_out = sel_out_buf;
+  memset(sel_out_buf, 0, sizeof(sel_out_buf));
+  if (view->vkstate && sel->brain_chunk != ~0u) {
+    VKState *vk = view->vkstate;
+    BrainChunk *c = &vk->chunks[sel->brain_chunk];
+    memcpy(sel_out_buf, c->mapped_outputs[(uint32_t)w->brain_slot] + sel->brain_index * BRAIN_OUTPUT_SIZE,
+           BRAIN_OUTPUT_SIZE * sizeof(float));
+  }
 
   view->xtranslate += (-sel->pos.x - view->xtranslate) * 0.05f;
   view->ytranslate += (-sel->pos.y - view->ytranslate) * 0.05f;
@@ -165,174 +177,189 @@ void imgui_draw_agent_hud(struct VKView *view) {
   }
 }
 
-void imgui_draw_diagnostics(struct VKView *view) {
+void imgui_draw_performance(struct VKView *view) {
   struct World *w = view->base->world;
-  if (!w || !view->show_diag_window)
+  if (!w || !view->show_perf)
     return;
 
-  ImGui::SetNextWindowPos(ImVec2((float)view->wwidth - 330, 0), ImGuiCond_FirstUseEver);
-  ImGui::SetNextWindowSize(ImVec2(320, 500), ImGuiCond_FirstUseEver);
-  ImGui::Begin("Simulation", &view->show_diag_window);
+  ImGui::SetNextWindowPos(ImVec2((float)view->wwidth - 310, 0), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(300, 350), ImGuiCond_FirstUseEver);
+  ImGui::Begin("Performance", &view->show_perf);
 
-  // ---- Performance ----
-  if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
-    struct FrameTiming *t = &w->timing;
+  struct FrameTiming *t = &w->timing;
+  ImGui::Text("FPS: %.1f  (%.1f ms)   Agents: %u", view->smoothFPS, view->smoothFrameMs, t->agent_count);
 
-    // FPS header
-    ImGui::Text("FPS: %.1f  (%.1f ms)   Agents: %u", view->smoothFPS, view->smoothFrameMs, t->agent_count);
-    if (view->minFrameMs > 0.0f && view->maxFrameMs > 0.0f)
-      ImGui::Text("Range: %.1f – %.1f ms", view->minFrameMs, view->maxFrameMs);
+  float sim_cpu = t->food_update + t->spatial_sort + t->input_staging + t->output_physics + t->death_repro +
+                  t->flush_staging + t->record_compute;
+  float draw_cpu = t->draw_upload + t->draw_record;
+  float gpu_work = t->gpu_compute_ms + t->gpu_draw_ms;
 
-    bool limit = (view->max_fps > 0);
-    if (ImGui::Checkbox("Limit FPS", &limit))
-      view->max_fps = limit ? 60 : 0;
-    if (limit) {
-      ImGui::SameLine();
-      ImGui::PushItemWidth(50);
-      int fps = view->max_fps;
-      if (ImGui::InputInt("##maxfps", &fps, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
-        if (fps < 10)
-          fps = 10;
-        view->max_fps = fps;
-      }
-      ImGui::PopItemWidth();
-    }
+  ImGui::Spacing();
 
-    ImGui::Separator();
+  // ── Simulation (CPU) ──
+  ImGui::Text("Simulation (CPU)");
+  ImGui::SameLine(210);
+  ImGui::Text("ms");
+  ImGui::Separator();
 
-    // Column headers
-    ImGui::Columns(4, "timing", false);
-    ImGui::SetColumnWidth(0, 165);
-    ImGui::SetColumnWidth(1, 55);
-    ImGui::SetColumnWidth(2, 55);
-    ImGui::SetColumnWidth(3, 50);
-    ImGui::Text("Phase");
-    ImGui::NextColumn();
-    ImGui::Text("CPU ms");
-    ImGui::NextColumn();
-    ImGui::Text("GPU ms");
-    ImGui::NextColumn();
-    ImGui::Text("BW");
-    ImGui::NextColumn();
-    ImGui::Separator();
+  auto row = [&](const char *label, float ms) {
+    ImGui::Text("  %s", label);
+    ImGui::SameLine(210);
+    ImGui::Text("%.1f", ms);
+  };
 
-    // Helper: print a row. cpu<0 = "—", gpu<0 = "—", bw=0 = "—"
-    auto row = [&](const char *label, float cpu_ms, float gpu_ms, float bw) {
-      ImGui::Text("%s", label);
-      ImGui::NextColumn();
-      if (cpu_ms >= 0.0f)
-        ImGui::Text("%.1f", cpu_ms);
-      else
-        ImGui::Text("—");
-      ImGui::NextColumn();
-      if (gpu_ms >= 0.0f)
-        ImGui::Text("%.1f", gpu_ms);
-      else
-        ImGui::Text("—");
-      ImGui::NextColumn();
-      if (bw > 0.0f)
-        ImGui::Text("%.1f", bw);
-      else
-        ImGui::Text("—");
-      ImGui::NextColumn();
-    };
-    auto sep = [&]() {
-      ImGui::Separator();
-      ImGui::Separator();
-    };
+  row("Food + Spatial Sort", t->food_update + t->spatial_sort);
+  row("Input Staging", t->input_staging);
+  row("CPU waits for GPU", t->gpu_wait);
+  row("Process Outputs", t->output_physics);
+  row("Death / Repro / Flush", t->death_repro + t->flush_staging);
+  row("Record Dispatch", t->record_compute);
 
-    // ── Simulation pipeline ──
-    row("Food Update", t->food_update, -1.0f, 0.0f);
-    row("Spatial Sort", t->spatial_sort, -1.0f, 0.0f);
-    row("Submit Compute", t->submit_compute, -1.0f, 0.0f);
-    row("Set Inputs", t->input_staging, -1.0f, 0.0f);
-
-    sep();
-    // GPU compute — CPU wait time and actual GPU time side by side
-    row("GPU Compute [wait]", t->gpu_wait, t->gpu_compute_ms, 0.0f);
-    sep();
-
-    row("Process Outputs", t->output_physics, -1.0f, 0.0f);
-    row("Death/Repro/Bots", t->death_repro, -1.0f, 0.0f);
-    row("Flush Staging", t->flush_staging, -1.0f, 0.0f);
-    row("Record Compute", t->record_compute, -1.0f, 0.0f);
-
-    sep();
-    // ── Draw pipeline ──
-    float draw_bw =
-        (t->draw_upload > 0.001f && t->render_bytes > 0) ? (float)t->render_bytes / (t->draw_upload * 1e6f) : 0.0f;
-    row("Draw Upload", t->draw_upload, -1.0f, draw_bw);
-    row("Draw Record", t->draw_record, -1.0f, 0.0f);
-    row("GPU Draw", -1.0f, t->gpu_draw_ms, 0.0f);
-
-    ImGui::Columns(1);
-    ImGui::Separator();
-
-    // Total
-    ImGui::Text("Frame total: %.1f ms", (double)t->frame_total_ms);
-    double total_gpu = (double)(t->gpu_compute_ms + t->gpu_draw_ms);
-    if (total_gpu > 0.0) {
-      double overhead = t->frame_total_ms - total_gpu;
-      if (overhead > 1.0)
-        ImGui::Text("(CPU-limited: +%.1f ms CPU overhead over GPU work)", overhead);
-      else
-        ImGui::Text("(GPU-limited: CPU waits on GPU)");
-    }
-  }
-
-  // ---- Simulation State ----
-  if (ImGui::CollapsingHeader("Simulation")) {
-    ImGui::Text("Agents:     %5zu", w->agents.size);
-    ImGui::Text("Food:       %5.2f", world_getTotalFood(w));
-    ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
-    ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
-    ImGui::Text("Epoch:      %5d", w->current_epoch);
-    ImGui::Text("Zoom:       %5.2fx", view->scalemult);
-    ImGui::Text("Frames:     %5d", view->totalFrames);
-  }
-
-  // ---- Controls ----
-  if (ImGui::CollapsingHeader("Controls")) {
-    bool paused = view->paused;
-    if (ImGui::Checkbox("Pause", &paused))
-      view->paused = paused ? 1 : 0;
-
-    bool df = view->drawfood;
-    if (ImGui::Checkbox("Draw food", &df))
-      view->drawfood = df ? 1 : 0;
-    ImGui::SameLine();
-    bool dt = view->draw_text;
-    if (ImGui::Checkbox("Draw text", &dt))
-      view->draw_text = dt ? 1 : 0;
-
-    bool cl = w->closed;
-    if (ImGui::Checkbox("Closed env", &cl))
-      w->closed = cl ? 1 : 0;
-    ImGui::SameLine();
-    bool mm = w->movieMode;
-    if (ImGui::Checkbox("Movie mode", &mm))
-      w->movieMode = mm ? 1 : 0;
-
-    ImGui::SeparatorText("Spawn");
-    ImGui::PushItemWidth(60);
-    static int spawn_count = 100;
-    if (spawn_count < 1)
-      spawn_count = 1;
-    ImGui::InputInt("Count", &spawn_count, 0, 0);
-    ImGui::PopItemWidth();
-
-    if (ImGui::Button("Herbivores"))
-      world_addRandomBots(w, spawn_count);
-    ImGui::SameLine();
-    if (ImGui::Button("Carnivores")) {
-      for (int i = 0; i < spawn_count; i++)
-        world_addCarnivore(w);
-    }
-
+  // ── GPU ──
+  if (t->gpu_compute_ms > 0.0f || t->gpu_draw_ms > 0.0f) {
     ImGui::Spacing();
-    if (ImGui::Button("Reset world"))
-      world_reset(w);
+    ImGui::Text("GPU");
+    ImGui::SameLine(210);
+    ImGui::Text("ms");
+    ImGui::Separator();
+    if (t->gpu_compute_ms > 0.0f)
+      row("GPU Compute", t->gpu_compute_ms);
+    if (t->gpu_draw_ms > 0.0f)
+      row("GPU Draw", t->gpu_draw_ms);
   }
+
+  // ── Draw (CPU) ──
+  ImGui::Spacing();
+  ImGui::Text("Draw (CPU)");
+  ImGui::SameLine(210);
+  ImGui::Text("ms");
+  ImGui::Separator();
+  row("Upload + Record", draw_cpu);
+
+  // ── Summary ──
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Text("Frame: %.1f ms", t->frame_total_ms);
+  float accounted = sim_cpu + gpu_work + draw_cpu;
+  float remainder = t->frame_total_ms - accounted;
+  ImGui::TextDisabled("  CPU work %.1f  |  GPU %.1f", sim_cpu + draw_cpu, gpu_work);
+  ImGui::TextDisabled("  sync / misc +%.1f ms", remainder > 0.0f ? remainder : 0.0f);
+
+  ImGui::End();
+}
+
+void imgui_draw_sim_controls(struct VKView *view) {
+  struct World *w = view->base->world;
+  if (!w || !view->show_sim)
+    return;
+
+  ImGui::SetNextWindowPos(ImVec2(10, 670), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(300, 360), ImGuiCond_FirstUseEver);
+  ImGui::Begin("Simulation", &view->show_sim);
+
+  // ---- State ----
+  ImGui::Text("Agents:     %5zu", w->agents.size);
+  ImGui::Text("Food:       %5.2f", world_getTotalFood(w));
+  ImGui::Text("Herbivores: %5d", world_numHerbivores(w));
+  ImGui::Text("Carnivores: %5d", world_numCarnivores(w));
+  ImGui::Text("Epoch:      %5d", w->current_epoch);
+  ImGui::Text("Zoom:       %5.2fx", view->scalemult);
+  ImGui::Text("Frames:     %5d", view->totalFrames);
+
+  ImGui::Separator();
+
+  // ---- Toggles ----
+  bool paused = view->paused;
+  if (ImGui::Checkbox("Pause", &paused))
+    view->paused = paused ? 1 : 0;
+  ImGui::SameLine();
+  bool cl = w->closed;
+  if (ImGui::Checkbox("Closed env", &cl))
+    w->closed = cl ? 1 : 0;
+
+  bool df = view->drawfood;
+  if (ImGui::Checkbox("Draw food", &df))
+    view->drawfood = df ? 1 : 0;
+  ImGui::SameLine();
+  bool dt = view->draw_text;
+  if (ImGui::Checkbox("Draw text", &dt))
+    view->draw_text = dt ? 1 : 0;
+
+  bool mm = w->movieMode;
+  if (ImGui::Checkbox("Movie mode", &mm))
+    w->movieMode = mm ? 1 : 0;
+
+  ImGui::Separator();
+
+  // ---- Spawn ----
+  ImGui::Text("Spawn");
+  static int spawn_count = 100;
+  ImGui::PushItemWidth(80);
+  ImGui::InputInt("Count", &spawn_count, 0, 0);
+  if (spawn_count < 1)
+    spawn_count = 1;
+  ImGui::PopItemWidth();
+
+  if (ImGui::Button("Herbivores")) {
+    for (int i = 0; i < spawn_count; i++)
+      world_addHerbivore(w);
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Carnivores")) {
+    for (int i = 0; i < spawn_count; i++)
+      world_addCarnivore(w);
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Mixed"))
+    world_addRandomBots(w, spawn_count);
+
+  ImGui::Separator();
+
+  // ---- World save / load ----
+  ImGui::Text("World");
+  static char world_path[256] = "world.dat";
+  ImGui::PushItemWidth(-1);
+  ImGui::InputText("##worldpath", world_path, sizeof(world_path));
+  ImGui::PopItemWidth();
+
+  if (ImGui::Button("Save")) {
+    snprintf(VKVIEW.base->world_file, sizeof(VKVIEW.base->world_file), "%s", world_path);
+    base_saveworld(VKVIEW.base);
+  }
+  ImGui::SameLine();
+  bool can_load = (world_path[0] != '\0');
+  if (!can_load)
+    ImGui::BeginDisabled();
+  if (ImGui::Button("Load")) {
+    snprintf(VKVIEW.base->world_file, sizeof(VKVIEW.base->world_file), "%s", world_path);
+    if (base_loadworld(VKVIEW.base) && VKVIEW.base->world->brain_gpu == NULL && VKVIEW.vkstate) {
+      VKVIEW.base->world->brain_gpu = VKVIEW.vkstate;
+      VKVIEW.base->world->brain_slot = 0;
+      VKState *vk = VKVIEW.vkstate;
+      vkDeviceWaitIdle(vk->device);
+      vkResetFences(vk->device, 1, &vk->compute_fence);
+      vkbrain_reset_counts(vk);
+      size_t total = VKVIEW.base->world->agents.size;
+      for (size_t i = 0; i < total; i++) {
+        struct Agent *a = VKVIEW.base->world->agents.agents[i];
+        a->brain_chunk = ~0u;
+        if (!vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index)) {
+          fprintf(stderr, "GPU memory exhausted loading agent %zu\n", i);
+          break;
+        }
+      }
+      vkbrain_upload_all(vk, VKVIEW.base->world);
+      vkbrain_try_reclaim_last(vk);
+      world_seed_inputs(VKVIEW.base->world);
+      vkbrain_record_dispatch(vk, 0);
+    }
+  }
+  if (!can_load)
+    ImGui::EndDisabled();
+
+  ImGui::Spacing();
+  if (ImGui::Button("Reset world"))
+    world_reset(w);
 
   ImGui::End();
 }

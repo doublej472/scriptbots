@@ -262,9 +262,6 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
   now = timer_since_ms(&t0);
   w->timing.draw_upload = (float)now;
   w->timing.agent_count = (uint32_t)agentCount;
-  w->timing.input_bytes = (uint32_t)agentCount * BRAIN_INPUT_SIZE * sizeof(float);
-  w->timing.output_bytes = (uint32_t)agentCount * BRAIN_OUTPUT_SIZE * sizeof(float);
-  w->timing.render_bytes = (uint32_t)agentCount * sizeof(AgentInstance);
   prev = now;
 
   // Record commands + submit

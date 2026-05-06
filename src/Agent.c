@@ -132,6 +132,7 @@ void agent_init(struct Agent *agent) {
 
   agent->spike_outbox_count = 0;
   agent->food_request = 0.0f;
+  agent->pending_health_delta = 0.0f;
 
   brain_init_random(agent->brain);
 }
