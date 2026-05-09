@@ -1,9 +1,26 @@
 FROM docker.io/library/archlinux:latest
 
+# Install phase
 RUN pacman-key --init && pacman-key --populate archlinux 
-
-RUN pacman -Syyu --noconfirm --needed npm fd ripgrep base-devel cmake vcpkg vulkan-devel vulkan-radeon vulkan-mesa-layers cmake ninja
+RUN pacman -Syyu --noconfirm --needed \
+	base-devel \
+	clang \
+	cmake \
+	fd \
+	gdb \
+	lldb \
+	ninja \
+	npm \
+	perf \
+	ripgrep \
+	vcpkg \
+	vulkan-devel \
+	vulkan-mesa-layers \
+	vulkan-radeon \
+	&& pacman -Scc --noconfirm
 
 RUN npm install -g @mariozechner/pi-coding-agent
 
+# Configure phase
+RUN mkdir -pv /workdir
 WORKDIR /workdir
