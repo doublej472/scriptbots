@@ -605,8 +605,10 @@ void world_processOutputs(struct World *world) {
 static void world_apply_food_requests(struct World *world) {
   for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
-    if (a->food_request <= 0.0f)
+    if (a->food_request <= 0.0f) {
+      a->eating = 0.0f;
       continue;
+    }
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
     if ((uint32_t)cx < world->foodGrid.grid_w && (uint32_t)cy < world->foodGrid.grid_h &&
@@ -614,6 +616,9 @@ static void world_apply_food_requests(struct World *world) {
       float taken = foodGrid_takeFood(&world->foodGrid, cx, cy, a->food_request);
       a->health += taken;
       a->repcounter -= 3.0f * taken;
+      a->eating = taken;
+    } else {
+      a->eating = 0.0f;
     }
     a->food_request = 0.0f;
   }
@@ -1021,12 +1026,27 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   if (world->modcounter % 100 == 0)
     a->age++;
 
-  // Food sensor
-  int32_t cx = (int32_t)a->pos.x / CZ;
-  int32_t cy = (int32_t)a->pos.y / CZ;
-  in_ptr[4] = 0.0f;
-  if ((uint32_t)cx < world->foodGrid.grid_w && (uint32_t)cy < world->foodGrid.grid_h)
-    in_ptr[4] = world->foodGrid.food_amounts[cy * world->foodGrid.grid_w + cx] / FOODMAX;
+  // Food detector — brightest signal within Chebyshev radius, weighted by amount and distance
+  {
+    int32_t fcx = (int32_t)a->pos.x / CZ;
+    int32_t fcy = (int32_t)a->pos.y / CZ;
+    float best_food = 0.0f;
+    for (int32_t dy = -FOOD_DETECT_RADIUS; dy <= FOOD_DETECT_RADIUS; dy++) {
+      for (int32_t dx = -FOOD_DETECT_RADIUS; dx <= FOOD_DETECT_RADIUS; dx++) {
+        int32_t tx = fcx + dx, ty = fcy + dy;
+        if ((uint32_t)tx >= world->foodGrid.grid_w || (uint32_t)ty >= world->foodGrid.grid_h)
+          continue;
+        float famt = world->foodGrid.food_amounts[ty * world->foodGrid.grid_w + tx];
+        if (famt <= 0.0f)
+          continue;
+        int32_t dist = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy); // Chebyshev
+        float score = (famt / FOODMAX) * (1.0f - (float)dist / (float)(FOOD_DETECT_RADIUS + 1));
+        if (score > best_food)
+          best_food = score;
+      }
+    }
+    in_ptr[4] = cap(best_food);
+  }
 
   // Accumulators
   float p1 = 0, r1 = 0, g1 = 0, b1 = 0;
@@ -1206,7 +1226,7 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   in_ptr[13] = fabsf(sinf((float)world->modcounter / a->clockf2));
   in_ptr[14] = cap(hearaccum);
   in_ptr[15] = cap(blood);
-  in_ptr[16] = cap((float)a->touch);
+  in_ptr[16] = cap(a->eating / FOODINTAKE);  // eating detector — continuous, normalized to [0,1]
   if (randf(0.0f, 1.0f) > 0.95f)
     in_ptr[17] = randf(0.0f, 1.0f);
 }

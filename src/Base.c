@@ -100,6 +100,8 @@ int base_loadworld(struct Base *base) {
   // Reset fields not serialised (or stale from older save formats)
   for (int i = 0; i < base->world->agents.size; i++) {
     base->world->agents.agents[i]->pending_health_delta = 0.0f;
+    base->world->agents.agents[i]->food_request = 0.0f;
+    base->world->agents.agents[i]->eating = 0.0f;
   }
 
   base->world->queue = old_queue;

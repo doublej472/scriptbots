@@ -63,6 +63,7 @@ struct Agent {
   // --- Deferred food consumption (parallel-safe) ---
   // Set by output dispatch; applied single-threaded after.
   float food_request;
+  float eating;  // amount of food actually consumed last frame (for eating detector input)
 
   // --- Deferred health delta (parallel-safe) ---
   // Accumulated during input dispatch; committed single-threaded after.

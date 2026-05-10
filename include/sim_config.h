@@ -57,6 +57,7 @@
 #define CROWDING_PENALTY 0.00004f // quadratic penalty per extra agent (× excess²)
 
 // ---- FOOD ----
+#define FOOD_DETECT_RADIUS 2                // Chebyshev radius for food detector gradient
 #define FOODGROWTH 0.35f                    // how quickly does food grow on a square
 #define FOODINTAKE 0.00225f                 // how much does every agent consume?
 #define FOODMAX 0.6f                        // how much food per cell can there be at max?

@@ -101,6 +101,7 @@ void agent_init(struct Agent *agent) {
   agent->pending_damage = 0.0f;
   agent->pending_spiked = 0;
   agent->touch = 0;
+  agent->eating = 0.0f;
   agent->age = 0;
   agent->spikeLength = 0;
   agent->red = 0;
