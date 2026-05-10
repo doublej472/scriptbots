@@ -30,8 +30,19 @@ void base_saveworld(struct Base *base) {
   w->agent_inputs = NULL;
   w->selected_agent = NULL;
   w->movie_agent = NULL;
+  w->foodGrid.food_amounts = NULL;
+  w->foodGrid.food_indices = NULL;
+  w->foodGrid.food_sorted  = NULL;
   fwrite(w, sizeof(struct World), 1, f);
   free(w);
+
+  // Save food grid heap arrays (pointers were nulled above so they aren't
+  // written as stale addresses inside the World blob).
+  uint32_t food_cells = base->world->foodGrid.total_cells;
+  fwrite(&food_cells, sizeof(uint32_t), 1, f);
+  fwrite(base->world->foodGrid.food_amounts, sizeof(float), food_cells, f);
+  fwrite(base->world->foodGrid.food_indices, sizeof(uint32_t), food_cells, f);
+  fwrite(base->world->foodGrid.food_sorted, sizeof(uint32_t), food_cells, f);
 
   printf("Writing %zu agents...\n", base->world->agents.size);
   fwrite(&base->world->agents.size, sizeof(long), 1, f);
@@ -59,6 +70,16 @@ int base_loadworld(struct Base *base) {
 
   fread(base->world, sizeof(struct World), 1, f);
   base->world->stopSim = 0;
+
+  // Restore food grid heap arrays (written after the World blob by save).
+  uint32_t food_cells = 0;
+  fread(&food_cells, sizeof(uint32_t), 1, f);
+  base->world->foodGrid.food_amounts = malloc(food_cells * sizeof(float));
+  base->world->foodGrid.food_indices = malloc(food_cells * sizeof(uint32_t));
+  base->world->foodGrid.food_sorted  = malloc(food_cells * sizeof(uint32_t));
+  fread(base->world->foodGrid.food_amounts, sizeof(float), food_cells, f);
+  fread(base->world->foodGrid.food_indices, sizeof(uint32_t), food_cells, f);
+  fread(base->world->foodGrid.food_sorted, sizeof(uint32_t), food_cells, f);
 
   long size = 0l;
   fread(&size, sizeof(long), 1, f);

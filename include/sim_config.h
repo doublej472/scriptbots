@@ -8,8 +8,8 @@
 #define CZ 64
 // cell size in pixels, for food squares. Should divide well into Width Height
 
-#define WIDTH (CZ * 3000)
-#define HEIGHT (CZ * 2000)
+#define WIDTH (CZ * 1000)
+#define HEIGHT (CZ * 1000)
 
 // computer window width and height
 #define WWIDTH 1280
@@ -32,7 +32,7 @@
 #define SPIKESPEED 0.02f        // how quickly can attack spike go up?
 #define SPIKEMULT 2.0f          // essentially the strength of every spike impact
 #define BOOSTSIZEMULT 2.0f      // how much boost do agents get? when boost neuron is on
-#define DIST 225.0f             // how far can the eyes see, ears hear, and nose smell on each bot?
+#define DIST 300.0f             // how far can the eyes see, ears hear, and nose smell on each bot?
 #define DIST_GROUPING 40.0f     // how close must another agent be to get grouping health gain
 #define EYE_SENSITIVITY 2.0f    // how sensitive are the eyes?
 #define BLOOD_SENSITIVITY 2.0f  // how sensitive are blood sensors?
