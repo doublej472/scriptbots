@@ -121,18 +121,12 @@ static uint32_t update_agents(VKState *vk, const VKViewState *view) {
   return count;
 }
 
-// ---- Update food SSBO ----
-// Food grid is y-major (same layout as SSBO), but items interleave amt+index.
-// Extract just the amt floats — sequential read stride is 8 bytes, well prefetched.
 static void update_food(VKState *vk, const VKViewState *view) {
   struct World *w = view->base->world;
   if (!view->drawfood || !vk->food_buf.mapped)
     return;
-  int n = FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT;
-  const struct FoodGridItem *src = &w->foodGrid.food[0][0];
-  float *dst = vk->food_buf.mapped;
-  for (int i = 0; i < n; i++)
-    dst[i] = src[i].amt;
+  uint32_t n = w->foodGrid.total_cells;
+  memcpy(vk->food_buf.mapped, w->foodGrid.food_amounts, n * sizeof(float));
 }
 
 // ---- Draw command recording ----

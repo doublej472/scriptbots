@@ -272,7 +272,7 @@ static void setup_graphics(VKState *vk, uint32_t numbots) {
   vk->agent_buf = vkm_buffer_create(vk, vk->agent_capacity * sizeof(AgentInstance),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  vk->food_buf = vkm_buffer_create(vk, (VkDeviceSize)FOOD_SQUARES_WIDTH * FOOD_SQUARES_HEIGHT * sizeof(float),
+  vk->food_buf = vkm_buffer_create(vk, (VkDeviceSize)TOTAL_FOOD_SQUARES * sizeof(float),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 

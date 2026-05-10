@@ -33,11 +33,11 @@ static void world_update_food(struct World *world) {
   // When food density is very low, seed random cells to kick-start growth.
   // Once enough cells are alive, switch to preferential growth on existing
   // food squares so patches spread and thicken naturally.
-  if (world->foodGrid.food_pivot < (uint32_t)(TOTAL_FOOD_SQUARES * FOOD_SPARSE_THRESHOLD)) {
+  if (world->foodGrid.food_pivot < (uint32_t)(world->foodGrid.total_cells * FOOD_SPARSE_THRESHOLD)) {
     while (food_to_add > 0.0f) {
-      uint32_t food_idx = randi(0, TOTAL_FOOD_SQUARES);
-      size_t fx = food_idx % FOOD_SQUARES_WIDTH;
-      size_t fy = food_idx / FOOD_SQUARES_WIDTH;
+      uint32_t food_idx = randi(0, world->foodGrid.total_cells);
+      size_t fx = food_idx % world->foodGrid.grid_w;
+      size_t fy = food_idx / world->foodGrid.grid_w;
       food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, FOODMAX * 0.02f);
     }
     return;
@@ -46,12 +46,12 @@ static void world_update_food(struct World *world) {
   while (food_to_add > 0.0f) {
     uint32_t food_grid_idx = randi(0, world->foodGrid.food_pivot);
     uint32_t food_idx = world->foodGrid.food_sorted[food_grid_idx];
-    size_t fx = food_idx % FOOD_SQUARES_WIDTH;
-    size_t fy = food_idx / FOOD_SQUARES_WIDTH;
+    size_t fx = food_idx % world->foodGrid.grid_w;
+    size_t fy = food_idx / world->foodGrid.grid_w;
     // Grow current square
     food_to_add -= foodGrid_growFood(&world->foodGrid, fx, fy, fminf(FOODGROWTH, food_to_add));
     // Grow surrounding squares only if well grown
-    if (world->foodGrid.food[fy][fx].amt > FOODMAX * 0.7f) {
+    if (world->foodGrid.food_amounts[fy * world->foodGrid.grid_w + fx] > FOODMAX * 0.7f) {
       // Spread to random square nearby
       size_t fxx = randi(fx - 1, fx + 2);
       size_t fyy = randi(fy - 1, fy + 2);
@@ -279,7 +279,7 @@ void world_populate(struct World *world, int initFood, size_t numbots) {
   for (size_t i = 0; i < (size_t)(numbots * .2); ++i)
     world_addCarnivore(world);
 
-  foodGrid_init(&world->foodGrid);
+  foodGrid_init(&world->foodGrid, FOOD_SQUARES_WIDTH, FOOD_SQUARES_HEIGHT);
   if (initFood) {
     printf("Initializing food..");
     fflush(stdout);
@@ -609,8 +609,8 @@ static void world_apply_food_requests(struct World *world) {
       continue;
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
-        world->foodGrid.food[cy][cx].amt > 0.0f) {
+    if ((uint32_t)cx < world->foodGrid.grid_w && (uint32_t)cy < world->foodGrid.grid_h &&
+        world->foodGrid.food_amounts[cy * world->foodGrid.grid_w + cx] > 0.0f) {
       float taken = foodGrid_takeFood(&world->foodGrid, cx, cy, a->food_request);
       a->health += taken;
       a->repcounter -= 3.0f * taken;
@@ -965,8 +965,8 @@ void agent_output_processor_range(struct World *world, uint32_t start, uint32_t 
     a->food_request = 0.0f;
     int32_t cx = (int32_t)a->pos.x / CZ;
     int32_t cy = (int32_t)a->pos.y / CZ;
-    if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT &&
-        world->foodGrid.food[cy][cx].amt > 0.0f && a->health < 2.0f && a->herbivore > 0.1f) {
+    if ((uint32_t)cx < world->foodGrid.grid_w && (uint32_t)cy < world->foodGrid.grid_h &&
+        world->foodGrid.food_amounts[cy * world->foodGrid.grid_w + cx] > 0.0f && a->health < 2.0f && a->herbivore > 0.1f) {
       float to_take = FOODINTAKE;
       float speedmul = ((1.0f - fabsf(a->w1)) + (1.0f - fabsf(a->w2))) * 0.25f + 0.5f;
       to_take *= speedmul * a->herbivore * a->herbivore;
@@ -1025,8 +1025,8 @@ void agent_set_inputs(struct World *world, struct Agent *a, struct BucketList bu
   int32_t cx = (int32_t)a->pos.x / CZ;
   int32_t cy = (int32_t)a->pos.y / CZ;
   in_ptr[4] = 0.0f;
-  if ((uint32_t)cx < (uint32_t)FOOD_SQUARES_WIDTH && (uint32_t)cy < (uint32_t)FOOD_SQUARES_HEIGHT)
-    in_ptr[4] = world->foodGrid.food[cy][cx].amt / FOODMAX;
+  if ((uint32_t)cx < world->foodGrid.grid_w && (uint32_t)cy < world->foodGrid.grid_h)
+    in_ptr[4] = world->foodGrid.food_amounts[cy * world->foodGrid.grid_w + cx] / FOODMAX;
 
   // Accumulators
   float p1 = 0, r1 = 0, g1 = 0, b1 = 0;

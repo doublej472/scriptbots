@@ -1,121 +1,113 @@
 #include "Food.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-void foodGrid_init(struct FoodGrid *foodGrid) {
+void foodGrid_init(struct FoodGrid *g, uint32_t w, uint32_t h) {
+  g->grid_w      = w;
+  g->grid_h      = h;
+  g->total_cells = w * h;
+  g->food_pivot  = 0;
 
-  foodGrid->food_pivot = 0;
+  g->food_amounts = calloc(g->total_cells, sizeof(float));
+  g->food_indices = calloc(g->total_cells, sizeof(uint32_t));
+  g->food_sorted  = malloc(g->total_cells * sizeof(uint32_t));
 
-  // Initialize food grid and sorted indices
-  for (int32_t x = 0; x < FOOD_SQUARES_WIDTH; x++) {
-    for (int32_t y = 0; y < FOOD_SQUARES_HEIGHT; y++) {
-      uint32_t index = x + y * FOOD_SQUARES_WIDTH;
-      foodGrid->food[y][x] = (struct FoodGridItem){0.0f, index};
-      foodGrid->food_sorted[index] = index;
-    }
+  for (uint32_t i = 0; i < g->total_cells; i++) {
+    g->food_sorted[i] = i;
+    g->food_indices[i] = i;
   }
 }
 
-float foodGrid_getFoodAmount(struct FoodGrid *foodGrid, int32_t x, int32_t y) {
-  // check if food square is inside the world
-  if (x >= 0 && x < FOOD_SQUARES_WIDTH && y >= 0 && y < FOOD_SQUARES_HEIGHT) {
-    return foodGrid->food[y][x].amt;
-  }
+void foodGrid_free(struct FoodGrid *g) {
+  free(g->food_amounts);
+  free(g->food_indices);
+  free(g->food_sorted);
+  g->food_amounts = NULL;
+  g->food_indices = NULL;
+  g->food_sorted  = NULL;
+}
+
+float foodGrid_getFoodAmount(struct FoodGrid *g, int32_t x, int32_t y) {
+  if (x >= 0 && (uint32_t)x < g->grid_w && y >= 0 && (uint32_t)y < g->grid_h)
+    return g->food_amounts[y * g->grid_w + x];
   return 0.0f;
 }
 
-// Ensure food square is correctly placed in the sorted list
-static void foodGrid_place(struct FoodGrid *foodGrid, int32_t x, int32_t y) {
-  struct FoodGridItem *item = &foodGrid->food[y][x];
+// Swap food_sorted entries at positions a and b, and update their reverse indices
+static void foodGrid_swap(struct FoodGrid *g, uint32_t a, uint32_t b) {
+  uint32_t sa = g->food_sorted[a];
+  uint32_t sb = g->food_sorted[b];
+  g->food_sorted[a] = sb;
+  g->food_sorted[b] = sa;
+  g->food_indices[sa] = b;
+  g->food_indices[sb] = a;
+}
 
-  // If food is alive ensure it's before the pivot, otherwise after
-  if (item->amt >= 0.0001f) {
-    if (foodGrid->food_pivot < TOTAL_FOOD_SQUARES - 1 && item->food_sorted_index >= foodGrid->food_pivot) {
-      // Lookup old food item we are replacing
-      uint32_t new_food_sorted_idx = foodGrid->food_pivot;
-      uint32_t old_food_idx = foodGrid->food_sorted[new_food_sorted_idx];
-      uint32_t tx = old_food_idx % FOOD_SQUARES_WIDTH;
-      uint32_t ty = old_food_idx / FOOD_SQUARES_WIDTH;
-      struct FoodGridItem *old_item = &foodGrid->food[ty][tx];
+// Ensure cell is on the correct side of the pivot (active / inactive)
+static void foodGrid_place(struct FoodGrid *g, uint32_t flat_idx) {
+  uint32_t sorted_idx = g->food_indices[flat_idx];
+  float amt = g->food_amounts[flat_idx];
 
-      // Swap food_sorted members
-      uint32_t tmp = foodGrid->food_sorted[new_food_sorted_idx];
-      foodGrid->food_sorted[new_food_sorted_idx] = foodGrid->food_sorted[item->food_sorted_index];
-      foodGrid->food_sorted[item->food_sorted_index] = tmp;
-
-      // Swap food item reverse index
-      old_item->food_sorted_index = item->food_sorted_index;
-      item->food_sorted_index = new_food_sorted_idx;
-
-      // Update the pivot point
-      foodGrid->food_pivot++;
+  if (amt >= 0.0001f) {
+    // Move into active region [0, pivot)
+    if (sorted_idx >= g->food_pivot) {
+      foodGrid_swap(g, sorted_idx, g->food_pivot);
+      g->food_pivot++;
     }
   } else {
-    if (foodGrid->food_pivot > 0 && item->food_sorted_index < foodGrid->food_pivot) {
-      // Lookup old food item we are replacing
-      uint32_t new_food_sorted_idx = foodGrid->food_pivot - 1;
-      uint32_t old_food_idx = foodGrid->food_sorted[new_food_sorted_idx];
-      uint32_t tx = old_food_idx % FOOD_SQUARES_WIDTH;
-      uint32_t ty = old_food_idx / FOOD_SQUARES_WIDTH;
-      struct FoodGridItem *old_item = &foodGrid->food[ty][tx];
-
-      // Swap food_sorted members
-      uint32_t tmp = foodGrid->food_sorted[new_food_sorted_idx];
-      foodGrid->food_sorted[new_food_sorted_idx] = foodGrid->food_sorted[item->food_sorted_index];
-      foodGrid->food_sorted[item->food_sorted_index] = tmp;
-
-      // Swap food item reverse index
-      old_item->food_sorted_index = item->food_sorted_index;
-      item->food_sorted_index = new_food_sorted_idx;
-
-      // Update the pivot point
-      foodGrid->food_pivot--;
+    // Move into inactive region [pivot, total)
+    if (sorted_idx < g->food_pivot) {
+      foodGrid_swap(g, sorted_idx, g->food_pivot - 1);
+      g->food_pivot--;
     }
   }
 }
 
-// Grow food around square
-// Returns amount that was grown
-float foodGrid_growFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float amt) {
-  // check if food square is inside the world
-  if (x >= 0 && x < FOOD_SQUARES_WIDTH && y >= 0 && y < FOOD_SQUARES_HEIGHT && foodGrid->food[y][x].amt < FOODMAX) {
-    foodGrid->food[y][x].amt += amt;
-    if (foodGrid->food[y][x].amt > FOODMAX) {
-      float sub = foodGrid->food[y][x].amt - FOODMAX;
-      foodGrid->food[y][x].amt -= sub;
-      amt -= sub;
-    }
+float foodGrid_growFood(struct FoodGrid *g, int32_t x, int32_t y, float amt) {
+  if (x < 0 || (uint32_t)x >= g->grid_w || y < 0 || (uint32_t)y >= g->grid_h)
+    return 0.0f;
 
-    foodGrid_place(foodGrid, x, y);
+  uint32_t idx = y * g->grid_w + x;
+  float *a = &g->food_amounts[idx];
+  if (*a >= FOODMAX)
+    return 0.0f;
 
-    return amt;
+  *a += amt;
+  if (*a > FOODMAX) {
+    float sub = *a - FOODMAX;
+    *a -= sub;
+    amt -= sub;
   }
-  return 0.0f;
+
+  foodGrid_place(g, idx);
+  return amt;
 }
 
-// Take food from square
-// Returns amount that was taken
-float foodGrid_takeFood(struct FoodGrid *foodGrid, int32_t x, int32_t y, float amt) {
-  // check if food square is inside the world
-  if (x >= 0 && x < FOOD_SQUARES_WIDTH && y >= 0 && y < FOOD_SQUARES_HEIGHT && foodGrid->food[y][x].amt > 0.0f) {
-    foodGrid->food[y][x].amt -= amt;
-    if (foodGrid->food[y][x].amt < 0.0f) {
-      float sub = -foodGrid->food[y][x].amt;
-      foodGrid->food[y][x].amt += sub;
-      amt -= sub;
-    }
+float foodGrid_takeFood(struct FoodGrid *g, int32_t x, int32_t y, float amt) {
+  if (x < 0 || (uint32_t)x >= g->grid_w || y < 0 || (uint32_t)y >= g->grid_h)
+    return 0.0f;
 
-    foodGrid_place(foodGrid, x, y);
+  uint32_t idx = y * g->grid_w + x;
+  float *a = &g->food_amounts[idx];
+  if (*a <= 0.0f)
+    return 0.0f;
 
-    return amt;
+  *a -= amt;
+  if (*a < 0.0f) {
+    float sub = -(*a);
+    *a += sub;
+    amt -= sub;
   }
-  return 0.0f;
+
+  foodGrid_place(g, idx);
+  return amt;
 }
 
-float foodGrid_getTotalFood(struct FoodGrid *foodGrid) {
-  float total_food = 0.0f;
-  for (size_t i = 0; i < foodGrid->food_pivot; i++) {
-    uint32_t x = foodGrid->food_sorted[i] % FOOD_SQUARES_WIDTH;
-    uint32_t y = foodGrid->food_sorted[i] / FOOD_SQUARES_WIDTH;
-    total_food += foodGrid->food[y][x].amt;
+float foodGrid_getTotalFood(struct FoodGrid *g) {
+  float total = 0.0f;
+  for (uint32_t i = 0; i < g->food_pivot; i++) {
+    uint32_t idx = g->food_sorted[i];
+    total += g->food_amounts[idx];
   }
-  return total_food;
+  return total;
 }
