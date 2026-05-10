@@ -289,6 +289,7 @@ void vkview_process_normal_key(int key, int mods) {
         // Seed both input buffer slots so first dispatch has valid data
         world_seed_inputs(VKVIEW.base->world);
         vkbrain_record_dispatch(vk, 0);
+        world_submit_compute(VKVIEW.base->world);
         printf("Re-uploaded brains to GPU after load (%zu agents).\n", total);
       }
     }
@@ -415,6 +416,7 @@ static bool vkview_recreate_swapchain_if_needed(VKView *view) {
 // ---- Headless main loop ----
 void vkview_main_loop_headless(void) {
   int steps = 0;
+  int steps_since_report = 0;
   struct timespec report_time;
   timer_reset(&report_time);
 
@@ -428,23 +430,24 @@ void vkview_main_loop_headless(void) {
 
     world_update(VKVIEW.base->world);
     steps++;
+    steps_since_report++;
 
-    // Periodic status report (wall-clock ~1 s intervals)
     double elapsed = timer_since_ms(&report_time);
     if (elapsed >= 1000.0) {
       timer_reset(&report_time);
       struct World *w = VKVIEW.base->world;
-      float sim_ms = w->timing.food_update + w->timing.spatial_sort + w->timing.compute_submit +
-                     w->timing.input_staging + w->timing.gpu_wait + w->timing.output_processing +
-                     w->timing.death_repro + w->timing.flush_staging + w->timing.record_compute;
-      float steps_per_sec = 1e3f / sim_ms;
-      printf("[epoch %3d | step %7d]  agents: %5zu (H:%d C:%d)  %.0f steps/s  CPU: %.1f ms",
+      float st_per_sec = steps_since_report * 1e3f / (float)elapsed;
+      steps_since_report = 0;
+      printf("[epoch %3d | step %7d]  agents: %5zu (H:%d C:%d)  %.0f st/s\n",
              w->current_epoch, steps, w->agents.size,
              world_numHerbivores(w), world_numCarnivores(w),
-             steps_per_sec, sim_ms);
-      if (w->timing.gpu_compute_ms > 0.0f)
-        printf("  GPU: %.1f ms", w->timing.gpu_compute_ms);
-      printf("\n");
+             st_per_sec);
+      printf("  phases(ms): food %.2f | sort %.2f | submit %.2f | input %.2f | gpu-wait %.2f | output %.2f | death %.2f | flush %.2f | record %.2f\n",
+             w->timing.food_update, w->timing.spatial_sort,
+             w->timing.compute_submit, w->timing.input_staging,
+             w->timing.gpu_wait, w->timing.output_processing,
+             w->timing.death_repro, w->timing.flush_staging,
+             w->timing.record_compute);
     }
   }
   printf("Headless simulation stopped (epoch %d, %zu agents, %d steps)\n", VKVIEW.base->world->current_epoch,

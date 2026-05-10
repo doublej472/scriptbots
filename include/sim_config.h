@@ -8,8 +8,8 @@
 #define CZ 64
 // cell size in pixels, for food squares. Should divide well into Width Height
 
-#define WIDTH (CZ * 1000)
-#define HEIGHT (CZ * 1000)
+#define WIDTH (CZ * 3000)
+#define HEIGHT (CZ * 2000)
 
 // computer window width and height
 #define WWIDTH 1280

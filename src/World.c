@@ -142,7 +142,7 @@ void world_flush_staging(struct World *world) {
           if (vk_st->chunks[last_c].alive_count > 0)
             break;
         }
-        if (last_c < vk_st->chunk_count) {
+        if (last_c < vk_st->chunk_count && vk_st->chunks[last_c].alive_count > 0) {
           uint32_t last_s = vk_st->chunks[last_c].alive_count - 1;
           struct Agent *last_a = vk_st->chunks[last_c].slot_owner[last_s];
           // Move last agent's brain into the freed slot (unless it IS the freed slot)
@@ -432,11 +432,6 @@ void world_update(struct World *world) {
   world->timing.spatial_sort = (float)(now - prev);
   prev = now;
 
-  world_submit_compute(world);
-  now = timer_since_ms(&t0);
-  world->timing.compute_submit = (float)(now - prev);
-  prev = now;
-
   // Gather inputs and deploy to GPU (uses current write_slot)
   world_setInputsRunBrain(world);
   world_drain_spike_outboxes(world);
@@ -537,6 +532,10 @@ void world_update(struct World *world) {
 
   world_record_compute(world);
   world->timing.record_compute = (float)(timer_since_ms(&t0) - prev);
+  prev = timer_since_ms(&t0);
+
+  world_submit_compute(world);
+  world->timing.compute_submit = (float)(timer_since_ms(&t0) - prev);
 }
 
 // ============================================================================

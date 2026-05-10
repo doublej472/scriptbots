@@ -143,9 +143,12 @@ int main(int argc, char **argv) {
     base.world->brain_gpu = VKVIEW.vkstate;
 
     // Assign GPU slots and upload brains
+    for (size_t i = 0; i < base.world->agents.size; i++)
+      base.world->agents.agents[i]->brain_chunk = ~0u;
     vkbrain_upload_all(VKVIEW.vkstate, base.world);
     world_seed_inputs(base.world);
     vkbrain_record_dispatch(VKVIEW.vkstate, 0);
+    world_submit_compute(base.world);
 
     vkview_main_loop_headless();
 
@@ -166,6 +169,7 @@ int main(int argc, char **argv) {
       vkbrain_upload_all(VKVIEW.vkstate, base.world);
       world_seed_inputs(base.world);
       vkbrain_record_dispatch(VKVIEW.vkstate, 0);
+      world_submit_compute(base.world);
     }
 
     vkview_main_loop();
