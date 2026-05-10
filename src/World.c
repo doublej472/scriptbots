@@ -432,6 +432,9 @@ void world_update(struct World *world) {
   prev = now;
 
   world_submit_compute(world);
+  now = timer_since_ms(&t0);
+  world->timing.compute_submit = (float)(now - prev);
+  prev = now;
 
   // Gather inputs and deploy to GPU (uses current write_slot)
   world_setInputsRunBrain(world);
@@ -457,7 +460,7 @@ void world_update(struct World *world) {
   world_processOutputs(world);
   world_apply_food_requests(world);
   now = timer_since_ms(&t0);
-  world->timing.output_physics = (float)(now - prev);
+  world->timing.output_processing = (float)(now - prev);
   prev = now;
 
   // Death distribution, movie mode — single-threaded

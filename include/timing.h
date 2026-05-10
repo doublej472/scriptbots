@@ -8,14 +8,15 @@ extern "C" {
 
 typedef struct FrameTiming {
   // ── SIMULATION PIPELINE (sequential CPU phases, ms) ──
-  float food_update;    // world_update_food
-  float spatial_sort;   // world_sortGrid (counting sort)
-  float input_staging;  // submit + dispatch: agent_set_inputs + GPU upload
-  float gpu_wait;       // CPU waiting for vkWaitForFences (compute)
-  float output_physics; // dispatch: GPU download + physics + render populate
-  float death_repro;    // death distribution + movie + reproduction + random bots
-  float flush_staging;  // free dead agents, add newborns, grow arrays
-  float record_compute; // vkBegin/vkEnd/vkSubmit for next compute dispatch
+  float food_update;      // world_update_food
+  float spatial_sort;     // world_sortGrid (counting sort)
+  float compute_submit;   // world_submit_compute (vkQueueSubmit for prev dispatch)
+  float input_staging;    // agent_set_inputs + GPU upload + spike drain + health apply
+  float gpu_wait;         // CPU waiting for vkWaitSemaphores (compute)
+  float output_processing;// world_processOutputs + world_apply_food_requests
+  float death_repro;      // death distribution + movie + reproduction + random bots
+  float flush_staging;    // free dead agents, add newborns, grow arrays, stage brains
+  float record_compute;   // vkBegin/vkEnd/vkSubmit for next compute dispatch
 
   // ── DRAW PIPELINE (sequential CPU phases, ms) ──
   float draw_upload; // update_agents + update_food (memcpy → SSBOs)

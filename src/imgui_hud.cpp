@@ -189,8 +189,8 @@ void imgui_draw_performance(struct VKView *view) {
   struct FrameTiming *t = &w->timing;
   ImGui::Text("FPS: %.1f  (%.1f ms)   Agents: %u", view->smoothFPS, view->smoothFrameMs, t->agent_count);
 
-  float sim_cpu = t->food_update + t->spatial_sort + t->input_staging + t->output_physics + t->death_repro +
-                  t->flush_staging + t->record_compute;
+  float sim_cpu = t->food_update + t->spatial_sort + t->compute_submit + t->input_staging + t->output_processing +
+                  t->death_repro + t->flush_staging + t->record_compute;
   float draw_cpu = t->draw_upload + t->draw_record;
   float gpu_work = t->gpu_compute_ms + t->gpu_draw_ms;
 
@@ -208,11 +208,14 @@ void imgui_draw_performance(struct VKView *view) {
     ImGui::Text("%.1f", ms);
   };
 
-  row("Food + Spatial Sort", t->food_update + t->spatial_sort);
+  row("Food Growth", t->food_update);
+  row("Spatial Sort", t->spatial_sort);
+  row("Compute Submit", t->compute_submit);
   row("Input Staging", t->input_staging);
-  row("CPU waits for GPU", t->gpu_wait);
-  row("Process Outputs", t->output_physics);
-  row("Death / Repro / Flush", t->death_repro + t->flush_staging);
+  row("CPU Wait GPU", t->gpu_wait);
+  row("Process Outputs", t->output_processing);
+  row("Death / Repro", t->death_repro);
+  row("Flush Staging", t->flush_staging);
   row("Record Dispatch", t->record_compute);
 
   // ── GPU ──

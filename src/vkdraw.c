@@ -276,12 +276,11 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
   vkResetCommandBuffer(vk->cmd_buf[cf], 0);
 
   // Update CPU-side per-frame data
-  update_camera(vk, view);
-
   struct World *w = view->base->world;
   struct timespec t0;
   double prev, now;
   timer_reset(&t0);
+  update_camera(vk, view);
   int agentCount = update_agents(vk, view);
   update_food(vk, view);
   now = timer_since_ms(&t0);
