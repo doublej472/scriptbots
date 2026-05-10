@@ -395,8 +395,14 @@ static void world_wait_compute(struct World *world) {
   VKState *vk = world->brain_gpu;
   if (!vk)
     return;
-  vkWaitForFences(vk->device, 1, &vk->compute_fence, VK_TRUE, UINT64_MAX);
-  vkResetFences(vk->device, 1, &vk->compute_fence);
+  uint64_t wait_value = vk->compute_timeline_value - 1;
+  VkSemaphoreWaitInfo swi = {
+      .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+      .semaphoreCount = 1,
+      .pSemaphores    = &vk->compute_timeline,
+      .pValues        = &wait_value,
+  };
+  vkWaitSemaphores(vk->device, &swi, UINT64_MAX);
 }
 
 void world_update(struct World *world) {
@@ -427,7 +433,7 @@ void world_update(struct World *world) {
 
   world_submit_compute(world);
 
-  // Gather inputs for NEXT frame (overlaps with GPU compute)
+  // Gather inputs and deploy to GPU (uses current write_slot)
   world_setInputsRunBrain(world);
   world_drain_spike_outboxes(world);
   // Commit deferred health deltas from input dispatch (parallel-safe)
@@ -558,9 +564,21 @@ void world_submit_compute(struct World *world) {
   if (!vk)
     return;
   uint32_t read_slot = (uint32_t)world->brain_slot;
+  uint64_t signal_value = vk->compute_timeline_value++;
+  VkTimelineSemaphoreSubmitInfo tsi = {
+      .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+      .signalSemaphoreValueCount = 1,
+      .pSignalSemaphoreValues    = &signal_value,
+  };
   VkSubmitInfo si = {
-      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &vk->cmd_compute[read_slot]};
-  vkQueueSubmit(vk->compute_queue, 1, &si, vk->compute_fence);
+      .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .pNext              = &tsi,
+      .commandBufferCount = 1,
+      .pCommandBuffers    = &vk->cmd_compute[read_slot],
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores    = &vk->compute_timeline,
+  };
+  vkQueueSubmit(vk->compute_queue, 1, &si, VK_NULL_HANDLE);
 }
 
 void world_record_compute(struct World *world) {
@@ -879,7 +897,7 @@ void agent_output_processor_range(struct World *world, uint32_t start, uint32_t 
     const float *gpu_out = NULL;
     if (vk && a->brain_chunk != ~0u) {
       BrainChunk *c = &vk->chunks[a->brain_chunk];
-      gpu_out = c->mapped_outputs[read_slot] + a->brain_index * BRAIN_OUTPUT_SIZE;
+      gpu_out = (const float *)c->outputs[read_slot].mapped + a->brain_index * BRAIN_OUTPUT_SIZE;
       // Recurrence: copy from GPU output to input staging for next frame
       memcpy(in_ptr + 18, gpu_out + 18, (BRAIN_INPUT_SIZE - 18) * sizeof(float));
     }
@@ -1202,7 +1220,7 @@ void agent_input_processor_range(struct World *world, uint32_t start, uint32_t e
 
     if (vk && a->brain_chunk != ~0u) {
       BrainChunk *c = &vk->chunks[a->brain_chunk];
-      memcpy(c->mapped_inputs[write_slot] + a->brain_index * BRAIN_INPUT_SIZE,
+      memcpy((float *)c->inputs[write_slot].mapped + a->brain_index * BRAIN_INPUT_SIZE,
              world->agent_inputs + i * AGENT_INPUT_FLOATS, BRAIN_INPUT_SIZE * sizeof(float));
     }
   }

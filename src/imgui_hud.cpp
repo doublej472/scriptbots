@@ -59,7 +59,7 @@ void imgui_draw_agent_hud(struct VKView *view) {
   if (view->vkstate && sel->brain_chunk != ~0u) {
     VKState *vk = view->vkstate;
     BrainChunk *c = &vk->chunks[sel->brain_chunk];
-    memcpy(sel_out_buf, c->mapped_outputs[(uint32_t)w->brain_slot] + sel->brain_index * BRAIN_OUTPUT_SIZE,
+    memcpy(sel_out_buf, (const float *)c->outputs[(uint32_t)w->brain_slot].mapped + sel->brain_index * BRAIN_OUTPUT_SIZE,
            BRAIN_OUTPUT_SIZE * sizeof(float));
   }
 
@@ -337,7 +337,6 @@ void imgui_draw_sim_controls(struct VKView *view) {
       VKVIEW.base->world->brain_slot = 0;
       VKState *vk = VKVIEW.vkstate;
       vkDeviceWaitIdle(vk->device);
-      vkResetFences(vk->device, 1, &vk->compute_fence);
       vkbrain_reset_counts(vk);
       size_t total = VKVIEW.base->world->agents.size;
       for (size_t i = 0; i < total; i++) {

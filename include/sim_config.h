@@ -60,7 +60,7 @@
 #define FOODGROWTH 0.35f                    // how quickly does food grow on a square
 #define FOODINTAKE 0.00225f                 // how much does every agent consume?
 #define FOODMAX 0.6f                        // how much food per cell can there be at max?
-#define FOOD_ADD_PER_FRAME (FOODMAX * 0.5f) // total food budget distributed per frame
+#define FOOD_ADD_PER_FRAME 2.0f             // total food budget distributed per frame
 #define FOOD_SPARSE_THRESHOLD 0.005f        // fraction of grid alive below which we seed randomly
 #define FOODTRANSFER 0.001f                 // how much is transferred between two agents trading food?
 #define FOOD_SHARING_DISTANCE 40.0f         // how far away is food shared between bots?

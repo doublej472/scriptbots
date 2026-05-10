@@ -156,19 +156,12 @@ void vkview_init(int argc, char **argv) {
   VkRenderPass rp = vkinit_get_render_pass(VKVIEW.vkstate);
 
   // ImGui descriptor pool
-  VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
-  };
-  VkDescriptorPoolCreateInfo dpci = {
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-      .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-      .maxSets = 4,
-      .poolSizeCount = 1,
-      .pPoolSizes = pool_sizes,
-  };
-  VkDescriptorPool imguiPool;
-  vkCreateDescriptorPool(dev, &dpci, NULL, &imguiPool);
-  VKVIEW.imgui_descriptor_pool = imguiPool;
+  {
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+    };
+    VKVIEW.imgui_descriptor_pool = vkm_descpool_create(dev, 4, pool_sizes, 1, true);
+  }
 
   VkInstance instance = vkinit_get_instance(VKVIEW.vkstate);
   VkSwapchainKHR swapchain = vkinit_get_swapchain(VKVIEW.vkstate);
@@ -184,7 +177,7 @@ void vkview_init(int argc, char **argv) {
   vkInfo.QueueFamily = qfam;
   vkInfo.Queue = queue;
   vkInfo.PipelineCache = VK_NULL_HANDLE;
-  vkInfo.DescriptorPool = imguiPool;
+  vkInfo.DescriptorPool = VKVIEW.imgui_descriptor_pool.pool;
   vkInfo.RenderPass = rp;
   vkInfo.Subpass = 0;
   vkInfo.MinImageCount = scImageCount;
@@ -209,7 +202,7 @@ void vkview_cleanup(void) {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 
-  vkDestroyDescriptorPool(dev, VKVIEW.imgui_descriptor_pool, NULL);
+  vkm_descpool_destroy(dev, &VKVIEW.imgui_descriptor_pool);
   vkinit_destroy(VKVIEW.vkstate);
   glfwDestroyWindow(VKVIEW.window);
   glfwTerminate();
@@ -286,18 +279,10 @@ void vkview_process_normal_key(int key, int mods) {
         VKVIEW.base->world->brain_slot = 0;
         VKState *vk = VKVIEW.vkstate;
         vkDeviceWaitIdle(vk->device);
-        vkResetFences(vk->device, 1, &vk->compute_fence);
         vkbrain_reset_counts(vk);
-        // Reassign GPU brain slots for loaded agents
         size_t total = VKVIEW.base->world->agents.size;
-        for (size_t i = 0; i < total; i++) {
-          struct Agent *a = VKVIEW.base->world->agents.agents[i];
-          a->brain_chunk = ~0u;
-          if (!vkbrain_assign_slot(vk, a, &a->brain_chunk, &a->brain_index)) {
-            fprintf(stderr, "GPU memory exhausted loading agent %zu\n", i);
-            break;
-          }
-        }
+        for (size_t i = 0; i < total; i++)
+          VKVIEW.base->world->agents.agents[i]->brain_chunk = ~0u;
         vkbrain_upload_all(vk, VKVIEW.base->world);
         vkbrain_try_reclaim_last(vk);
         // Seed both input buffer slots so first dispatch has valid data
@@ -444,6 +429,27 @@ void vkview_main_loop_headless(void) {
          VKVIEW.base->world->agents.size, steps);
 }
 
+// Read GPU timestamps from the previously completed frame into World::timing.
+// Called once per drawn frame after vkdraw_frame returns (previous compute
+// timeline was waited in world_wait_compute; previous in_flight fence was
+// waited at the top of vkdraw_frame).
+static void vkview_read_timestamps(const VKState *vk, struct World *w) {
+  if (!vk || !vk->timestamp_supported)
+    return;
+  uint32_t read_base = (1u - vk->timestamp_frame_idx) * 4;
+  struct { uint64_t value; uint64_t avail; } results[4];
+  if (vkGetQueryPoolResults(vk->device, vk->timestamp_pool, read_base, 4,
+                            sizeof(results), results, sizeof(results[0]),
+                            VK_QUERY_RESULT_64_BIT |
+                                VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) == VK_SUCCESS) {
+    float ns = vk->timestamp_period;
+    if (results[0].avail && results[1].avail)
+      w->timing.gpu_compute_ms = (float)((int64_t)(results[1].value - results[0].value)) * ns * 1e-6f;
+    if (results[2].avail && results[3].avail)
+      w->timing.gpu_draw_ms = (float)((int64_t)(results[3].value - results[2].value)) * ns * 1e-6f;
+  }
+}
+
 // ---- Main loop ----
 static const int MILLS_PER_UPDATE = 250;
 
@@ -524,27 +530,8 @@ void vkview_main_loop(void) {
       VKViewState vs = build_view_state(VKVIEW.vkstate);
       vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
 
-      // Read GPU timestamps from PREVIOUS frame's slot set.
-      // Compute: previous frame's compute_fence was waited in world_wait_compute.
-      // Graphics: previous frame's in_flight fence was waited at top of vkdraw_frame.
-      VKState *vk = VKVIEW.vkstate;
-      if (vk && vk->timestamp_supported) {
-        uint32_t read_base = (1u - vk->timestamp_frame_idx) * 4;
-        struct {
-          uint64_t value;
-          uint64_t avail;
-        } results[4];
-        if (vkGetQueryPoolResults(vk->device, vk->timestamp_pool, read_base, 4, sizeof(results), results,
-                                  sizeof(results[0]),
-                                  VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) == VK_SUCCESS) {
-          float ns = vk->timestamp_period;
-          struct World *w = VKVIEW.base->world;
-          if (results[0].avail && results[1].avail)
-            w->timing.gpu_compute_ms = (float)((int64_t)(results[1].value - results[0].value)) * ns * 1e-6f;
-          if (results[2].avail && results[3].avail)
-            w->timing.gpu_draw_ms = (float)((int64_t)(results[3].value - results[2].value)) * ns * 1e-6f;
-        }
-      }
+      // Read GPU timestamps from the previous frame's slot set
+      vkview_read_timestamps(VKVIEW.vkstate, VKVIEW.base->world);
     } else {
       // Even when not drawing, we need to pump events
       // A small sleep prevents busy-waiting

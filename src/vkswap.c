@@ -176,15 +176,14 @@ int vkswap_recreate(VKState *vk) {
 
   // Grow render_done array if needed (never shrink — old semaphores in use by present)
   if (vk->sc_count > vk->render_done_count) {
-    VkSemaphoreCreateInfo sci = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    VkSemaphore *old = vk->render_done;
+    VKM_Semaphore *old = vk->render_done;
     uint32_t old_count = vk->render_done_count;
-    vk->render_done = malloc(sizeof(VkSemaphore) * vk->sc_count);
+    vk->render_done = malloc(sizeof(VKM_Semaphore) * vk->sc_count);
     vk->render_done_count = vk->sc_count;
     for (uint32_t i = 0; i < old_count; i++)
       vk->render_done[i] = old[i];
     for (uint32_t i = old_count; i < vk->sc_count; i++)
-      vkCreateSemaphore(vk->device, &sci, NULL, &vk->render_done[i]);
+      vk->render_done[i] = vkm_semaphore_create(vk->device);
     free(old);
   }
 
@@ -197,7 +196,7 @@ void vkswap_destroy(VKState *vk) {
   // Destroy render_done semaphores
   if (vk->render_done) {
     for (uint32_t i = 0; i < vk->render_done_count; i++)
-      vkDestroySemaphore(vk->device, vk->render_done[i], NULL);
+      vkm_semaphore_destroy(vk->device, &vk->render_done[i]);
     free(vk->render_done);
     vk->render_done = NULL;
   }

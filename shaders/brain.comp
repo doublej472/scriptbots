@@ -1,8 +1,12 @@
-#version 450
+#version 460 core
+#extension GL_KHR_shader_subgroup_basic   : require
+#extension GL_KHR_shader_subgroup_shuffle : require
 #include "brain_config.h"
 
 layout(local_size_x = NEURONS_PER_LAYER) in;
 
+// Shared memory: each lane writes its activation before the layer loop,
+// then subgroupShuffle distributes the value from each lane to all others.
 shared float val[NEURONS_PER_LAYER];
 
 layout(set = 0, binding = 0, std430) readonly buffer BufW { uint w_packed[]; };
@@ -19,8 +23,10 @@ void main() {
     if (agent >= pc.agent_count) return;
     uint lane  = gl_LocalInvocationID.x;
 
+    // Load input into shared memory + register
     uint in_off = agent * NEURONS_PER_LAYER;
-    val[lane] = inp[in_off + lane];
+    float my_val = inp[in_off + lane];
+    val[lane] = my_val;
     barrier();
 
     uint base_u = agent * BRAIN_WEIGHT_UINTS;
@@ -31,12 +37,18 @@ void main() {
         uint loff = base_u + l * layer_uints;
 
         float sum = 0.0;
+        // Dense matrix-vector multiply via warp shuffle.
+        // subgroupShuffle(val, j) pulls the value from lane j into this lane.
+        // Since all lanes call it with the same j, each iteration distributes
+        // one lane's activation to the entire warp in a single cycle on RDNA3.
         for (uint j = 0; j < NEURONS_PER_LAYER; j++) {
+            float vj = subgroupShuffle(my_val, j);
+
             uint widx = loff + (j * NEURONS_PER_LAYER + lane) / FLOATS_PER_UINT;
             float w = ((j * NEURONS_PER_LAYER + lane) & 1u) == 0u
                        ? unpackHalf2x16(w_packed[widx]).x
                        : unpackHalf2x16(w_packed[widx]).y;
-            sum += val[j] * w;
+            sum += vj * w;
         }
 
         uint bidx = loff + weight_uints + lane / FLOATS_PER_UINT;
@@ -45,9 +57,10 @@ void main() {
                    : unpackHalf2x16(w_packed[bidx]).y;
         sum += b;
 
-        val[lane] = clamp(sum, 0.0, 1.0);
+        my_val = clamp(sum, 0.0, 1.0);
+        val[lane] = my_val;
         barrier();
     }
 
-    output_vals[in_off + lane] = val[lane];
+    output_vals[in_off + lane] = my_val;
 }

@@ -23,7 +23,7 @@ typedef struct VKView {
 
   // --- Vulkan state (opaque) ---
   struct VKState *vkstate;
-  VkDescriptorPool imgui_descriptor_pool;
+  VKM_DescPool imgui_descriptor_pool;
 
   // --- View state (same fields as old GLVIEW) ---
   struct Base *base;

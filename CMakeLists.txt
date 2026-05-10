@@ -33,9 +33,14 @@ set(SHADER_SOURCES
 
 set(SHADER_DEPS "${CMAKE_SOURCE_DIR}/include/brain_config.h")
 foreach(SHADER ${SHADER_SOURCES})
+    if("${SHADER}" STREQUAL "brain.comp")
+        set(SPV_TARGET_OPTION --target-spv=spv1.3 --target-env=vulkan1.2)
+    else()
+        set(SPV_TARGET_OPTION "")
+    endif()
     add_custom_command(
         OUTPUT "${SHADER_OUT_DIR}/${SHADER}.spv"
-        COMMAND glslc -O -I"${CMAKE_SOURCE_DIR}/include" "${SHADER_DIR}/${SHADER}" -o "${SHADER_OUT_DIR}/${SHADER}.spv"
+        COMMAND glslc -O ${SPV_TARGET_OPTION} -I"${CMAKE_SOURCE_DIR}/include" "${SHADER_DIR}/${SHADER}" -o "${SHADER_OUT_DIR}/${SHADER}.spv"
         DEPENDS "${SHADER_DIR}/${SHADER}" ${SHADER_DEPS}
         COMMENT "Compiling shader: ${SHADER}"
     )
@@ -154,6 +159,7 @@ find_package(glm CONFIG REQUIRED)
 
 # ---- New Vulkan sources ----
 target_sources(scriptbots PRIVATE
+	src/vk_mgmt.c
 	src/vkinit.c
 	src/vkswap.c
 	src/vkdraw.c
@@ -162,6 +168,7 @@ target_sources(scriptbots PRIVATE
 	src/imgui_hud.cpp
 	vendor/imgui/imgui_impl_glfw.cpp
 	vendor/imgui/imgui_impl_vulkan.cpp
+	include/vk_mgmt.h
 	include/vkhelpers.h
 	include/vkswap.h
 	include/vkview.h

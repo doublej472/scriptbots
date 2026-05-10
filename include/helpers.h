@@ -1,5 +1,4 @@
-#ifndef HELPERS_H
-#define HELPERS_H
+#pragma once
 #include <stddef.h>
 #include <stdint.h>
 
@@ -78,4 +77,3 @@ static inline double timer_elapsed_ms(struct timespec *t) {
   *t = now;
   return ms;
 }
-#endif

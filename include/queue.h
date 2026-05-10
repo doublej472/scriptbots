@@ -11,8 +11,8 @@ Done-count uses RELEASE on worker final-write and ACQUIRE on main-thread check
 so that the agent-field stores are visible before the main thread reads them.
 */
 
-#ifndef _QUEUE_H
-#define _QUEUE_H
+#ifndef QUEUE_H
+#define QUEUE_H
 
 #include <pthread.h>
 #include <stdint.h>
