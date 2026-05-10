@@ -184,7 +184,7 @@ static void create_pipelines(VKState *vk) {
 //     render_done semaphores)
 //
 // Preconditions: device, queue families, surface, timestamp_pool must be valid.
-static void setup_graphics(VKState *vk) {
+static void setup_graphics(VKState *vk, uint32_t numbots) {
   // Command pools
   vk->cmd_pool_gfx = vkm_cmdpool_create(vk->device, vk->gfx_family);
   vk->cmd_pool_compute = vkm_cmdpool_create(vk->device, vk->compute_family);
@@ -266,7 +266,7 @@ static void setup_graphics(VKState *vk) {
   vk->cam_ubo = vkm_buffer_create(vk, sizeof(CameraUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-  vk->agent_capacity = (uint32_t)NUMBOTS;
+  vk->agent_capacity = numbots;
   if (vk->agent_capacity < 65536)
     vk->agent_capacity = 65536;
   vk->agent_buf = vkm_buffer_create(vk, vk->agent_capacity * sizeof(AgentInstance),
@@ -528,7 +528,7 @@ static bool init_instance_device(VKState *vk, bool headless) {
     uint32_t fams[3];
     int fc = 0;
     if (!headless) fams[fc++] = vk->gfx_family;
-    if (vk->compute_family != fams[0]) fams[fc++] = vk->compute_family;
+    if (fc == 0 || vk->compute_family != fams[0]) fams[fc++] = vk->compute_family;
     if (vk->transfer_family != fams[0] && (fc < 2 || vk->transfer_family != fams[1]))
       fams[fc++] = vk->transfer_family;
 
@@ -591,7 +591,7 @@ static bool init_instance_device(VKState *vk, bool headless) {
 }
 
 // ---- Public API ----
-VKState *vkinit_create(GLFWwindow *window) {
+VKState *vkinit_create(GLFWwindow *window, uint32_t numbots) {
   VKState *vk = calloc(1, sizeof(VKState));
   vk->window = window;
 
@@ -600,13 +600,13 @@ VKState *vkinit_create(GLFWwindow *window) {
     return NULL;
   }
 
-  setup_graphics(vk);
-  vkbrain_init(vk, NUMBOTS);
+  setup_graphics(vk, numbots);
+  vkbrain_init(vk, numbots);
   printf("[Vulkan] Initialized successfully.\n");
   return vk;
 }
 
-VKState *vkinit_create_headless(void) {
+VKState *vkinit_create_headless(uint32_t numbots) {
   VKState *vk = calloc(1, sizeof(VKState));
 
   if (!init_instance_device(vk, true)) {
@@ -617,7 +617,7 @@ VKState *vkinit_create_headless(void) {
   vk->cmd_pool_compute = vkm_cmdpool_create(vk->device, vk->compute_family);
   vk->cmd_pool_transfer = vkm_cmdpool_create(vk->device, vk->transfer_family);
 
-  vkbrain_init(vk, NUMBOTS);
+  vkbrain_init(vk, numbots);
   printf("[Headless] Vulkan compute initialised successfully.\n");
   return vk;
 }

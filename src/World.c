@@ -269,13 +269,14 @@ void world_alloc(struct World *world) {
 }
 
 void world_populate(struct World *world, int initFood, size_t numbots) {
+  world->numbots = (uint32_t)numbots;
   avec_init(&world->agents, numbots);
   avec_init(&world->agents_staging, numbots);
 
   if (numbots > 100)
     printf("Adding bots, this may take a while...\n");
-  world_addRandomBots(world, (int32_t)numbots * .8);
-  for (int32_t i = 0; i < (int32_t)numbots * .2; ++i)
+  world_addRandomBots(world, (size_t)(numbots * .8));
+  for (size_t i = 0; i < (size_t)(numbots * .2); ++i)
     world_addCarnivore(world);
 
   foodGrid_init(&world->foodGrid);
@@ -417,7 +418,7 @@ void world_update(struct World *world) {
     world->current_epoch++;
   }
 
-  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % (int32_t)reportInterval == 0)) {
+  if (REPORTS_PER_EPOCH > 0 && (world->modcounter % reportInterval == 0)) {
     world_writeReport(world);
   }
 
@@ -471,20 +472,20 @@ void world_update(struct World *world) {
   int32_t newMostChildren = -1;
   int32_t prevMostChildren = -1;
 
-  for (int i = 0; i < (int)world->agents.size; i++) {
+  for (size_t i = 0; i < world->agents.size; i++) {
     struct Agent *a = world->agents.agents[i];
     if (a->health <= 0 && a->spiked == 1) {
-      world_dist_dead_agent(world, (size_t)i);
+      world_dist_dead_agent(world, i);
     }
     if (world->movieMode) {
       if (a == world->movie_agent) {
         prevMostChildren = a->numchildren;
         prevMovieAgent = a;
-        prevMovieIndex = (size_t)i;
+        prevMovieIndex = i;
       } else if (a->numchildren > newMostChildren) {
         newMostChildren = a->numchildren;
         newMovieAgent = a;
-        newMovieIndex = (size_t)i;
+        newMovieIndex = i;
       }
     }
   }
@@ -544,7 +545,7 @@ void world_update(struct World *world) {
 
 void world_setInputsRunBrain(struct World *world) {
   VKState *vk = world->brain_gpu;
-  uint32_t write_slot = vk ? 1u - (uint32_t)world->brain_slot : 0;
+  uint32_t write_slot = vk ? 1u - world->brain_slot : 0;
   world_dispatch(world->queue, QUEUE_PHASE_INPUTS, write_slot);
 }
 
@@ -566,7 +567,7 @@ void world_submit_compute(struct World *world) {
   VKState *vk = world->brain_gpu;
   if (!vk)
     return;
-  uint32_t read_slot = (uint32_t)world->brain_slot;
+  uint32_t read_slot = world->brain_slot;
   uint64_t signal_value = vk->compute_timeline_value++;
   VkTimelineSemaphoreSubmitInfo tsi = {
       .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
@@ -589,13 +590,13 @@ void world_record_compute(struct World *world) {
   if (!vk)
     return;
   // Record for NEXT frame's read slot (the slot we just wrote inputs to)
-  uint32_t next_slot = 1u - (uint32_t)world->brain_slot;
+  uint32_t next_slot = 1u - world->brain_slot;
   vkbrain_record_dispatch(vk, next_slot);
-  world->brain_slot = (int32_t)next_slot;
+  world->brain_slot = next_slot;
 }
 
 void world_processOutputs(struct World *world) {
-  uint32_t read_slot = (uint32_t)world->brain_slot;
+  uint32_t read_slot = world->brain_slot;
   world_dispatch(world->queue, QUEUE_PHASE_OUTPUTS, read_slot);
 }
 
@@ -725,9 +726,9 @@ void world_reset(struct World *world) {
     vkbrain_reset_counts(world->brain_gpu);
   }
 
-  avec_init(&world->agents_staging, NUMBOTS);
-  avec_init(&world->agents, NUMBOTS);
-  world_addRandomBots(world, NUMBOTS);
+  avec_init(&world->agents_staging, world->numbots);
+  avec_init(&world->agents, world->numbots);
+  world_addRandomBots(world, world->numbots);
   world_flush_staging(world);
 }
 
@@ -1236,7 +1237,7 @@ void world_seed_inputs(struct World *world) {
   VKState *vk = world->brain_gpu;
   if (!vk)
     return;
-  int32_t saved_slot = world->brain_slot;
+  uint32_t saved_slot = world->brain_slot;
   // Populate slot 0
   world->brain_slot = 1;
   world_setInputsRunBrain(world);

@@ -30,6 +30,7 @@ static void print_usage(void) {
   printf("\n");
   printf("Options:\n");
   printf("  -h, --headless        Run headless (no window, Vulkan compute only)\n");
+  printf("  -n, --numbots N      Start with N agents (default: %d)\n", NUMBOTS);
   printf("  -s, --steps N         Stop after N simulation steps (headless only)\n");
   printf("  -w, --world [FILE]    Load world from FILE (default: world.dat)\n");
   printf("  --help                Show this help message and exit\n");
@@ -57,6 +58,7 @@ int main(int argc, char **argv) {
   int headless = 0;
   int load_world = 0;
   int max_steps = 0;
+  int numbots = NUMBOTS;
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--help") == 0) {
       print_usage();
@@ -75,6 +77,12 @@ int main(int argc, char **argv) {
       if (i + 1 < argc && argv[i + 1][0] != '-') {
         strncpy(base.world_file, argv[++i], sizeof(base.world_file) - 1);
       }
+    } else if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--numbots") == 0) {
+      if (i + 1 < argc) {
+        numbots = atoi(argv[++i]);
+        if (numbots < 1)
+          numbots = 1;
+      }
     }
   }
 
@@ -85,11 +93,11 @@ int main(int argc, char **argv) {
   if (load_world) {
     if (!base_loadworld(&base)) {
       fprintf(stderr, "Falling back to new world.\n");
-      world_populate(world, /*initFood=*/1, NUMBOTS);
+      world_populate(world, /*initFood=*/1, numbots);
       load_world = 0;
     }
   } else {
-    world_populate(world, /*initFood=*/1, NUMBOTS);
+    world_populate(world, /*initFood=*/1, numbots);
   }
 
   signal(SIGINT, signal_handler);
@@ -126,7 +134,7 @@ int main(int argc, char **argv) {
     // ---- Headless path: Vulkan compute only, no window / swapchain / rendering ----
     memset(&VKVIEW, 0, sizeof(VKVIEW));
     VKVIEW.max_steps = max_steps;
-    VKVIEW.vkstate = vkinit_create_headless();
+    VKVIEW.vkstate = vkinit_create_headless((uint32_t)numbots);
     if (!VKVIEW.vkstate) {
       fprintf(stderr, "FATAL: Headless Vulkan init failed\n");
       return 1;
@@ -146,7 +154,7 @@ int main(int argc, char **argv) {
     vkinit_destroy_headless(VKVIEW.vkstate);
   } else {
     // ---- Windowed path: full GLFW + Vulkan graphics + ImGui ----
-    vkview_init(argc, argv);
+    vkview_init(argc, argv, (uint32_t)numbots);
     VKVIEW.base = &base;
     base.world->brain_gpu = VKVIEW.vkstate;
 

@@ -59,7 +59,7 @@ void imgui_draw_agent_hud(struct VKView *view) {
   if (view->vkstate && sel->brain_chunk != ~0u) {
     VKState *vk = view->vkstate;
     BrainChunk *c = &vk->chunks[sel->brain_chunk];
-    memcpy(sel_out_buf, (const float *)c->outputs[(uint32_t)w->brain_slot].mapped + sel->brain_index * BRAIN_OUTPUT_SIZE,
+    memcpy(sel_out_buf, (const float *)c->outputs[w->brain_slot].mapped + sel->brain_index * BRAIN_OUTPUT_SIZE,
            BRAIN_OUTPUT_SIZE * sizeof(float));
   }
 
@@ -280,6 +280,10 @@ void imgui_draw_sim_controls(struct VKView *view) {
   if (ImGui::Checkbox("Closed env", &cl))
     w->closed = cl ? 1 : 0;
 
+  bool da = view->draw_agents;
+  if (ImGui::Checkbox("Draw agents", &da))
+    view->draw_agents = da ? 1 : 0;
+  ImGui::SameLine();
   bool df = view->drawfood;
   if (ImGui::Checkbox("Draw food", &df))
     view->drawfood = df ? 1 : 0;

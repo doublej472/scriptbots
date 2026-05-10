@@ -66,7 +66,7 @@ static void update_camera(VKState *vk, const VKViewState *view) {
 }
 
 // ---- Update agent SSBO ----
-static int update_agents(VKState *vk, const VKViewState *view) {
+static uint32_t update_agents(VKState *vk, const VKViewState *view) {
   struct World *w = view->base->world;
   if (!vk->agent_buf.mapped)
     return 0;
@@ -141,7 +141,7 @@ static void update_food(VKState *vk, const VKViewState *view) {
 // food grid (SSBO-based fullscreen quad), agent bodies (instanced
 // circle fan), selection/indicator rings, view cone + spike lines,
 // HUD elements, optional ImGui, render pass end.
-static void record_draws(VkCommandBuffer cmd, VKState *vk, const VKViewState *view, int agentCount,
+static void record_draws(VkCommandBuffer cmd, VKState *vk, const VKViewState *view, uint32_t agentCount,
                          vkdraw_imgui_cb imgui_cb, void *imgui_user, uint32_t imgIdx) {
   // CPU writes → GPU reads: camera UBO (uniform), agent SSBO (storage), food SSBO (storage)
   VkBufferMemoryBarrier bufBarriers[3] = {
@@ -205,41 +205,44 @@ static void record_draws(VkCommandBuffer cmd, VKState *vk, const VKViewState *vi
   // Back to agent descriptor set
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipeline_layout, 0, 1, &vk->desc_set, 0, NULL);
 
-  VkDeviceSize vbOff = 0;
+  // Agent bodies, selection rings, indicator rings (conditional on draw_agents)
+  if (view->draw_agents) {
+    VkDeviceSize vbOff = 0;
 
-  // Agent bodies
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle.pipeline);
-  vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_circle.buffer, &vbOff);
-  PushConstCircle pcBody = {.botRadius = BOTRADIUS, .agentOffset = 0, .type = 0};
-  vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcBody), &pcBody);
-  vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
+    // Agent bodies
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_circle.pipeline);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_circle.buffer, &vbOff);
+    PushConstCircle pcBody = {.botRadius = BOTRADIUS, .agentOffset = 0, .type = 0};
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcBody), &pcBody);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
-  // Selection rings
-  PushConstCircle pcSel = {.botRadius = BOTRADIUS + 5.0f, .type = 1};
-  vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcSel), &pcSel);
-  vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
+    // Selection rings
+    PushConstCircle pcSel = {.botRadius = BOTRADIUS + 5.0f, .type = 1};
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcSel), &pcSel);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
-  // Indicator / event rings
-  PushConstCircle pcInd = {.botRadius = BOTRADIUS, .type = 2};
-  vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcInd), &pcInd);
-  vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
+    // Indicator / event rings
+    PushConstCircle pcInd = {.botRadius = BOTRADIUS, .type = 2};
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcInd), &pcInd);
+    vkCmdDraw(cmd, vk->mesh_circle_verts, agentCount, 0, 0);
 
-  // View cone + spike lines
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_lines.pipeline);
-  vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_lines.buffer, &vbOff);
-  PushConstLines pcLines = {.coneLength = BOTRADIUS * 4.0f, .spikeScale = BOTRADIUS * 3.0f};
-  vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcLines), &pcLines);
-  vkCmdDraw(cmd, vk->mesh_lines_verts, agentCount, 0, 0);
+    // View cone + spike lines
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_lines.pipeline);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_lines.buffer, &vbOff);
+    PushConstLines pcLines = {.coneLength = BOTRADIUS * 4.0f, .spikeScale = BOTRADIUS * 3.0f};
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcLines), &pcLines);
+    vkCmdDraw(cmd, vk->mesh_lines_verts, agentCount, 0, 0);
 
-  // HUD elements
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_hud.pipeline);
-  vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_hud.buffer, &vbOff);
-  PushConstHud pcHud = {.agentOffset = 0};
-  vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcHud), &pcHud);
-  vkCmdDraw(cmd, 4, agentCount, 0, 0);
-  vkCmdDraw(cmd, 4, agentCount, 4, 0);
-  vkCmdDraw(cmd, 4, agentCount, 8, 0);
-  vkCmdDraw(cmd, 4, agentCount, 12, 0);
+    // HUD elements
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->pipe_hud.pipeline);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vk->mesh_hud.buffer, &vbOff);
+    PushConstHud pcHud = {.agentOffset = 0};
+    vkCmdPushConstants(cmd, vk->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pcHud), &pcHud);
+    vkCmdDraw(cmd, 4, agentCount, 0, 0);
+    vkCmdDraw(cmd, 4, agentCount, 4, 0);
+    vkCmdDraw(cmd, 4, agentCount, 8, 0);
+    vkCmdDraw(cmd, 4, agentCount, 12, 0);
+  }
 
   if (imgui_cb)
     imgui_cb(cmd, imgui_user);
@@ -285,7 +288,7 @@ void vkdraw_frame(VKState *vk, const VKViewState *view, vkdraw_imgui_cb imgui_cb
   update_food(vk, view);
   now = timer_since_ms(&t0);
   w->timing.draw_upload = (float)now;
-  w->timing.agent_count = (uint32_t)agentCount;
+  w->timing.agent_count = agentCount;
   prev = now;
 
   // Record commands + submit

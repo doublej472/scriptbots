@@ -21,10 +21,10 @@
 // ---- REPORTING ----
 #define REPORTS_PER_EPOCH 100
 // number of times to record data and output status info, per epoch
-#define reportInterval (10000.0f / REPORTS_PER_EPOCH)
+#define reportInterval (10000 / REPORTS_PER_EPOCH)
 
 // ---- BOT PROPERTIES ----
-#define NUMBOTS 30000           // initially
+#define NUMBOTS 10000           // initially
 #define NUMBOTS_MIN 20          // for open world, the threshold to start adding bots
 #define NUMBOTS_CLOSE 256       // maximum number of bots to consider when checking close bots
 #define BOTRADIUS 10.0f         // for drawing

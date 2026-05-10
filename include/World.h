@@ -33,8 +33,10 @@ struct World {
   // if environment is closed, then no random bots are added per time interval
   int32_t closed;
 
+  uint32_t numbots; // configured initial agent count for creation / reset
+
   int32_t touch;
-  int32_t brain_slot; // 0 or 1 — which double-buffer slot current GPU compute reads/writes
+  uint32_t brain_slot; // 0 or 1 — which double-buffer slot current GPU compute reads/writes
 
   VKState *brain_gpu; // GPU brain state (null if no GPU)
 

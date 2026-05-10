@@ -37,6 +37,7 @@ static VKViewState build_view_state(struct VKState *vk) {
       .xtranslate = VKVIEW.xtranslate,
       .ytranslate = VKVIEW.ytranslate,
       .drawfood = VKVIEW.drawfood,
+      .draw_agents = VKVIEW.draw_agents,
       .base = VKVIEW.base,
   };
 }
@@ -47,7 +48,7 @@ static void glfw_error_callback(int err, const char *desc) { fprintf(stderr, "[G
 // CheckVkResult helper for ImGui
 static void check_vk_result(VkResult err) {
   if (err != VK_SUCCESS) {
-    fprintf(stderr, "[Vulkan] ImGui error: VkResult = %d\n", (int)err);
+    fprintf(stderr, "[Vulkan] ImGui error: VkResult = %d\n", err);
   }
 }
 
@@ -63,7 +64,7 @@ static void scroll_callback(GLFWwindow *w, double xoff, double yoff);
 static void cursor_pos_callback(GLFWwindow *w, double x, double y);
 
 // ---- Init ----
-void vkview_init(int argc, char **argv) {
+void vkview_init(int argc, char **argv, uint32_t numbots) {
   (void)argc;
   (void)argv;
 
@@ -71,7 +72,7 @@ void vkview_init(int argc, char **argv) {
 
   // View state defaults (matches old GLVIEW init)
   VKVIEW.paused = 0;
-  VKVIEW.draw = 1;
+  VKVIEW.draw_agents = 1;
   VKVIEW.drawfood = 1;
   VKVIEW.draw_text = 1;
   VKVIEW.modcounter = 0;
@@ -118,7 +119,7 @@ void vkview_init(int argc, char **argv) {
   glfwSetScrollCallback(VKVIEW.window, scroll_callback);
   glfwSetCursorPosCallback(VKVIEW.window, cursor_pos_callback);
   // Init Vulkan
-  VKVIEW.vkstate = vkinit_create(VKVIEW.window);
+  VKVIEW.vkstate = vkinit_create(VKVIEW.window, numbots);
   if (!VKVIEW.vkstate) {
     fprintf(stderr, "FATAL: Vulkan init failed\n");
     exit(1);
@@ -240,7 +241,7 @@ void vkview_process_normal_key(int key, int mods) {
     VKVIEW.paused = !VKVIEW.paused;
     break;
   case GLFW_KEY_D:
-    VKVIEW.draw = !VKVIEW.draw;
+    VKVIEW.draw_agents = !VKVIEW.draw_agents;
     break;
   case GLFW_KEY_F:
     if (mods & GLFW_MOD_CONTROL)
@@ -414,6 +415,9 @@ static bool vkview_recreate_swapchain_if_needed(VKView *view) {
 // ---- Headless main loop ----
 void vkview_main_loop_headless(void) {
   int steps = 0;
+  struct timespec report_time;
+  timer_reset(&report_time);
+
   while (VKVIEW.base->world->stopSim == 0) {
     if (VKVIEW.max_steps > 0 && steps >= VKVIEW.max_steps)
       break;
@@ -424,6 +428,24 @@ void vkview_main_loop_headless(void) {
 
     world_update(VKVIEW.base->world);
     steps++;
+
+    // Periodic status report (wall-clock ~1 s intervals)
+    double elapsed = timer_since_ms(&report_time);
+    if (elapsed >= 1000.0) {
+      timer_reset(&report_time);
+      struct World *w = VKVIEW.base->world;
+      float sim_ms = w->timing.food_update + w->timing.spatial_sort + w->timing.compute_submit +
+                     w->timing.input_staging + w->timing.gpu_wait + w->timing.output_processing +
+                     w->timing.death_repro + w->timing.flush_staging + w->timing.record_compute;
+      float steps_per_sec = 1e3f / sim_ms;
+      printf("[epoch %3d | step %7d]  agents: %5zu (H:%d C:%d)  %.0f steps/s  CPU: %.1f ms",
+             w->current_epoch, steps, w->agents.size,
+             world_numHerbivores(w), world_numCarnivores(w),
+             steps_per_sec, sim_ms);
+      if (w->timing.gpu_compute_ms > 0.0f)
+        printf("  GPU: %.1f ms", w->timing.gpu_compute_ms);
+      printf("\n");
+    }
   }
   printf("Headless simulation stopped (epoch %d, %zu agents, %d steps)\n", VKVIEW.base->world->current_epoch,
          VKVIEW.base->world->agents.size, steps);
@@ -514,29 +536,24 @@ void vkview_main_loop(void) {
       VKVIEW.maxFrameMs = 0.0f;
     }
 
-    if (VKVIEW.draw) {
-      // Start ImGui frame
-      ImGui_ImplVulkan_NewFrame();
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
+    // Start ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
-      imgui_draw_agent_hud(&VKVIEW);
-      imgui_draw_performance(&VKVIEW);
-      imgui_draw_sim_controls(&VKVIEW);
+    imgui_draw_agent_hud(&VKVIEW);
+    imgui_draw_performance(&VKVIEW);
+    imgui_draw_sim_controls(&VKVIEW);
 
-      ImGui::Render();
+    ImGui::Render();
 
-      // Draw world via Vulkan (+ ImGui rendered inside same pass)
-      VKViewState vs = build_view_state(VKVIEW.vkstate);
-      vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
+    // Draw world via Vulkan (+ ImGui rendered inside same pass)
+    VKViewState vs = build_view_state(VKVIEW.vkstate);
+    vkdraw_frame(VKVIEW.vkstate, &vs, render_imgui_to_cmd, NULL);
 
-      // Read GPU timestamps from the previous frame's slot set
-      vkview_read_timestamps(VKVIEW.vkstate, VKVIEW.base->world);
-    } else {
-      // Even when not drawing, we need to pump events
-      // A small sleep prevents busy-waiting
-      glfwWaitEventsTimeout(0.001);
-    }
+    // Read GPU timestamps from the previous frame's slot set
+    vkview_read_timestamps(VKVIEW.vkstate, VKVIEW.base->world);
+
     if (w)
       w->timing.frame_total_ms = (float)timer_since_ms(&t_frame);
 

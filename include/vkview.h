@@ -28,7 +28,7 @@ typedef struct VKView {
   // --- View state (same fields as old GLVIEW) ---
   struct Base *base;
   int paused;
-  int draw;
+  int draw_agents;
   int drawfood;
   char buf[100];
   char buf2[256];
@@ -62,7 +62,7 @@ typedef struct VKView {
 extern VKView VKVIEW;
 
 // Lifecycle
-void vkview_init(int argc, char **argv);
+void vkview_init(int argc, char **argv, uint32_t numbots);
 void vkview_main_loop(void);
 void vkview_main_loop_headless(void);
 void vkview_cleanup(void);

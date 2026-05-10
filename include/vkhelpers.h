@@ -78,6 +78,7 @@ typedef struct VKViewState {
   float scalemult;
   float xtranslate, ytranslate;
   int drawfood;
+  int draw_agents;
   struct Base *base;
 } VKViewState;
 
@@ -196,8 +197,8 @@ typedef struct VKState {
 } VKState;
 
 // ---- VKState accessors ----
-VKState *vkinit_create(GLFWwindow *window);
-VKState *vkinit_create_headless(void);
+VKState *vkinit_create(GLFWwindow *window, uint32_t numbots);
+VKState *vkinit_create_headless(uint32_t numbots);
 void vkinit_destroy(VKState *vk);
 void vkinit_destroy_headless(VKState *vk);
 
